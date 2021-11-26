@@ -15,6 +15,8 @@
 typedef enum { P_BLACK, P_WHITE } player_t;
 typedef enum { B_EMPTY, B_WHITE, B_BLACK, B_IGNORE } board_t;
 
+FILE *fh = fopen("/tmp/input.dat", "a+");
+
 class Vertex
 {
 private:
@@ -361,6 +363,26 @@ std::vector<empty_vertexes_t> findValidEmptyVertexes(const Board & b, const play
 	return out;
 }
 
+void play(Board *const b, const Vertex & v, const player_t & p)
+{
+	b->setAt(v, p == P_BLACK ? B_BLACK : B_WHITE);
+
+	std::vector<chain_t> chainsWhite, chainsBlack;
+	findChains(*b, &chainsWhite, &chainsBlack);
+
+	std::vector<chain_t> & scan = p == P_BLACK ? chainsWhite : chainsBlack;
+
+	for(auto chain : scan) {
+		if (chain.freedoms.empty()) {
+			for(auto v : chain.chain) {
+				b->setAt(v, B_EMPTY);
+				fprintf(fh, "purge %s\n", v2t(v).c_str());
+			}
+			fflush(fh);
+		}
+	}
+}
+
 std::optional<Vertex> genMove(const Board & b, const player_t & p)
 {
 	std::vector<chain_t> chainsWhite, chainsBlack;
@@ -377,8 +399,6 @@ std::optional<Vertex> genMove(const Board & b, const player_t & p)
 int main(int argc, char *argv[])
 {
 	Board *b = new Board(9);
-
-	FILE *fh = fopen("/tmp/input.dat", "a+");
 
 	setbuf(stdout, NULL);
 	setbuf(stderr, NULL);
@@ -424,7 +444,7 @@ int main(int argc, char *argv[])
 		}
 		else if (parts.at(0) == "play") {
 			Vertex v = t2v(parts.at(2), b->getDim());
-			b->setAt(v, parts.at(1) == "b" ? B_BLACK : B_WHITE);
+			play(b, v, (parts.at(1) == "b" || parts.at(1) == "black") ? P_BLACK : P_WHITE);
 			printf("=%s\n\n", id.c_str());
 		}
 		else if (parts.at(0) == "dump") {
@@ -462,7 +482,8 @@ int main(int argc, char *argv[])
 
 			if (v.has_value()) {
 				printf("=%s %s\n\n", id.c_str(), v2t(v.value()).c_str());
-				b->setAt(v.value(), player == P_BLACK ? B_BLACK : B_WHITE);
+
+				play(b, v.value(), player);
 			}
 			else {
 				printf("=%s pass\n\n", id.c_str());
