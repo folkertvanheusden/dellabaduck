@@ -6,6 +6,7 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <time.h>
 #include <vector>
 
@@ -54,6 +55,19 @@ std::string v2t(const Vertex & v)
 
 	return myformat("%c%c", xc, '1' + v.getY());
 
+}
+
+Vertex t2v(const std::string & str, const int dim)
+{
+	char xc = tolower(str.at(0));
+	assert(xc != 'i');
+	if (xc >= 'j')
+		xc--;
+	int x = xc - 'a';
+
+	int y = str.at(1) - '1';
+
+	return Vertex(x, y, dim);
 }
 
 auto vertexCmp = [](const Vertex & a, const Vertex & b)
@@ -150,6 +164,10 @@ public:
 		assert(v < dim * dim);
 		assert(v >= 0);
 		b[v] = bv;
+	}
+
+	void setAt(const Vertex & v, const board_t bv) {
+		b[v.getV()] = bv;
 	}
 
 	void setAt(const int x, const int y, const board_t bv) {
@@ -344,30 +362,72 @@ std::vector<empty_vertexes_t> findValidEmptyVertexes(const Board & b, const play
 	return out;
 }
 
+std::optional<Vertex> genMove(const Board & b)
+{
+	return { };
+}
+
 int main(int argc, char *argv[])
 {
-	Board b = stringToBoard(
-			".........\n"
-			".........\n"
-			".........\n"
-			".........\n"
-			".........\n"
-			".xxxx....\n"
-			".x..x....\n"
-			".xxxx....\n"
-			".........\n"
-			);
+	Board *b = new Board(9);
 
+	for(;;) {
+		char buffer[4096] { 0 };
+		if (!fgets(buffer, sizeof buffer, stdin))
+			break;
 
-	dump(b);
+		char *lf = strchr(buffer, '\n');
+		if (lf)
+			*lf = 0x00;
 
-	std::vector<chain_t> chainsWhite, chainsBlack;
-	findChains(b, &chainsWhite, &chainsBlack);
-	dump(chainsWhite);
-	dump(chainsBlack);
+		std::vector<std::string> parts = split(buffer, " ");
 
-	std::vector<empty_vertexes_t> evs = findValidEmptyVertexes(b, P_WHITE, chainsBlack);
-	dump(evs);
+		if (parts.at(0) == "protocol_version")
+			printf("= 2\n\n");
+		else if (parts.at(0) == "name")
+			printf("= DellaBaduck\n\n");
+		else if (parts.at(0) == "version")
+			printf("= 0.1\n\n");
+		else if (parts.at(0) == "boardsize") {
+			delete b;
+			b = new Board(atoi(parts.at(1).c_str()));
+			printf("=\n\n");
+		}
+		else if (parts.at(0) == "clear_board") {
+			int dim = b->getDim();
+			delete b;
+			b = new Board(dim);
+			printf("=\n\n");
+		}
+		else if (parts.at(0) == "play") {
+			Vertex v = t2v(parts.at(2), b->getDim());
+			b->setAt(v, parts.at(1) == "b" ? B_BLACK : B_WHITE);
+			printf("=\n\n");
+		}
+		else if (parts.at(0) == "dump") {
+			dump(*b);
+		}
+		else if (parts.at(0) == "list_commands") {
+			printf("= name\n");
+			printf("= version\n");
+			printf("= boardsize\n");
+			printf("= clear_board\n");
+			printf("= play\n");
+			printf("= genmove\n");
+			printf("\n");
+		}
+		else if (parts.at(0) == "genmove") {
+			player_t player = parts.at(1) == "b" ? P_BLACK : P_WHITE;
+			auto v = genMove(*b);
+
+			if (v.has_value())
+				printf("= %s\n\n", v2t(v.value()).c_str());
+			else
+				printf("= pass\n\n");
+		}
+
+		fflush(nullptr);
+	}
 
 	return 0;
 }
