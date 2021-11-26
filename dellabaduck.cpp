@@ -374,11 +374,8 @@ void play(Board *const b, const Vertex & v, const player_t & p)
 
 	for(auto chain : scan) {
 		if (chain.freedoms.empty()) {
-			for(auto v : chain.chain) {
+			for(auto v : chain.chain)
 				b->setAt(v, B_EMPTY);
-				fprintf(fh, "purge %s\n", v2t(v).c_str());
-			}
-			fflush(fh);
 		}
 	}
 }
@@ -415,7 +412,7 @@ int main(int argc, char *argv[])
 		if (buffer[0] == 0x00)
 			continue;
 
-		fprintf(fh, "%s\n", buffer);
+		fprintf(fh, "> %s\n", buffer);
 
 		std::vector<std::string> parts = split(buffer, " ");
 
@@ -482,6 +479,7 @@ int main(int argc, char *argv[])
 
 			if (v.has_value()) {
 				printf("=%s %s\n\n", id.c_str(), v2t(v.value()).c_str());
+				fprintf(fh, "< %s\n", v2t(v.value()).c_str());
 
 				play(b, v.value(), player);
 			}
