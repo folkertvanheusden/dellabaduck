@@ -53,8 +53,7 @@ std::string v2t(const Vertex & v)
 	if (xc >= 'I')
 		xc++;
 
-	return myformat("%c%c", xc, '1' + v.getY());
-
+	return myformat("%c%d", xc, v.getY() + 1);
 }
 
 Vertex t2v(const std::string & str, const int dim)
@@ -65,7 +64,7 @@ Vertex t2v(const std::string & str, const int dim)
 		xc--;
 	int x = xc - 'a';
 
-	int y = str.at(1) - '1';
+	int y = atoi(str.substr(1).c_str()) - 1;
 
 	return Vertex(x, y, dim);
 }
@@ -362,14 +361,27 @@ std::vector<empty_vertexes_t> findValidEmptyVertexes(const Board & b, const play
 	return out;
 }
 
-std::optional<Vertex> genMove(const Board & b)
+std::optional<Vertex> genMove(const Board & b, const player_t & p)
 {
-	return { };
+	std::vector<chain_t> chainsWhite, chainsBlack;
+	findChains(b, &chainsWhite, &chainsBlack);
+
+	std::vector<empty_vertexes_t> evs = findValidEmptyVertexes(b, p, p == P_BLACK ? chainsBlack : chainsWhite);
+
+	if (evs.empty())
+		return { };
+
+	return *evs.at(0).empty.begin();
 }
 
 int main(int argc, char *argv[])
 {
 	Board *b = new Board(9);
+
+	FILE *fh = fopen("/tmp/input.dat", "a+");
+
+	setbuf(stdout, NULL);
+	setbuf(stderr, NULL);
 
 	for(;;) {
 		char buffer[4096] { 0 };
@@ -380,54 +392,90 @@ int main(int argc, char *argv[])
 		if (lf)
 			*lf = 0x00;
 
+		if (buffer[0] == 0x00)
+			continue;
+
+		fprintf(fh, "%s\n", buffer);
+
 		std::vector<std::string> parts = split(buffer, " ");
 
+		std::string id;
+		if (isdigit(parts.at(0).at(0))) {
+			id = parts.at(0);
+			parts.erase(parts.begin() + 0);
+		}
+
 		if (parts.at(0) == "protocol_version")
-			printf("= 2\n\n");
+			printf("=%s 2\n\n", id.c_str());
 		else if (parts.at(0) == "name")
-			printf("= DellaBaduck\n\n");
+			printf("=%s DellaBaduck\n\n", id.c_str());
 		else if (parts.at(0) == "version")
-			printf("= 0.1\n\n");
+			printf("=%s 0.1\n\n", id.c_str());
 		else if (parts.at(0) == "boardsize") {
 			delete b;
 			b = new Board(atoi(parts.at(1).c_str()));
-			printf("=\n\n");
+			printf("=%s\n\n", id.c_str());
 		}
 		else if (parts.at(0) == "clear_board") {
 			int dim = b->getDim();
 			delete b;
 			b = new Board(dim);
-			printf("=\n\n");
+			printf("=%s\n\n", id.c_str());
 		}
 		else if (parts.at(0) == "play") {
 			Vertex v = t2v(parts.at(2), b->getDim());
 			b->setAt(v, parts.at(1) == "b" ? B_BLACK : B_WHITE);
-			printf("=\n\n");
+			printf("=%s\n\n", id.c_str());
 		}
 		else if (parts.at(0) == "dump") {
 			dump(*b);
 		}
+		else if (parts.at(0) == "quit")
+			break;
+		else if (parts.at(0) == "known_command") {  // TODO
+			if (parts.at(1) == "known_command")
+				printf("=%s true\n\n", id.c_str());
+			else
+				printf("=%s false\n\n", id.c_str());
+		}
+		else if (parts.at(0) == "komi") {
+			printf("=%s\n\n", id.c_str());  // TODO
+		}
+		else if (parts.at(0) == "time_settings") {
+			printf("=%s\n\n", id.c_str());  // TODO
+		}
+		else if (parts.at(0) == "time_left") {
+			printf("=%s\n\n", id.c_str());  // TODO
+		}
 		else if (parts.at(0) == "list_commands") {
-			printf("= name\n");
-			printf("= version\n");
-			printf("= boardsize\n");
-			printf("= clear_board\n");
-			printf("= play\n");
-			printf("= genmove\n");
+			printf("=%s name\n", id.c_str());
+			printf("=%s version\n", id.c_str());
+			printf("=%s boardsize\n", id.c_str());
+			printf("=%s clear_board\n", id.c_str());
+			printf("=%s play\n", id.c_str());
+			printf("=%s genmove\n", id.c_str());
 			printf("\n");
 		}
 		else if (parts.at(0) == "genmove") {
-			player_t player = parts.at(1) == "b" ? P_BLACK : P_WHITE;
-			auto v = genMove(*b);
+			player_t player = (parts.at(1) == "b" || parts.at(1) == "black") ? P_BLACK : P_WHITE;
+			auto v = genMove(*b, player);
 
-			if (v.has_value())
-				printf("= %s\n\n", v2t(v.value()).c_str());
-			else
-				printf("= pass\n\n");
+			if (v.has_value()) {
+				printf("=%s %s\n\n", id.c_str(), v2t(v.value()).c_str());
+				b->setAt(v.value(), player == P_BLACK ? B_BLACK : B_WHITE);
+			}
+			else {
+				printf("=%s pass\n\n", id.c_str());
+			}
+		}
+		else {
+			printf("?\n\n");
 		}
 
 		fflush(nullptr);
 	}
+
+	fclose(fh);
 
 	return 0;
 }
