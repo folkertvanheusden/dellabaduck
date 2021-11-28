@@ -470,7 +470,7 @@ bool isValidMove(const std::vector<chain_t *> & chainsEmpty, const Vertex & v)
 	return false;
 }
 
-void selectRandom(const std::vector<chain_t *> & chainsWhite, const std::vector<chain_t *> & chainsBlack, const std::vector<chain_t *> & chainsEmpty, std::vector<eval_t> *const evals)
+void selectRandom(const ChainMap & cm, const std::vector<chain_t *> & chainsWhite, const std::vector<chain_t *> & chainsBlack, const std::vector<chain_t *> & chainsEmpty, std::vector<eval_t> *const evals)
 {
 	auto chain = chainsEmpty.at(rand() % chainsEmpty.size());
 	size_t chainSize = chain->chain.size();
@@ -509,7 +509,7 @@ std::optional<Vertex> genMove(const Board & b, const player_t & p)
                 evals.push_back({ 0, false });
 
 	// algorithms
-	selectRandom(chainsWhite, chainsBlack, chainsEmpty, &evals);
+	selectRandom(cm, chainsWhite, chainsBlack, chainsEmpty, &evals);
 
 	// find best
 	std::optional<Vertex> v;
