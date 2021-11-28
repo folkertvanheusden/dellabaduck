@@ -592,6 +592,45 @@ std::optional<Vertex> genMove(const Board & b, const player_t & p)
 	return v;
 }
 
+double benchmark(const Board & in, const int ms)
+{
+	// benchmark
+	uint64_t start = get_ts_ms(), end = 0;
+	uint64_t n = 0;
+
+	do {
+		Board b(in);
+
+		player_t p = P_BLACK;
+
+		int mc = 0;
+
+		for(;;) {
+			auto v = genMove(b, p);
+			if (!v.has_value())
+				break;
+
+			play(&b, v.value(), p);
+
+			p = p == P_BLACK ? P_WHITE : P_BLACK;
+			mc++;
+
+			if (mc == 150)
+				break;
+		}
+
+		n++;
+
+		end = get_ts_ms();
+	}
+	while(end - start < ms);
+
+	double pops = n * double(ms) / (end - start);
+	fprintf(fh, "%f\n", pops);
+
+	return pops;
+}
+
 void load_stones(Board *const b, const char *in, const board_t & bv)
 {
 	while(in[0] == '[') {
@@ -759,6 +798,12 @@ int main(int argc, char *argv[])
 			else
 				printf("=%s false\n\n", id.c_str());
 		}
+		else if (parts.at(0) == "benchmark") {
+			// play outs per second
+			double pops = benchmark(*b, atoi(parts.at(1).c_str()));
+
+			printf("=%s %f\n\n", id.c_str(), pops);
+		}
 		else if (parts.at(0) == "komi") {
 			printf("=%s\n\n", id.c_str());  // TODO
 		}
@@ -812,39 +857,6 @@ int main(int argc, char *argv[])
 	}
 
 	delete b;
-#elif 0
-	// benchmark
-	uint64_t start = get_ts_ms(), end = 0;
-	uint64_t n = 0;
-
-	do {
-		Board b(9);
-
-		player_t p = P_BLACK;
-
-		int mc = 0;
-
-		for(;;) {
-			auto v = genMove(b, p);
-			if (!v.has_value())
-				break;
-
-			play(b, v.value(), p);
-
-			p = p == P_BLACK ? P_WHITE : P_BLACK;
-			mc++;
-
-			if (mc == 150)
-				break;
-		}
-
-		n++;
-
-		end = get_ts_ms();
-	}
-	while(end - start < 5000);
-
-	printf("%f\n", n * 1000.0 / (end - start));
 #endif
 	fclose(fh);
 
