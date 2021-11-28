@@ -13,7 +13,7 @@
 #include "str.h"
 
 typedef enum { P_BLACK, P_WHITE } player_t;
-typedef enum { B_EMPTY, B_WHITE, B_BLACK } board_t;
+typedef enum { B_EMPTY, B_WHITE, B_BLACK, B_BORDER } board_t;
 const char *const board_t_names[] = { "empty", "white", "black" };
 
 FILE *fh = fopen("/tmp/input.dat", "a+");
@@ -239,10 +239,31 @@ class ChainMap {
 private:
 	const int dim;
 	chain_t **const cm;
+	chain_t border;
 
 public:
 	ChainMap(const int dim) : dim(dim), cm(new chain_t *[(dim + 2) * (dim + 2)]()) {
 		assert(dim & 1);
+
+		border.type = B_BORDER;
+
+		int workDim = dim + 2;
+		int workSize = workDim * workDim;
+
+		for(int i=0; i<workDim; i++) {
+			// top
+			cm[i] = &border;
+			cm[i + workDim] = &border;
+			// bottom
+			cm[workSize - i - 1] = &border;
+			cm[workSize - i - 1 - workDim] = &border;
+			// left
+			cm[i * workDim] = &border;
+			cm[i * workDim + 1] = &border;
+			// right
+			cm[i * workDim + workDim - 1] = &border;
+			cm[i * workDim + workDim - 2] = &border;
+		}
 	}
 
 	~ChainMap() {
@@ -394,32 +415,43 @@ void purgeFreedoms(std::vector<chain_t *> *const chainsPurge, ChainMap & cm, con
 	for(auto it = chainsPurge->begin(); it != chainsPurge->end();) {
 		bool considerPurge = false;
 
-		// - if a freedom is 'connected to an opponent chain' with 1
-		//   freedom, then valid
-		// - if a freedom is 'connected to a chain of myself' with 1
-		//   freedom, then invalid
-		for(auto stone : (*it)->chain) {
-			const int x = stone.getX();
-			const int y = stone.getY();
+		fprintf(fh, "considering:\n");
+		dump(**it);
 
-			const chain_t *const north = cm.getAt(x, y - 1);
-			if (north && north->type == me && north->freedoms.size() == 1)
-				considerPurge = true;
+		bool mustPurge = (*it)->chain.size() == 1;
 
-			const chain_t *const west  = cm.getAt(x - 1, y);
-			if (west && west->type == me && west->freedoms.size() == 1)
-				considerPurge = true;
+		if (!mustPurge) {
+			// - if a freedom is 'connected to an opponent chain' with 1
+			//   freedom, then valid
+			// - if a freedom is 'connected to a chain of myself' with 1
+			//   freedom, then invalid
+			for(auto stone : (*it)->chain) {
+				const int x = stone.getX();
+				const int y = stone.getY();
 
-			const chain_t *const south = cm.getAt(x, y + 1);
-			if (south && south->type == me && south->freedoms.size() == 1)
-				considerPurge = true;
+				const chain_t *const north = cm.getAt(x, y - 1);
+				if (north && north->type == me && north->freedoms.size() == 1)
+					considerPurge = true;
 
-			const chain_t *const east  = cm.getAt(x + 1, y);
-			if (east && east->type == me && east->freedoms.size() == 1)
-				considerPurge = true;
+				const chain_t *const west  = cm.getAt(x - 1, y);
+				if (west && west->type == me && west->freedoms.size() == 1)
+					considerPurge = true;
+
+				const chain_t *const south = cm.getAt(x, y + 1);
+				if (south && south->type == me && south->freedoms.size() == 1)
+					considerPurge = true;
+
+				const chain_t *const east  = cm.getAt(x + 1, y);
+				if (east && east->type == me && east->freedoms.size() == 1)
+					considerPurge = true;
+			}
 		}
 
-		if (considerPurge && (*it)->chain.size() == 1) {
+		fprintf(fh, "consider, size: %zu\n", (*it)->chain.size());
+
+		if ((considerPurge && (*it)->chain.size() == 1) || mustPurge) {
+			fprintf(fh, "Purge chain:\n");
+			dump(**it);
 			delete *it;
 			it = chainsPurge->erase(it);
 		}
@@ -459,7 +491,7 @@ std::optional<Vertex> genMove(const Board & b, const player_t & p)
 	std::vector<chain_t *> chainsEmpty;
 	findChainsOfFreedoms(b, &chainsEmpty);
 	purgeFreedoms(&chainsEmpty, cm, p == P_BLACK ? B_BLACK : B_WHITE);
-	dump(b);
+	fprintf(fh, "\nafter purge:\n");
 	dump(chainsEmpty);
 
 	if (chainsEmpty.empty()) {
@@ -497,6 +529,7 @@ int main(int argc, char *argv[])
                         );
 #endif
 
+#if 0
         dump(b);
 
 	ChainMap cm(b.getDim());
@@ -509,12 +542,13 @@ int main(int argc, char *argv[])
 	findChainsOfFreedoms(b, &chainsEmpty);
 	fprintf(fh, "\n\npurge empty\n");
 	purgeFreedoms(&chainsEmpty, cm, B_BLACK);
-	dump(chainsEmpty);
+//	dump(chainsEmpty);
 
 	purgeChains(&chainsBlack);
 	purgeChains(&chainsWhite);
 	purgeChains(&chainsEmpty);
-
+#endif
+	dump(b);
 	auto v = genMove(b, P_BLACK);
 	if (v.has_value())
 		fprintf(fh, "= %s\n\n", v2t(v.value()).c_str());
