@@ -13,8 +13,8 @@
 #include "str.h"
 
 typedef enum { P_BLACK, P_WHITE } player_t;
-typedef enum { B_EMPTY, B_WHITE, B_BLACK, B_IGNORE } board_t;
-const char *const board_t_names[] = { "empty", "white", "black", "ignore" };
+typedef enum { B_EMPTY, B_WHITE, B_BLACK } board_t;
+const char *const board_t_names[] = { "empty", "white", "black" };
 
 FILE *fh = fopen("/tmp/input.dat", "a+");
 
@@ -120,10 +120,10 @@ void dump(const chain_t & chain)
 	}
 }
 
-void dump(const std::vector<chain_t> & chains)
+void dump(const std::vector<chain_t *> & chains)
 {
 	for(auto chain : chains)
-		dump(chain);
+		dump(*chain);
 }
 
 class Board {
@@ -243,104 +243,202 @@ void dump(const Board & b)
 	printf("\n");
 }
 
-void scanChains(Board *const b, chain_t *const curChain, const int x, const int y, const board_t & startType)
+class ChainMap {
+private:
+	const int dim;
+	chain_t **const cm;
+
+public:
+	ChainMap(const int dim) : dim(dim), cm(new chain_t *[(dim + 2) * (dim + 2)]()) {
+		assert(dim & 1);
+	}
+
+	~ChainMap() {
+		delete [] cm;
+	}
+
+	int getDim() const {
+		return dim;
+	}
+
+	chain_t * getAt(const int x, const int y) {
+		assert(x < dim + 1 && x >= -1);
+		assert(y < dim + 1 && y >= -1);
+		int v = (y + 1) * dim + x + 1;
+		return cm[v];
+	}
+
+	void setAt(const Vertex & v, chain_t *const chain) {
+		setAt(v.getX(), v.getY(), chain);
+	}
+
+	void setAt(const int x, const int y, chain_t *const chain) {
+		assert(x < dim + 1 && x >= -1);
+		assert(y < dim + 1 && y >= -1);
+		int v = (y + 1) * dim + x + 1;
+		cm[v] = chain;
+	}
+};
+
+void scanChains(const Board & b, bool *const scanned, chain_t *const curChain, const int x, const int y, const board_t & startType, ChainMap *const cm)
 {
-	board_t bv = b->getAt(x, y);
+	board_t bv = b.getAt(x, y);
 
-	const int dim = b->getDim();
+	const int dim = b.getDim();
 
-	if (bv == startType) {
-		b->setAt(x, y, B_IGNORE);
+	const int v = y * dim + x;
+
+	if (bv == startType && scanned[v] == false) {
+		scanned[v] = true;
+
+		cm->setAt(x, y, curChain);
 
 		curChain->chain.insert(Vertex(x, y, dim));
 
 		if (y > 0)
-			scanChains(b, curChain, x, y - 1, startType);
+			scanChains(b, scanned, curChain, x, y - 1, startType, cm);
 		if (y < dim - 1)
-			scanChains(b, curChain, x, y + 1, startType);
+			scanChains(b, scanned, curChain, x, y + 1, startType, cm);
 		if (x > 0)
-			scanChains(b, curChain, x - 1, y, startType);
+			scanChains(b, scanned, curChain, x - 1, y, startType, cm);
 		if (x < dim - 1)
-			scanChains(b, curChain, x + 1, y, startType);
+			scanChains(b, scanned, curChain, x + 1, y, startType, cm);
 	}
-	else if (bv == B_EMPTY || bv == B_IGNORE) {
-		curChain->freedoms.insert(Vertex(x, y, dim));
+	else if (bv == B_EMPTY) {
+		curChain->freedoms.insert(Vertex(x, y, dim));  // only for counting the total number of freedoms
 	}
 }
 
-void findChains(const Board & b, std::vector<chain_t> *const chainsWhite, std::vector<chain_t> *const chainsBlack)
+void findChains(const Board & b, std::vector<chain_t *> *const chainsWhite, std::vector<chain_t *> *const chainsBlack, ChainMap *const cm)
 {
-	Board work(b);
+	const int dim = b.getDim();
 
-	const int dim = work.getDim();
+	bool *scanned = new bool[dim * dim]();
 
 	for(int y=0; y<dim; y++) {
 		for(int x=0; x<dim; x++) {
-			board_t bv = work.getAt(x, y);
-
-			if (bv == B_IGNORE)
+			if (scanned[y * dim + x])
 				continue;
 
-			chain_t curChain;
-			curChain.type = bv;
+			board_t bv = b.getAt(x, y);
+			if (bv == B_EMPTY)
+				continue;
 
-			scanChains(&work, &curChain, x, y, bv);
+			chain_t *curChain = new chain_t;
+			curChain->type = bv;
 
-			if (curChain.type == B_WHITE)
+			scanChains(b, scanned, curChain, x, y, bv, cm);
+
+			if (curChain->type == B_WHITE)
 				chainsWhite->push_back(curChain);
-			else if (curChain.type == B_BLACK)
+			else if (curChain->type == B_BLACK)
 				chainsBlack->push_back(curChain);
 		}
 	}
+
+	delete [] scanned;
 }
 
-bool connectedToChain(const Vertex & v, const chain_t & chain)
+void scanChainsOfFreedoms(const Board & b, bool *const scanned, chain_t *const curChain, const int x, const int y)
 {
-	const int x = v.getX();
-	const int y = v.getY();
+	board_t bv = b.getAt(x, y);
 
-	for(auto stone : chain.chain) {
-		int stone_x = stone.getX();
-		int stone_y = stone.getY();
+	const int dim = b.getDim();
 
-		if (((stone_x == x - 1 || stone_x == x + 1) && stone_y == y) ||
-		    ((stone_y == y - 1 || stone_y == y + 1) && stone_x == x))
-			return true;
+	const int v = y * dim + x;
+
+	if (bv == B_EMPTY && scanned[v] == false) {
+		scanned[v] = true;
+
+		curChain->chain.insert(Vertex(x, y, dim));
+
+		if (y > 0)
+			scanChainsOfFreedoms(b, scanned, curChain, x, y - 1);
+		if (y < dim - 1)
+			scanChainsOfFreedoms(b, scanned, curChain, x, y + 1);
+		if (x > 0)
+			scanChainsOfFreedoms(b, scanned, curChain, x - 1, y);
+		if (x < dim - 1)
+			scanChainsOfFreedoms(b, scanned, curChain, x + 1, y);
 	}
-
-	return false;
 }
 
-bool connectedToChain(const chain_t & chain1, const chain_t & chain2)
+void findChainsOfFreedoms(const Board & b, std::vector<chain_t *> *const chainsEmpty)
 {
-	for(auto stone : chain1.chain) {
-		if (connectedToChain(stone, chain2))
-			return true;
-	}
+	const int dim = b.getDim();
 
-	return false;
-}
+	bool *scanned = new bool[dim * dim]();
 
-void purgeFreedoms(std::vector<chain_t> *const chainsPurge, const std::vector<chain_t> & chainsRef)
-{
-	for(auto it = chainsPurge->begin(); it != chainsPurge->end(); it++) {
-		if (it->freedoms.size() > 1)
-			continue;
-
-		bool willPurge = false;
-		for(auto chainRef : chainsRef) {
-			if (chainRef.freedoms.size() > 1)
+	for(int y=0; y<dim; y++) {
+		for(int x=0; x<dim; x++) {
+			if (scanned[y * dim + x])
 				continue;
 
-			if (connectedToChain(*it, chainRef)) {
+			board_t bv = b.getAt(x, y);
+			if (bv != B_EMPTY)
+				continue;
+
+			chain_t *curChain = new chain_t;
+			curChain->type = B_EMPTY;
+
+			scanChainsOfFreedoms(b, scanned, curChain, x, y);
+
+			chainsEmpty->push_back(curChain);
+		}
+	}
+
+	delete [] scanned;
+}
+
+void purgeChains(std::vector<chain_t *> *const chains)
+{
+	for(auto chain : *chains)
+		delete chain;
+}
+
+void purgeFreedoms(std::vector<chain_t *> *const chainsPurge, ChainMap & cm, const board_t me)
+{
+	// go through all chains from chainsPurge
+	for(auto it = chainsPurge->begin(); it != chainsPurge->end();) {
+		bool willPurge = false;
+
+		printf("---\n");
+
+		// - if a freedom is 'connected to an opponent chain' with 1
+		//   freedom, then valid
+		// - if a freedom is 'connected to a chain of myself' with 1
+		//   freedom, then invalid
+		for(auto stone : (*it)->chain) {
+			printf("checking %s\n", v2t(stone).c_str());
+			const int x = stone.getX();
+			const int y = stone.getY();
+
+			const chain_t *const north = cm.getAt(x, y - 1);
+			if (north && north->type == me && north->freedoms.size() == 1)
 				willPurge = true;
-				break;
-			}
+
+			const chain_t *const west  = cm.getAt(x - 1, y);
+			if (west && west->type == me && west->freedoms.size() == 1)
+				willPurge = true;
+
+			const chain_t *const south = cm.getAt(x, y + 1);
+			if (south && south->type == me && south->freedoms.size() == 1)
+				willPurge = true;
+
+			const chain_t *const east  = cm.getAt(x + 1, y);
+			if (east && east->type == me && east->freedoms.size() == 1)
+				willPurge = true;
 		}
 
 		if (willPurge) {
-			dump(*it);
+			// TODO: lengte van chain moet 1 zijn?
+			printf(" *** PURGE ***\n");
+			dump(**it);
+			delete *it;
 			it = chainsPurge->erase(it);
+		}
+		else {
+			it++;
 		}
 	}
 }
@@ -349,23 +447,28 @@ void play(Board *const b, const Vertex & v, const player_t & p)
 {
 	b->setAt(v, p == P_BLACK ? B_BLACK : B_WHITE);
 
-	std::vector<chain_t> chainsWhite, chainsBlack;
-	findChains(*b, &chainsWhite, &chainsBlack);
+	ChainMap cm(b->getDim());
+	std::vector<chain_t *> chainsWhite, chainsBlack;
+	findChains(*b, &chainsWhite, &chainsBlack, &cm);
 
-	std::vector<chain_t> & scan = p == P_BLACK ? chainsWhite : chainsBlack;
+	std::vector<chain_t *> & scan = p == P_BLACK ? chainsWhite : chainsBlack;
 
 	for(auto chain : scan) {
-		if (chain.freedoms.empty()) {
-			for(auto v : chain.chain)
+		if (chain->freedoms.empty()) {
+			for(auto v : chain->chain)
 				b->setAt(v, B_EMPTY);
 		}
 	}
+
+	purgeChains(&chainsBlack);
+	purgeChains(&chainsWhite);
 }
 
 std::optional<Vertex> genMove(const Board & b, const player_t & p)
 {
-	std::vector<chain_t> chainsWhite, chainsBlack;
-	findChains(b, &chainsWhite, &chainsBlack);
+	ChainMap cm(b.getDim());
+	std::vector<chain_t *> chainsWhite, chainsBlack;
+	findChains(b, &chainsWhite, &chainsBlack, &cm);
 
 #if 0
 	std::vector<empty_vertexes_t> evs = findValidEmptyVertexes(b, p, chainsBlack, chainsWhite);
@@ -375,6 +478,9 @@ std::optional<Vertex> genMove(const Board & b, const player_t & p)
 
 	return *evs.at(0).empty.begin();
 #endif
+	purgeChains(&chainsBlack);
+	purgeChains(&chainsWhite);
+
 	return { };
 }
 
@@ -392,16 +498,24 @@ int main(int argc, char *argv[])
 
         dump(b);
 
-        std::vector<chain_t> chainsWhite, chainsBlack;
-        findChains(b, &chainsWhite, &chainsBlack);
-        dump(chainsWhite);
- //       dump(chainsBlack);
+	ChainMap cm(b.getDim());
+        std::vector<chain_t *> chainsWhite, chainsBlack;
+        findChains(b, &chainsWhite, &chainsBlack, &cm);
+        //dump(chainsWhite);
+        dump(chainsBlack);
+
+	std::vector<chain_t *> chainsEmpty;
+	findChainsOfFreedoms(b, &chainsEmpty);
+	printf("\n\npurge empty\n");
+	purgeFreedoms(&chainsEmpty, cm, B_BLACK);
+
+	purgeChains(&chainsBlack);
+	purgeChains(&chainsWhite);
+	purgeChains(&chainsEmpty);
+
+	fclose(fh);
 
 	return 0;
-	printf("purge white\n");
-	purgeFreedoms(&chainsWhite, chainsBlack);
-	printf("purge black\n");
-	purgeFreedoms(&chainsBlack, chainsWhite);
 #else
 	Board *b = new Board(9);
 
