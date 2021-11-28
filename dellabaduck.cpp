@@ -621,7 +621,7 @@ int main(int argc, char *argv[])
 			printf("=%s quit\n", id.c_str());
 			printf("\n");
 		}
-		else if (parts.at(0) == "genmove") {
+		else if (parts.at(0) == "genmove" || parts.at(0) == "reg_genmove") {
 			player_t player = (parts.at(1) == "b" || parts.at(1) == "black") ? P_BLACK : P_WHITE;
 			auto v = genMove(*b, player);
 
@@ -629,7 +629,8 @@ int main(int argc, char *argv[])
 				printf("=%s %s\n\n", id.c_str(), v2t(v.value()).c_str());
 				fprintf(fh, "< %s\n", v2t(v.value()).c_str());
 
-				play(b, v.value(), player);
+				if (parts.at(0) == "genmove")
+					play(b, v.value(), player);
 			}
 			else {
 				printf("=%s pass\n\n", id.c_str());
@@ -662,6 +663,8 @@ int main(int argc, char *argv[])
 			auto v = genMove(b, p);
 			if (!v.has_value())
 				break;
+
+			play(b, v.value(), p);
 
 			p = p == P_BLACK ? P_WHITE : P_BLACK;
 			mc++;
