@@ -461,8 +461,25 @@ void play(Board *const b, const Vertex & v, const player_t & p)
 	purgeChains(&chainsWhite);
 }
 
+uint64_t get_ts_ms()
+{
+        struct timespec ts { 0, 0 };
+
+        clock_gettime(CLOCK_REALTIME, &ts);
+
+        return uint64_t(ts.tv_sec) * uint64_t(1000) + uint64_t(ts.tv_nsec / 1000000);
+}
+
 std::optional<Vertex> genMove(const Board & b, const player_t & p)
 {
+        uint64_t now = get_ts_ms();
+        time_t t_now = now / 1000;
+        struct tm tm { 0 };
+        localtime_r(&t_now, &tm);
+        fprintf(fh, "%04d-%02d-%02d %02d:%02d:%02d.%03d\n",
+                        tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday, tm.tm_hour, tm.tm_min, tm.tm_sec, int(now % 1000));
+	dump(b);
+
 	ChainMap cm(b.getDim());
 	std::vector<chain_t *> chainsWhite, chainsBlack;
 	findChains(b, &chainsWhite, &chainsBlack, &cm);
@@ -478,7 +495,15 @@ std::optional<Vertex> genMove(const Board & b, const player_t & p)
 		return { };
 	}
 
-	Vertex v = *chainsEmpty.at(0)->chain.begin();
+	auto chain = chainsEmpty.at(rand() % chainsEmpty.size());
+	size_t chainSize = chain->chain.size();
+	int r = rand() % (chainSize - 1);
+
+	auto it = chain->chain.begin();
+	for(int i=0; i<r; i++)
+		it++;
+
+	Vertex v = *it;
 
 	purgeChains(&chainsBlack);
 	purgeChains(&chainsWhite);
@@ -540,8 +565,10 @@ int main(int argc, char *argv[])
 #else
 	Board *b = new Board(9);
 
-	setbuf(stdout, NULL);
-	setbuf(stderr, NULL);
+	setbuf(stdout, nullptr);
+	setbuf(stderr, nullptr);
+
+	srand(time(nullptr));
 
 	for(;;) {
 		char buffer[4096] { 0 };
@@ -583,8 +610,11 @@ int main(int argc, char *argv[])
 			printf("=%s\n\n", id.c_str());
 		}
 		else if (parts.at(0) == "play") {
-			Vertex v = t2v(parts.at(2), b->getDim());
-			play(b, v, (parts.at(1) == "b" || parts.at(1) == "black") ? P_BLACK : P_WHITE);
+			if (str_tolower(parts.at(2)) != "pass") {
+				Vertex v = t2v(parts.at(2), b->getDim());
+				play(b, v, (parts.at(1) == "b" || parts.at(1) == "black") ? P_BLACK : P_WHITE);
+			}
+
 			printf("=%s\n\n", id.c_str());
 		}
 		else if (parts.at(0) == "dump") {
@@ -629,6 +659,9 @@ int main(int argc, char *argv[])
 			else {
 				printf("=%s pass\n\n", id.c_str());
 			}
+		}
+		else if (parts.at(0) == "final_score") {
+			printf("=%s 0.0\n\n", id.c_str());  // TODO
 		}
 		else {
 			printf("?\n\n");

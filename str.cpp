@@ -58,3 +58,11 @@ std::string merge(const std::vector<std::string> & in, const std::string & seper
 
 	return out;
 }
+
+std::string str_tolower(std::string s)
+{
+	std::transform(s.begin(), s.end(), s.begin(), [](unsigned char c){ return std::tolower(c); });
+
+	return s;
+}
+
