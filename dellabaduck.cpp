@@ -254,7 +254,7 @@ public:
 		return dim;
 	}
 
-	chain_t * getAt(const int x, const int y) {
+	chain_t * getAt(const int x, const int y) const {
 		assert(x < dim + 1 && x >= -1);
 		assert(y < dim + 1 && y >= -1);
 		int v = (y + 1) * dim + x + 1;
@@ -389,7 +389,7 @@ void purgeChains(std::vector<chain_t *> *const chains)
 		delete chain;
 }
 
-void purgeFreedoms(std::vector<chain_t *> *const chainsPurge, ChainMap & cm, const board_t me)
+void purgeFreedoms(std::vector<chain_t *> *const chainsPurge, const ChainMap & cm, const board_t me)
 {
 	// go through all chains from chainsPurge
 	for(auto it = chainsPurge->begin(); it != chainsPurge->end();) {
@@ -470,7 +470,7 @@ bool isValidMove(const std::vector<chain_t *> & chainsEmpty, const Vertex & v)
 	return false;
 }
 
-void selectRandom(const ChainMap & cm, const std::vector<chain_t *> & chainsWhite, const std::vector<chain_t *> & chainsBlack, const std::vector<chain_t *> & chainsEmpty, std::vector<eval_t> *const evals)
+void selectRandom(const ChainMap & cm, const std::vector<chain_t *> & chainsWhite, const std::vector<chain_t *> & chainsBlack, const std::vector<chain_t *> & chainsEmpty, const player_t & p, std::vector<eval_t> *const evals)
 {
 	auto chain = chainsEmpty.at(rand() % chainsEmpty.size());
 	size_t chainSize = chain->chain.size();
@@ -484,6 +484,61 @@ void selectRandom(const ChainMap & cm, const std::vector<chain_t *> & chainsWhit
 
 	evals->at(v).score++;
 	evals->at(v).valid = true;
+}
+
+std::vector<Vertex> pickEmptyAround(const ChainMap & cm, const Vertex & v)
+{
+	const int x = v.getX();
+	const int y = v.getY();
+	const int dim = cm.getDim();
+
+	std::vector<Vertex> out;
+
+	if (x > 0 && cm.getAt(x - 1, y) == nullptr)
+		out.push_back(Vertex(x - 1, y));
+
+	if (y > 0 && cm.getAt(x, y - 1) == nullptr)
+		out.push_back(Vertex(x, y - 1));
+
+	if (x < dim - 1 && cm.getAt(x + 1, y) == nullptr)
+		out.push_back(Vertex(x + 1, y));
+
+	if (y < dim - 1 && cm.getAt(x, y + 1) == nullptr)
+		out.push_back(Vertex(x, y + 1));
+
+	return out;
+}
+
+void selectExtendChains(const ChainMap & cm, const std::vector<chain_t *> & chainsWhite, const std::vector<chain_t *> & chainsBlack, const std::vector<chain_t *> & chainsEmpty, const player_t & p, std::vector<eval_t> *const evals)
+{
+	const std::vector<chain_t *> & scan = p == P_BLACK ? chainsWhite : chainsBlack;
+
+	for(auto chain : scan) {
+		for(auto stone : chain->chain) {
+			auto empties = pickEmptyAround(cm, stone);
+
+			for(auto empty : empties) {
+				int v = empty.getV();
+				evals->at(v).score += 2;
+				evals->at(v).valid = true;
+			}
+		}
+	}
+}
+
+void selectKillChains(const ChainMap & cm, const std::vector<chain_t *> & chainsWhite, const std::vector<chain_t *> & chainsBlack, const std::vector<chain_t *> & chainsEmpty, const player_t & p, std::vector<eval_t> *const evals)
+{
+	const std::vector<chain_t *> & scan = p == P_BLACK ? chainsBlack : chainsWhite;
+
+	for(auto chain : scan) {
+		const int add = chain->chain.size() - chain->freedoms.size();
+
+		for(auto stone : chain->freedoms) {
+			int v = stone.getV();
+			evals->at(v).score += add;
+			evals->at(v).valid = true;
+		}
+	}
 }
 
 std::optional<Vertex> genMove(const Board & b, const player_t & p)
@@ -509,7 +564,11 @@ std::optional<Vertex> genMove(const Board & b, const player_t & p)
                 evals.push_back({ 0, false });
 
 	// algorithms
-	selectRandom(cm, chainsWhite, chainsBlack, chainsEmpty, &evals);
+	selectRandom(cm, chainsWhite, chainsBlack, chainsEmpty, p, &evals);
+
+	selectExtendChains(cm, chainsWhite, chainsBlack, chainsEmpty, p, &evals);
+
+	selectKillChains(cm, chainsWhite, chainsBlack, chainsEmpty, p, &evals);
 
 	// find best
 	std::optional<Vertex> v;
