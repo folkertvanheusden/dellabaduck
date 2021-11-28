@@ -14,6 +14,7 @@
 
 typedef enum { P_BLACK, P_WHITE } player_t;
 typedef enum { B_EMPTY, B_WHITE, B_BLACK, B_IGNORE } board_t;
+const char *const board_t_names[] = { "empty", "white", "black", "ignore" };
 
 FILE *fh = fopen("/tmp/input.dat", "a+");
 
@@ -82,7 +83,7 @@ typedef struct {
 } empty_vertexes_t;
 
 typedef struct {
-	player_t color;
+	board_t type;
 	std::set<Vertex, decltype(vertexCmp)> chain;
 	std::set<Vertex, decltype(vertexCmp)> freedoms;
 } chain_t;
@@ -104,17 +105,19 @@ void dump(const std::vector<empty_vertexes_t> & empties)
 
 void dump(const chain_t & chain)
 {
-	printf("Chain for %s:\n", chain.color == P_BLACK ? "black" : "white");
+	printf("Chain for %s:\n", board_t_names[chain.type]);
 
 	for(auto v : chain.chain) 
 		printf("%s ", v2t(v).c_str());
 	printf("\n");
 
-	printf("Freedoms of that chain:\n");
+	if (chain.freedoms.empty() == false) {
+		printf("Freedoms of that chain:\n");
 
-	for(auto v : chain.freedoms) 
-		printf("%s ", v2t(v).c_str());
-	printf("\n");
+		for(auto v : chain.freedoms) 
+			printf("%s ", v2t(v).c_str());
+		printf("\n");
+	}
 }
 
 void dump(const std::vector<chain_t> & chains)
@@ -260,7 +263,7 @@ void scanChains(Board *const b, chain_t *const curChain, const int x, const int 
 		if (x < dim - 1)
 			scanChains(b, curChain, x + 1, y, startType);
 	}
-	else if (bv == B_EMPTY) {
+	else if (bv == B_EMPTY || bv == B_IGNORE) {
 		curChain->freedoms.insert(Vertex(x, y, dim));
 	}
 }
@@ -275,92 +278,71 @@ void findChains(const Board & b, std::vector<chain_t> *const chainsWhite, std::v
 		for(int x=0; x<dim; x++) {
 			board_t bv = work.getAt(x, y);
 
-			if (bv != B_BLACK && bv != B_WHITE)
+			if (bv == B_IGNORE)
 				continue;
 
 			chain_t curChain;
-			curChain.color = bv == B_BLACK ? P_BLACK : P_WHITE;
+			curChain.type = bv;
 
 			scanChains(&work, &curChain, x, y, bv);
 
-			if (curChain.color == P_WHITE)
+			if (curChain.type == B_WHITE)
 				chainsWhite->push_back(curChain);
-			else
+			else if (curChain.type == B_BLACK)
 				chainsBlack->push_back(curChain);
 		}
 	}
 }
 
-void scanEmpty(Board *const b, const int x, const int y, const board_t & myStone, std::vector<chain_t> & chains, empty_vertexes_t *const empty)
+bool connectedToChain(const Vertex & v, const chain_t & chain)
 {
-	bool stop = false;
+	const int x = v.getX();
+	const int y = v.getY();
 
-	const int dim = b->getDim();
+	for(auto stone : chain.chain) {
+		int stone_x = stone.getX();
+		int stone_y = stone.getY();
 
-	if (x < 0 || y < 0 || x >= dim || y >= dim) {
-		empty->valid = true;
-		stop = true;
+		if (((stone_x == x - 1 || stone_x == x + 1) && stone_y == y) ||
+		    ((stone_y == y - 1 || stone_y == y + 1) && stone_x == x))
+			return true;
 	}
-	else if (b->getAt(x, y) == B_EMPTY) {
-		b->setAt(x, y, B_IGNORE);
 
-		empty->empty.insert(Vertex(x, y, dim));
+	return false;
+}
+
+bool connectedToChain(const chain_t & chain1, const chain_t & chain2)
+{
+	for(auto stone : chain1.chain) {
+		if (connectedToChain(stone, chain2))
+			return true;
 	}
-	else if (b->getAt(x, y) == myStone && empty->valid == false) {
-		stop = true;
 
-		for(auto c : chains) {
-			assert(c.color == (myStone == B_BLACK ? P_BLACK : P_WHITE));
+	return false;
+}
 
-			Vertex v(x, y, dim);
+void purgeFreedoms(std::vector<chain_t> *const chainsPurge, const std::vector<chain_t> & chainsRef)
+{
+	for(auto it = chainsPurge->begin(); it != chainsPurge->end(); it++) {
+		if (it->freedoms.size() > 1)
+			continue;
 
-			if (c.freedoms.size() > 1 && c.chain.find(v) != c.chain.end()) {
-				empty->valid = true;
+		bool willPurge = false;
+		for(auto chainRef : chainsRef) {
+			if (chainRef.freedoms.size() > 1)
+				continue;
+
+			if (connectedToChain(*it, chainRef)) {
+				willPurge = true;
 				break;
 			}
 		}
-	}
-	else {
-		stop = true;
-	}
 
-	if (!stop) {
-		scanEmpty(b, x, y - 1, myStone, chains, empty);
-		scanEmpty(b, x, y + 1, myStone, chains, empty);
-		scanEmpty(b, x - 1, y, myStone, chains, empty);
-		scanEmpty(b, x + 1, y, myStone, chains, empty);
-	}
-}
-
-std::vector<empty_vertexes_t> findValidEmptyVertexes(const Board & b, const player_t & p, std::vector<chain_t> & chains)
-{
-	std::vector<empty_vertexes_t> out;
-
-	Board work(b);
-
-	board_t myStone = p == P_BLACK ? B_BLACK : B_WHITE;
-
-	const int dim = work.getDim();
-
-	for(int y=0; y<dim; y++) {
-		for(int x=0; x<dim; x++) {
-			const int v = y * dim + x;
-
-			board_t bv = work.getAt(v);
-
-			if (bv == B_EMPTY) {
-				empty_vertexes_t empty;
-				empty.valid = false;
-
-				scanEmpty(&work, x, y, myStone, chains, &empty);
-
-				if (empty.valid && empty.empty.empty() == false)
-					out.push_back(empty);
-			}
+		if (willPurge) {
+			dump(*it);
+			it = chainsPurge->erase(it);
 		}
 	}
-
-	return out;
 }
 
 void play(Board *const b, const Vertex & v, const player_t & p)
@@ -385,16 +367,42 @@ std::optional<Vertex> genMove(const Board & b, const player_t & p)
 	std::vector<chain_t> chainsWhite, chainsBlack;
 	findChains(b, &chainsWhite, &chainsBlack);
 
-	std::vector<empty_vertexes_t> evs = findValidEmptyVertexes(b, p, p == P_BLACK ? chainsBlack : chainsWhite);
+#if 0
+	std::vector<empty_vertexes_t> evs = findValidEmptyVertexes(b, p, chainsBlack, chainsWhite);
 
 	if (evs.empty())
 		return { };
 
 	return *evs.at(0).empty.begin();
+#endif
+	return { };
 }
 
 int main(int argc, char *argv[])
 {
+#if 1
+        Board b = stringToBoard(
+                        "...o.\n"
+                        "oo.oo\n"
+                        "..o..\n"
+                        "oo.oo\n"
+                        "..o.x\n"
+                        );
+
+
+        dump(b);
+
+        std::vector<chain_t> chainsWhite, chainsBlack;
+        findChains(b, &chainsWhite, &chainsBlack);
+        dump(chainsWhite);
+ //       dump(chainsBlack);
+
+	return 0;
+	printf("purge white\n");
+	purgeFreedoms(&chainsWhite, chainsBlack);
+	printf("purge black\n");
+	purgeFreedoms(&chainsBlack, chainsWhite);
+#else
 	Board *b = new Board(9);
 
 	setbuf(stdout, NULL);
@@ -493,7 +501,7 @@ int main(int argc, char *argv[])
 
 		fflush(nullptr);
 	}
-
+#endif
 	fclose(fh);
 
 	return 0;
