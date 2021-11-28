@@ -11,6 +11,7 @@
 #include <vector>
 
 #include "str.h"
+#include "time.h"
 
 typedef enum { P_BLACK, P_WHITE } player_t;
 typedef enum { B_EMPTY, B_WHITE, B_BLACK } board_t;
@@ -394,9 +395,6 @@ void purgeFreedoms(std::vector<chain_t *> *const chainsPurge, ChainMap & cm, con
 	for(auto it = chainsPurge->begin(); it != chainsPurge->end();) {
 		bool considerPurge = false;
 
-		fprintf(fh, "considering:\n");
-		dump(**it);
-
 		bool mustPurge = (*it)->chain.size() == 1;
 
 		if (!mustPurge) {
@@ -426,11 +424,7 @@ void purgeFreedoms(std::vector<chain_t *> *const chainsPurge, ChainMap & cm, con
 			}
 		}
 
-		fprintf(fh, "consider, size: %zu\n", (*it)->chain.size());
-
 		if ((considerPurge && (*it)->chain.size() == 1) || mustPurge) {
-			fprintf(fh, "Purge chain:\n");
-			dump(**it);
 			delete *it;
 			it = chainsPurge->erase(it);
 		}
@@ -461,25 +455,8 @@ void play(Board *const b, const Vertex & v, const player_t & p)
 	purgeChains(&chainsWhite);
 }
 
-uint64_t get_ts_ms()
-{
-        struct timespec ts { 0, 0 };
-
-        clock_gettime(CLOCK_REALTIME, &ts);
-
-        return uint64_t(ts.tv_sec) * uint64_t(1000) + uint64_t(ts.tv_nsec / 1000000);
-}
-
 std::optional<Vertex> genMove(const Board & b, const player_t & p)
 {
-        uint64_t now = get_ts_ms();
-        time_t t_now = now / 1000;
-        struct tm tm { 0 };
-        localtime_r(&t_now, &tm);
-        fprintf(fh, "%04d-%02d-%02d %02d:%02d:%02d.%03d\n",
-                        tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday, tm.tm_hour, tm.tm_min, tm.tm_sec, int(now % 1000));
-	dump(b);
-
 	ChainMap cm(b.getDim());
 	std::vector<chain_t *> chainsWhite, chainsBlack;
 	findChains(b, &chainsWhite, &chainsBlack, &cm);
@@ -487,13 +464,9 @@ std::optional<Vertex> genMove(const Board & b, const player_t & p)
 	std::vector<chain_t *> chainsEmpty;
 	findChainsOfFreedoms(b, &chainsEmpty);
 	purgeFreedoms(&chainsEmpty, cm, p == P_BLACK ? B_BLACK : B_WHITE);
-	fprintf(fh, "\nafter purge:\n");
-	dump(chainsEmpty);
 
-	if (chainsEmpty.empty()) {
-		dump(b);
+	if (chainsEmpty.empty())
 		return { };
-	}
 
 	auto chain = chainsEmpty.at(rand() % chainsEmpty.size());
 	size_t chainSize = chain->chain.size();
@@ -562,7 +535,7 @@ int main(int argc, char *argv[])
 	fclose(fh);
 
 	return 0;
-#else
+#elif 0
 	Board *b = new Board(9);
 
 	setbuf(stdout, nullptr);
@@ -671,6 +644,37 @@ int main(int argc, char *argv[])
 	}
 
 	delete b;
+#elif 1
+	// benchmark
+	uint64_t start = get_ts_ms(), end = 0;
+	uint64_t n = 0;
+
+	do {
+		Board b(9);
+
+		player_t p = P_BLACK;
+
+		int mc = 0;
+
+		for(;;) {
+			auto v = genMove(b, p);
+			if (!v.has_value())
+				break;
+
+			p = p == P_BLACK ? P_WHITE : P_BLACK;
+			mc++;
+
+			if (mc == 150)
+				break;
+		}
+
+		n++;
+
+		end = get_ts_ms();
+	}
+	while(end - start < 5000);
+
+	printf("%f\n", n * 1000.0 / (end - start));
 #endif
 	fclose(fh);
 

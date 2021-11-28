@@ -9,7 +9,11 @@ add_executable(
   dellabaduck
   dellabaduck.cpp
   str.cpp
+  time.cpp
 )
+
+# disable assert()
+add_definitions(-DNDEBUG)
 
 set(CMAKE_BUILD_TYPE Debug)
 
