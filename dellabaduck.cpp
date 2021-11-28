@@ -13,7 +13,7 @@
 #include "str.h"
 
 typedef enum { P_BLACK, P_WHITE } player_t;
-typedef enum { B_EMPTY, B_WHITE, B_BLACK, B_BORDER } board_t;
+typedef enum { B_EMPTY, B_WHITE, B_BLACK } board_t;
 const char *const board_t_names[] = { "empty", "white", "black" };
 
 FILE *fh = fopen("/tmp/input.dat", "a+");
@@ -239,31 +239,10 @@ class ChainMap {
 private:
 	const int dim;
 	chain_t **const cm;
-	chain_t border;
 
 public:
 	ChainMap(const int dim) : dim(dim), cm(new chain_t *[(dim + 2) * (dim + 2)]()) {
 		assert(dim & 1);
-
-		border.type = B_BORDER;
-
-		int workDim = dim + 2;
-		int workSize = workDim * workDim;
-
-		for(int i=0; i<workDim; i++) {
-			// top
-			cm[i] = &border;
-			cm[i + workDim] = &border;
-			// bottom
-			cm[workSize - i - 1] = &border;
-			cm[workSize - i - 1 - workDim] = &border;
-			// left
-			cm[i * workDim] = &border;
-			cm[i * workDim + 1] = &border;
-			// right
-			cm[i * workDim + workDim - 1] = &border;
-			cm[i * workDim + workDim - 2] = &border;
-		}
 	}
 
 	~ChainMap() {
@@ -510,7 +489,7 @@ std::optional<Vertex> genMove(const Board & b, const player_t & p)
 
 int main(int argc, char *argv[])
 {
-#if 1
+#if 0
 #if 0
         Board b = stringToBoard(
                         "...o.\n"
