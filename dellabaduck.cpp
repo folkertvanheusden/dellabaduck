@@ -78,30 +78,10 @@ auto vertexCmp = [](const Vertex & a, const Vertex & b)
 };
 
 typedef struct {
-	std::set<Vertex, decltype(vertexCmp)> empty;
-	bool valid;
-} empty_vertexes_t;
-
-typedef struct {
 	board_t type;
 	std::set<Vertex, decltype(vertexCmp)> chain;
 	std::set<Vertex, decltype(vertexCmp)> freedoms;
 } chain_t;
-
-void dump(const std::vector<empty_vertexes_t> & empties)
-{
-	printf("Valid empty crosses:\n");
-	for(auto ev : empties) {
-		assert(ev.valid);
-
-		printf(" - ");
-
-		for(auto v : ev.empty)
-			printf("%s ", v2t(v).c_str());
-
-		printf("\n");
-	}
-}
 
 void dump(const chain_t & chain)
 {
@@ -132,7 +112,7 @@ private:
 	board_t *const b;
 
 public:
-	Board(const int dim) : dim(dim), b(new board_t[dim * dim]) {
+	Board(const int dim) : dim(dim), b(new board_t[dim * dim]()) {
 		assert(dim & 1);
 	}
 
@@ -400,40 +380,34 @@ void purgeFreedoms(std::vector<chain_t *> *const chainsPurge, ChainMap & cm, con
 {
 	// go through all chains from chainsPurge
 	for(auto it = chainsPurge->begin(); it != chainsPurge->end();) {
-		bool willPurge = false;
-
-		printf("---\n");
+		bool considerPurge = false;
 
 		// - if a freedom is 'connected to an opponent chain' with 1
 		//   freedom, then valid
 		// - if a freedom is 'connected to a chain of myself' with 1
 		//   freedom, then invalid
 		for(auto stone : (*it)->chain) {
-			printf("checking %s\n", v2t(stone).c_str());
 			const int x = stone.getX();
 			const int y = stone.getY();
 
 			const chain_t *const north = cm.getAt(x, y - 1);
 			if (north && north->type == me && north->freedoms.size() == 1)
-				willPurge = true;
+				considerPurge = true;
 
 			const chain_t *const west  = cm.getAt(x - 1, y);
 			if (west && west->type == me && west->freedoms.size() == 1)
-				willPurge = true;
+				considerPurge = true;
 
 			const chain_t *const south = cm.getAt(x, y + 1);
 			if (south && south->type == me && south->freedoms.size() == 1)
-				willPurge = true;
+				considerPurge = true;
 
 			const chain_t *const east  = cm.getAt(x + 1, y);
 			if (east && east->type == me && east->freedoms.size() == 1)
-				willPurge = true;
+				considerPurge = true;
 		}
 
-		if (willPurge) {
-			// TODO: lengte van chain moet 1 zijn?
-			printf(" *** PURGE ***\n");
-			dump(**it);
+		if (considerPurge && (*it)->chain.size() == 1) {
 			delete *it;
 			it = chainsPurge->erase(it);
 		}
@@ -470,23 +444,27 @@ std::optional<Vertex> genMove(const Board & b, const player_t & p)
 	std::vector<chain_t *> chainsWhite, chainsBlack;
 	findChains(b, &chainsWhite, &chainsBlack, &cm);
 
-#if 0
-	std::vector<empty_vertexes_t> evs = findValidEmptyVertexes(b, p, chainsBlack, chainsWhite);
+	std::vector<chain_t *> chainsEmpty;
+	findChainsOfFreedoms(b, &chainsEmpty);
+	purgeFreedoms(&chainsEmpty, cm, B_BLACK);
 
-	if (evs.empty())
+	if (chainsEmpty.empty()) {
+		dump(b);
 		return { };
+	}
 
-	return *evs.at(0).empty.begin();
-#endif
+	Vertex v = *chainsEmpty.at(0)->chain.begin();
+
 	purgeChains(&chainsBlack);
 	purgeChains(&chainsWhite);
+	purgeChains(&chainsEmpty);
 
-	return { };
+	return v;
 }
 
 int main(int argc, char *argv[])
 {
-#if 1
+#if 0
         Board b = stringToBoard(
                         "...o.\n"
                         "oo.oo\n"
@@ -508,6 +486,7 @@ int main(int argc, char *argv[])
 	findChainsOfFreedoms(b, &chainsEmpty);
 	printf("\n\npurge empty\n");
 	purgeFreedoms(&chainsEmpty, cm, B_BLACK);
+	dump(chainsEmpty);
 
 	purgeChains(&chainsBlack);
 	purgeChains(&chainsWhite);
@@ -615,6 +594,8 @@ int main(int argc, char *argv[])
 
 		fflush(nullptr);
 	}
+
+	delete b;
 #endif
 	fclose(fh);
 
