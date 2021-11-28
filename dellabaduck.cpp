@@ -446,8 +446,8 @@ void play(Board *const b, const Vertex & v, const player_t & p)
 
 	for(auto chain : scan) {
 		if (chain->freedoms.empty()) {
-			for(auto v : chain->chain)
-				b->setAt(v, B_EMPTY);
+			for(auto ve : chain->chain)
+				b->setAt(ve, B_EMPTY);
 		}
 	}
 
@@ -514,7 +514,7 @@ std::optional<Vertex> genMove(const Board & b, const player_t & p)
 	// find best
 	std::optional<Vertex> v;
 
-        int bestScore = -32767, bestSq = -1;
+        int bestScore = -32767;
         for(int i=0; i<dim * dim; i++) {
                 if (evals.at(i).score > bestScore && evals.at(i).valid) {
                         Vertex temp = Vertex(i, dim);
@@ -522,7 +522,6 @@ std::optional<Vertex> genMove(const Board & b, const player_t & p)
 			if (isValidMove(chainsEmpty, temp)) {
                                 v.emplace(temp);
                                 bestScore = evals.at(i).score;
-                                bestSq = i;
                         }
                 }
         }
