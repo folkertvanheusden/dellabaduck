@@ -85,18 +85,20 @@ typedef struct {
 
 void dump(const chain_t & chain)
 {
-	printf("Chain for %s:\n", board_t_names[chain.type]);
+	fprintf(fh, "# Chain for %s:\n", board_t_names[chain.type]);
 
+	fprintf(fh, "# ");
 	for(auto v : chain.chain) 
-		printf("%s ", v2t(v).c_str());
-	printf("\n");
+		fprintf(fh, "%s ", v2t(v).c_str());
+	fprintf(fh, "\n");
 
 	if (chain.freedoms.empty() == false) {
-		printf("Freedoms of that chain:\n");
+		fprintf(fh, "# Freedoms of that chain:\n");
 
+		fprintf(fh, "# ");
 		for(auto v : chain.freedoms) 
-			printf("%s ", v2t(v).c_str());
-		printf("\n");
+			fprintf(fh, "%s ", v2t(v).c_str());
+		fprintf(fh, "\n");
 	}
 }
 
@@ -164,12 +166,22 @@ public:
 
 Board stringToBoard(const std::string & in)
 {
-	const int dim = in.find("\n");
+	auto templines = split(in, "\n");
+
+	for(size_t i=0; i<templines.size() / 2; i++) {
+		std::string temp = templines.at(i);
+		templines.at(i) = templines.at(templines.size() - i - 1);
+		templines.at(templines.size() - i - 1) = temp;
+	}
+
+	auto work = merge(templines, "\n");
+
+	const int dim = work.find("\n");
 	Board b(dim);
 
 	int v = 0;
 
-	for(auto c : in) {
+	for(auto c : work) {
 		if (c == '.')
 			b.setAt(v, B_EMPTY);
 		else if (tolower(c) == 'x')
@@ -192,24 +204,24 @@ void dump(const Board & b)
 	const int dim = b.getDim();
 
 	for(int y=dim - 1; y>=0; y--) {
-		printf("%2d | ", y + 1);
+		fprintf(fh, "# %2d | ", y + 1);
 		for(int x=0; x<dim; x++) {
 			board_t bv = b.getAt(x, y);
 
 			if (bv == B_EMPTY)
-				printf(".");
+				fprintf(fh, ".");
 			else if (bv == B_BLACK)
-				printf("x");
+				fprintf(fh, "x");
 			else if (bv == B_WHITE)
-				printf("o");
+				fprintf(fh, "o");
 			else
-				printf("!");
+				fprintf(fh, "!");
 		}
 
-		printf("\n");
+		fprintf(fh, "\n");
 	}
 
-	printf("     ");
+	fprintf(fh, "#      ");
 
 	for(int x=0; x<dim; x++) {
 		int xc = 'A' + x;
@@ -217,10 +229,10 @@ void dump(const Board & b)
 		if (xc >= 'I')
 			xc++;
 
-		printf("%c", xc);
+		fprintf(fh, "%c", xc);
 	}
 
-	printf("\n");
+	fprintf(fh, "\n");
 }
 
 class ChainMap {
@@ -447,6 +459,8 @@ std::optional<Vertex> genMove(const Board & b, const player_t & p)
 	std::vector<chain_t *> chainsEmpty;
 	findChainsOfFreedoms(b, &chainsEmpty);
 	purgeFreedoms(&chainsEmpty, cm, p == P_BLACK ? B_BLACK : B_WHITE);
+	dump(b);
+	dump(chainsEmpty);
 
 	if (chainsEmpty.empty()) {
 		dump(b);
@@ -493,7 +507,7 @@ int main(int argc, char *argv[])
 
 	std::vector<chain_t *> chainsEmpty;
 	findChainsOfFreedoms(b, &chainsEmpty);
-	printf("\n\npurge empty\n");
+	fprintf(fh, "\n\npurge empty\n");
 	purgeFreedoms(&chainsEmpty, cm, B_BLACK);
 	dump(chainsEmpty);
 
@@ -503,9 +517,9 @@ int main(int argc, char *argv[])
 
 	auto v = genMove(b, P_BLACK);
 	if (v.has_value())
-		printf("= %s\n\n", v2t(v.value()).c_str());
+		fprintf(fh, "= %s\n\n", v2t(v.value()).c_str());
 	else
-		printf("pass\n");
+		fprintf(fh, "pass\n");
 
 	fclose(fh);
 

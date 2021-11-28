@@ -48,3 +48,13 @@ std::vector<std::string> split(std::string in, std::string splitter)
 
 	return out;
 }
+
+std::string merge(const std::vector<std::string> & in, const std::string & seperator)
+{
+	std::string out;
+
+	for(auto l : in)
+		out += l + seperator;
+
+	return out;
+}
