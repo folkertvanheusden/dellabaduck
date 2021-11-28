@@ -446,7 +446,7 @@ std::optional<Vertex> genMove(const Board & b, const player_t & p)
 
 	std::vector<chain_t *> chainsEmpty;
 	findChainsOfFreedoms(b, &chainsEmpty);
-	purgeFreedoms(&chainsEmpty, cm, B_BLACK);
+	purgeFreedoms(&chainsEmpty, cm, p == P_BLACK ? B_BLACK : B_WHITE);
 
 	if (chainsEmpty.empty()) {
 		dump(b);
@@ -464,6 +464,7 @@ std::optional<Vertex> genMove(const Board & b, const player_t & p)
 
 int main(int argc, char *argv[])
 {
+#if 1
 #if 0
         Board b = stringToBoard(
                         "...o.\n"
@@ -472,7 +473,15 @@ int main(int argc, char *argv[])
                         "oo.oo\n"
                         "..o.x\n"
                         );
-
+#else
+        Board b = stringToBoard(
+                        "o....\n"
+                        ".o.oo\n"
+                        "o.oo.\n"
+                        ".o.o.\n"
+                        "o.o.o\n"
+                        );
+#endif
 
         dump(b);
 
@@ -491,6 +500,12 @@ int main(int argc, char *argv[])
 	purgeChains(&chainsBlack);
 	purgeChains(&chainsWhite);
 	purgeChains(&chainsEmpty);
+
+	auto v = genMove(b, P_BLACK);
+	if (v.has_value())
+		printf("= %s\n\n", v2t(v.value()).c_str());
+	else
+		printf("pass\n");
 
 	fclose(fh);
 
