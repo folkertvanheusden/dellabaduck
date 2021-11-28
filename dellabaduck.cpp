@@ -485,6 +485,55 @@ std::optional<Vertex> genMove(const Board & b, const player_t & p)
 	return v;
 }
 
+void load_stones(Board *const b, const char *in, const board_t & bv)
+{
+	while(in[0] == '[') {
+		const char *end = strchr(in, ']');
+
+		char xc = tolower(in[1]);
+		char yc = tolower(in[2]);
+
+		int x = xc - 'a';
+		int y = yc - 'a';
+
+		b->setAt(x, y, bv);
+
+		in = end + 1;
+	}
+}
+
+Board loadSgf(const std::string & filename)
+{
+	FILE *sfh = fopen(filename.c_str(), "r");
+	if (!sfh) {
+		fprintf(fh, "Cannot open %s\n", filename.c_str());
+		return Board(9);
+	}
+
+	char buffer[65536];
+	fgets(buffer, sizeof buffer, sfh);
+
+	int dim = 19;
+
+	const char *SZ = strstr(buffer, "SZ[");
+	if (SZ)
+		dim = atoi(SZ + 3);
+
+	Board b(dim);
+
+	const char *AB = strstr(buffer, "AB[");
+	if (AB)
+		load_stones(&b, AB + 2, B_BLACK);
+
+	const char *AW = strstr(buffer, "AW[");
+	if (AW)
+		load_stones(&b, AW, B_WHITE);
+
+	fclose(sfh);
+
+	return b;
+}
+
 int main(int argc, char *argv[])
 {
 #if 0
@@ -593,8 +642,10 @@ int main(int argc, char *argv[])
 		else if (parts.at(0) == "dump") {
 			dump(*b);
 		}
-		else if (parts.at(0) == "quit")
+		else if (parts.at(0) == "quit") {
+			printf("=%s\n\n", id.c_str());
 			break;
+		}
 		else if (parts.at(0) == "known_command") {  // TODO
 			if (parts.at(1) == "known_command")
 				printf("=%s true\n\n", id.c_str());
@@ -619,7 +670,14 @@ int main(int argc, char *argv[])
 			printf("=%s genmove\n", id.c_str());
 			printf("=%s komi\n", id.c_str());
 			printf("=%s quit\n", id.c_str());
+			printf("=%s loadsgf\n", id.c_str());
 			printf("\n");
+		}
+		else if (parts.at(0) == "loadsgf") {
+			delete b;
+			b = new Board(loadSgf(parts.at(1)));
+
+			printf("=%s\n\n", id.c_str());
 		}
 		else if (parts.at(0) == "genmove" || parts.at(0) == "reg_genmove") {
 			player_t player = (parts.at(1) == "b" || parts.at(1) == "black") ? P_BLACK : P_WHITE;
