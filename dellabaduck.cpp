@@ -535,7 +535,7 @@ int main(int argc, char *argv[])
 	fclose(fh);
 
 	return 0;
-#elif 0
+#elif 1
 	Board *b = new Board(9);
 
 	setbuf(stdout, nullptr);
@@ -617,6 +617,8 @@ int main(int argc, char *argv[])
 			printf("=%s clear_board\n", id.c_str());
 			printf("=%s play\n", id.c_str());
 			printf("=%s genmove\n", id.c_str());
+			printf("=%s komi\n", id.c_str());
+			printf("=%s quit\n", id.c_str());
 			printf("\n");
 		}
 		else if (parts.at(0) == "genmove") {
@@ -644,7 +646,7 @@ int main(int argc, char *argv[])
 	}
 
 	delete b;
-#elif 1
+#elif 0
 	// benchmark
 	uint64_t start = get_ts_ms(), end = 0;
 	uint64_t n = 0;
