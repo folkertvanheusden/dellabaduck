@@ -25,8 +25,8 @@ private:
 	const int v, dim;
 
 public:
-//	Vertex(const int v, const int dim) : v(v), dim(dim) {
-//	}
+	Vertex(const int v, const int dim) : v(v), dim(dim) {
+	}
 
 	Vertex(const int x, const int y, const int dim) : v(y * dim + x), dim(dim) {
 	}
@@ -455,19 +455,23 @@ void play(Board *const b, const Vertex & v, const player_t & p)
 	purgeChains(&chainsWhite);
 }
 
-std::optional<Vertex> genMove(const Board & b, const player_t & p)
+typedef struct {
+        int score;
+        bool valid;
+} eval_t;
+
+bool isValidMove(const std::vector<chain_t *> & chainsEmpty, const Vertex & v)
 {
-	ChainMap cm(b.getDim());
-	std::vector<chain_t *> chainsWhite, chainsBlack;
-	findChains(b, &chainsWhite, &chainsBlack, &cm);
+	for(auto chain : chainsEmpty) {
+		if (chain->chain.find(v) != chain->chain.end())
+			return true;
+	}
 
-	std::vector<chain_t *> chainsEmpty;
-	findChainsOfFreedoms(b, &chainsEmpty);
-	purgeFreedoms(&chainsEmpty, cm, p == P_BLACK ? B_BLACK : B_WHITE);
+	return false;
+}
 
-	if (chainsEmpty.empty())
-		return { };
-
+void selectRandom(const std::vector<chain_t *> & chainsWhite, const std::vector<chain_t *> & chainsBlack, const std::vector<chain_t *> & chainsEmpty, std::vector<eval_t> *const evals)
+{
 	auto chain = chainsEmpty.at(rand() % chainsEmpty.size());
 	size_t chainSize = chain->chain.size();
 	int r = rand() % (chainSize - 1);
@@ -476,7 +480,52 @@ std::optional<Vertex> genMove(const Board & b, const player_t & p)
 	for(int i=0; i<r; i++)
 		it++;
 
-	Vertex v = *it;
+	const int v = it->getV();
+
+	evals->at(v).score++;
+	evals->at(v).valid = true;
+}
+
+std::optional<Vertex> genMove(const Board & b, const player_t & p)
+{
+	const int dim = b.getDim();
+
+	// find chains of stones
+	ChainMap cm(dim);
+	std::vector<chain_t *> chainsWhite, chainsBlack;
+	findChains(b, &chainsWhite, &chainsBlack, &cm);
+
+	// find chains of freedoms
+	std::vector<chain_t *> chainsEmpty;
+	findChainsOfFreedoms(b, &chainsEmpty);
+	purgeFreedoms(&chainsEmpty, cm, p == P_BLACK ? B_BLACK : B_WHITE);
+
+	// no valid freedoms? return "pass".
+	if (chainsEmpty.empty())
+		return { };
+
+        std::vector<eval_t> evals;
+        for(int i=0; i<dim * dim; i++)
+                evals.push_back({ 0, false });
+
+	// algorithms
+	selectRandom(chainsWhite, chainsBlack, chainsEmpty, &evals);
+
+	// find best
+	std::optional<Vertex> v;
+
+        int bestScore = -32767, bestSq = -1;
+        for(int i=0; i<dim * dim; i++) {
+                if (evals.at(i).score > bestScore && evals.at(i).valid) {
+                        Vertex temp = Vertex(i, dim);
+
+			if (isValidMove(chainsEmpty, temp)) {
+                                v.emplace(temp);
+                                bestScore = evals.at(i).score;
+                                bestSq = i;
+                        }
+                }
+        }
 
 	purgeChains(&chainsBlack);
 	purgeChains(&chainsWhite);
