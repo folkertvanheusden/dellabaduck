@@ -602,12 +602,6 @@ std::pair<int, int> score(const Board & b)
 	std::vector<chain_t *> chainsWhite, chainsBlack;
 	findChains(b, &chainsWhite, &chainsBlack, &cm);
 
-	// find chains of freedoms
-	std::vector<chain_t *> chainsEmpty;
-	findChainsOfFreedoms(b, &chainsEmpty);
-	purgeFreedoms(&chainsEmpty, cm, B_BLACK);
-	purgeFreedoms(&chainsEmpty, cm, B_WHITE);
-
 	// number of stones for each
 	int blackStones = 0;
 	for(auto chain : chainsBlack)
@@ -618,10 +612,10 @@ std::pair<int, int> score(const Board & b)
 		whiteStones += chain->chain.size();
 
 	int blackEmpty = 0, whiteEmpty = 0;
-	for(auto chain : chainsEmpty) {
-		for(auto stone : chain->chain) {
-			const int x = stone.getX();
-			const int y = stone.getY();
+	for(int y=0; y<dim; y++) {
+		for(int x=0; x<dim; x++) {
+			if (b.getAt(x, y) != B_EMPTY)
+				continue;
 
 			std::set<board_t> neighbours;
 			int xc = x, yc = y;
@@ -648,6 +642,8 @@ std::pair<int, int> score(const Board & b)
 			if (yc < dim)
 				neighbours.insert(b.getAt(xc, yc));
 
+			printf("%s: %zu\n", v2t(Vertex(x, y, dim)).c_str(), neighbours.size());
+
 			if (neighbours.size() < 3) {
 				if (neighbours.find(B_EMPTY) != neighbours.end() || neighbours.size() == 1) {
 					if (neighbours.find(B_WHITE) != neighbours.end())
@@ -661,7 +657,6 @@ std::pair<int, int> score(const Board & b)
 
 	purgeChains(&chainsBlack);
 	purgeChains(&chainsWhite);
-	purgeChains(&chainsEmpty);
 
 	printf("%d %d\n", blackStones, blackEmpty);
 	printf("%d %d\n", whiteStones, whiteEmpty);
@@ -763,23 +758,25 @@ Board loadSgf(const std::string & filename)
 int main(int argc, char *argv[])
 {
 #if 0
-#if 0
         Board b = stringToBoard(
-                        "...o.\n"
-                        "oo.oo\n"
-                        "..o..\n"
-                        "oo.oo\n"
-                        "..o.x\n"
-                        );
-#else
-        Board b = stringToBoard(
-                        "o....\n"
-                        ".o.oo\n"
-                        "o.oo.\n"
                         ".o.o.\n"
                         "o.o.o\n"
+                        ".oooo\n"
+                        "ooooo\n"
+                        "oo.o.\n"
                         );
-#endif
+
+	auto scores = score(b);
+
+	std::string id;
+	if (scores.first == scores.second)
+		printf("=%s 0\n\n", id.c_str());
+	else if (scores.first > scores.second)
+		printf("=%s B+%d\n\n", id.c_str(), scores.first - scores.second);
+	else
+		printf("=%s W+%d\n\n", id.c_str(), scores.second - scores.first);
+
+	return 0;
 
 #if 0
         dump(b);
