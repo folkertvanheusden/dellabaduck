@@ -738,38 +738,42 @@ void selectAlphaBeta(const Board & b, const ChainMap & cm, const std::vector<cha
 	}
 }
 
-std::optional<Vertex> genMove(const Board & b, const player_t & p)
+std::optional<Vertex> genMove(Board *const b, const player_t & p, const bool play)
 {
-	const int dim = b.getDim();
+	const int dim = b->getDim();
 
 	// find chains of stones
 	ChainMap cm(dim);
 	std::vector<chain_t *> chainsWhite, chainsBlack;
-	findChains(b, &chainsWhite, &chainsBlack, &cm);
+	findChains(*b, &chainsWhite, &chainsBlack, &cm);
 
 	// find chains of freedoms
 	std::vector<chain_t *> chainsEmpty;
-	findChainsOfFreedoms(b, &chainsEmpty);
+	findChainsOfFreedoms(*b, &chainsEmpty);
 	purgeFreedoms(&chainsEmpty, cm, p == P_BLACK ? B_BLACK : B_WHITE);
 
 	// no valid freedoms? return "pass".
-	if (chainsEmpty.empty())
+	if (chainsEmpty.empty()) {
+		purgeChains(&chainsBlack);
+		purgeChains(&chainsWhite);
+
 		return { };
+	}
 
         std::vector<eval_t> evals;
         for(int i=0; i<dim * dim; i++)
                 evals.push_back({ 0, false });
 
 	// algorithms
-// FIXME	selectRandom(b, cm, chainsWhite, chainsBlack, chainsEmpty, p, &evals);
+// FIXME	selectRandom(*b, cm, chainsWhite, chainsBlack, chainsEmpty, p, &evals);
 
-	selectExtendChains(b, cm, chainsWhite, chainsBlack, chainsEmpty, p, &evals);
+	selectExtendChains(*b, cm, chainsWhite, chainsBlack, chainsEmpty, p, &evals);
 
-	selectKillChains(b, cm, chainsWhite, chainsBlack, chainsEmpty, p, &evals);
+	selectKillChains(*b, cm, chainsWhite, chainsBlack, chainsEmpty, p, &evals);
 
-	selectAtLeastOne(b, cm, chainsWhite, chainsBlack, chainsEmpty, p, &evals);
+	selectAtLeastOne(*b, cm, chainsWhite, chainsBlack, chainsEmpty, p, &evals);
 
-	selectAlphaBeta(b, cm, chainsWhite, chainsBlack, chainsEmpty, p, &evals);
+	selectAlphaBeta(*b, cm, chainsWhite, chainsBlack, chainsEmpty, p, &evals);
 
 	// find best
 	std::optional<Vertex> v;
@@ -786,10 +790,6 @@ std::optional<Vertex> genMove(const Board & b, const player_t & p)
                 }
         }
 
-	purgeChains(&chainsBlack);
-	purgeChains(&chainsWhite);
-	purgeChains(&chainsEmpty);
-
 	// dump debug
 	for(int y=dim-1; y>=0; y--) {
 		std::string line = myformat("# %2d | ", y + 1);
@@ -800,7 +800,7 @@ std::optional<Vertex> genMove(const Board & b, const player_t & p)
 			if (evals.at(v).valid)
 				line += myformat("%3d ", evals.at(v).score);
 			else
-				line += myformat("  %s ", board_t_names[b.getAt(x, y)]);
+				line += myformat("  %s ", board_t_names[b->getAt(x, y)]);
 		}
 
 		send(true, line.c_str());
@@ -814,7 +814,24 @@ std::optional<Vertex> genMove(const Board & b, const player_t & p)
 
 		line += myformat(" %c  ", c);
 	}
+
 	send(true, line.c_str());
+
+	// remove any chains that no longer have freedoms after this move
+	if (play && v.has_value()) {
+		std::vector<chain_t *> & scan = p == P_BLACK ? chainsWhite : chainsBlack;
+
+		for(auto chain : scan) {
+			if (chain->freedoms.find(v.value()) != chain->freedoms.end()) {
+				for(auto ve : chain->chain)
+					b->setAt(ve, B_EMPTY);
+			}
+		}
+	}
+
+	purgeChains(&chainsBlack);
+	purgeChains(&chainsWhite);
+	purgeChains(&chainsEmpty);
 
 	return v;
 }
@@ -977,7 +994,7 @@ int main(int argc, char *argv[])
 	purgeChains(&chainsEmpty);
 #endif
 	dump(b);
-	auto v = genMove(b, P_BLACK);
+	auto v = genMove(b, P_BLACK, true);
 	if (v.has_value())
 		fprintf(fh, "= %s\n\n", v2t(v.value()).c_str());
 	else
@@ -1110,15 +1127,13 @@ int main(int argc, char *argv[])
 
 				n_moves++;
 
-				auto v = genMove(*b, p);
+				auto v = genMove(b, p, true);
 				if (v.has_value() == false)
 					break;
 
 				uint64_t end_ts = get_ts_ms();
 
 				send(true, "# %s, took %.3fs/%d", v2t(v.value()).c_str(), (end_ts - start_ts) / 1000.0, n_moves);
-
-				play(b, v.value(), p);
 
 				p = p == P_BLACK ? P_WHITE : P_BLACK;
 			}
@@ -1131,18 +1146,13 @@ int main(int argc, char *argv[])
 			player_t player = (parts.at(1) == "b" || parts.at(1) == "black") ? P_BLACK : P_WHITE;
 
 			uint64_t start_ts = get_ts_ms();
-			auto v = genMove(*b, player);
+			auto v = genMove(b, player, parts.at(0) == "genmove");
 			uint64_t end_ts = get_ts_ms();
 
-			if (v.has_value()) {
+			if (v.has_value())
 				send(true, "=%s %s", id.c_str(), v2t(v.value()).c_str());
-
-				if (parts.at(0) == "genmove")
-					play(b, v.value(), player);
-			}
-			else {
+			else
 				send(true, "=%s pass", id.c_str());
-			}
 
 			send(true, "# took %.3fs", (end_ts - start_ts) / 1000.0);
 		}
