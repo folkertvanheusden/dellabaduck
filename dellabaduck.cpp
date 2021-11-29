@@ -915,7 +915,7 @@ int main(int argc, char *argv[])
 
 			send(true, "=%s", id.c_str());
 		}
-		else if (parts.at(0) == "dump") {
+		else if (parts.at(0) == "showboard") {
 			dump(*b);
 		}
 		else if (parts.at(0) == "quit") {
