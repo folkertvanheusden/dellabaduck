@@ -142,6 +142,36 @@ void dump(const std::vector<chain_t *> & chains)
 		dump(*chain);
 }
 
+// slightly adapted murmur hash
+// from https://en.wikipedia.org/wiki/MurmurHash
+static inline uint32_t adapted_murmur_32_scramble(uint32_t k)
+{
+	k *= 0xcc9e2d51;
+	k = (k << 15) | (k >> 17);
+	k *= 0x1b873593;
+	return k;
+}
+
+uint32_t adapted_murmur3_32(const board_t *key, size_t len)
+{
+	uint32_t h = 9;
+
+	for (size_t i = 0; i<len; i++) {
+		h ^= adapted_murmur_32_scramble(key[i]);
+		h = (h << 13) | (h >> 19);
+		h = h * 5 + 0xe6546b64;
+	}
+
+	h ^= len;
+	h ^= h >> 16;
+	h *= 0x85ebca6b;
+	h ^= h >> 13;
+	h *= 0xc2b2ae35;
+	h ^= h >> 16;
+
+	return h;
+}
+
 class Board {
 private:
 	const int dim;
@@ -195,6 +225,10 @@ public:
 		assert(y < dim && y >= 0);
 		int v = y * dim + x;
 		b[v] = bv;
+	}
+
+	uint32_t hash() const {
+		return adapted_murmur3_32(b, dim * dim);
 	}
 };
 
@@ -651,9 +685,49 @@ void selectKillChains(const Board & b, const ChainMap & cm, const std::vector<ch
 	}
 }
 
+class tt {
+private:
+	class entry {
+	public:
+		uint32_t hash;
+		int16_t score;
+	};
+
+	entry *table;
+
+public:
+	tt() {
+		table = new entry[67108864];
+	}
+
+	~tt() {
+		delete [] table;
+	}
+
+	void store(const uint32_t hash, const int score) {
+		int index = hash % 67108864;
+		table[index].hash = hash;
+		table[index].score = score;
+	}
+
+	std::optional<int> lookup(const uint32_t hash) {
+		int index = hash % 67108864;
+		if (table[index].hash == hash)
+			return table[index].score;
+		return { };
+	}
+};
+
+tt tt;
+
 int search(const Board & b, const player_t & p, int alpha, const int beta, const int depth)
 {
 	const int dim = b.getDim();
+
+	const uint32_t board_h = b.hash();
+	std::optional<int> tte = tt.lookup(board_h);
+	if (tte.has_value())
+		return tte.value();
 
 	std::vector<chain_t *> chainsEmpty;
 
@@ -697,6 +771,8 @@ int search(const Board & b, const player_t & p, int alpha, const int beta, const
 	}
 
 finished:
+	tt.store(board_h, bestScore);
+
 	return bestScore;
 }
 
@@ -714,7 +790,7 @@ void selectAlphaBeta(const Board & b, const ChainMap & cm, const std::vector<cha
 		Vertex v(i, dim);
 		play(&work, v, p);
 
-		int score = -search(work, p == P_BLACK ? P_WHITE : P_BLACK, -32768, 32768, 2);
+		int score = -search(work, p == P_BLACK ? P_WHITE : P_BLACK, -32768, 32768, 3);
 
 		evals->at(i).score += score;
 	}
