@@ -878,7 +878,7 @@ Board loadSgf(const std::string & filename)
 	}
 
 	char buffer[65536];
-	fgets(buffer, sizeof buffer, sfh);
+	fread(buffer, 1, sizeof buffer, sfh);
 
 	int dim = 19;
 
@@ -894,9 +894,11 @@ Board loadSgf(const std::string & filename)
 
 	const char *AW = strstr(buffer, "AW[");
 	if (AW)
-		load_stones(&b, AW, B_WHITE);
+		load_stones(&b, AW + 2, B_WHITE);
 
 	fclose(sfh);
+
+	dump(b);
 
 	return b;
 }
