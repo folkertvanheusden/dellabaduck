@@ -821,6 +821,8 @@ std::optional<Vertex> genMove(const Board & b, const player_t & p)
 
 double benchmark(const Board & in, const int ms)
 {
+	send(true, "# starting benchmark. duration: %.3fs", ms / 1000.0);
+
 	// benchmark
 	uint64_t start = get_ts_ms(), end = 0;
 	uint64_t n = 0;
@@ -833,11 +835,34 @@ double benchmark(const Board & in, const int ms)
 		int mc = 0;
 
 		for(;;) {
-			auto v = genMove(b, p);
-			if (!v.has_value())
+			// find chains of stones
+			ChainMap cm(in.getDim());
+			std::vector<chain_t *> chainsWhite, chainsBlack;
+			findChains(b, &chainsWhite, &chainsBlack, &cm);
+
+			// find chains of freedoms
+			std::vector<chain_t *> chainsEmpty;
+			findChainsOfFreedoms(b, &chainsEmpty);
+			purgeFreedoms(&chainsEmpty, cm, p == P_BLACK ? B_BLACK : B_WHITE);
+
+			purgeChains(&chainsBlack);
+			purgeChains(&chainsWhite);
+
+			// no valid freedoms? return "pass".
+			if (chainsEmpty.empty())
 				break;
 
-			play(&b, v.value(), p);
+			auto chain = chainsEmpty.at(rand() % chainsEmpty.size());
+			size_t chainSize = chain->chain.size();
+			int r = rand() % (chainSize - 1);
+
+			auto it = chain->chain.begin();
+			for(int i=0; i<r; i++)
+				it++;
+
+			play(&b, *it, p);
+
+			purgeChains(&chainsEmpty);
 
 			p = p == P_BLACK ? P_WHITE : P_BLACK;
 			mc++;
