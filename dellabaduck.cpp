@@ -18,7 +18,7 @@
 
 typedef enum { P_BLACK, P_WHITE } player_t;
 typedef enum { B_EMPTY, B_WHITE, B_BLACK } board_t;
-const char *const board_t_names[] = { "empty", "white", "black" };
+const char *const board_t_names[] = { ".", "o", "x" };
 
 FILE *fh = fopen("/tmp/input.dat", "a+");
 
@@ -654,16 +654,20 @@ void selectImproveScore(const Board & b, const ChainMap & cm, const std::vector<
 	auto scorePairBefore = score(b);
 	int scoreBefore = p == P_BLACK ? scorePairBefore.first - scorePairBefore.second : scorePairBefore.second - scorePairBefore.first;
 
-	for(int v=0; v<dim*dim; v++) {
+	for(int i=0; i<dim*dim; i++) {
 		Board work(b);
 
-		play(&work, Vertex(v, dim), p);
+		Vertex v(i, dim);
 
-		auto scorePairAfter = score(b);
-		int scoreAfter = p == P_BLACK ? scorePairAfter.first - scorePairAfter.second : scorePairAfter.second - scorePairAfter.first;
+		if (isValidMove(chainsEmpty, v)) {
+			play(&work, v, p);
 
-		evals->at(v).score += scoreAfter - scoreBefore;
-		evals->at(v).valid = true;
+			auto scorePairAfter = score(work);
+			int scoreAfter = p == P_BLACK ? scorePairAfter.first - scorePairAfter.second : scorePairAfter.second - scorePairAfter.first;
+
+			evals->at(i).score += scoreAfter - scoreBefore;
+			evals->at(i).valid = true;
+		}
 	}
 }
 
@@ -716,6 +720,32 @@ std::optional<Vertex> genMove(const Board & b, const player_t & p)
 	purgeChains(&chainsBlack);
 	purgeChains(&chainsWhite);
 	purgeChains(&chainsEmpty);
+
+	// dump debug
+	for(int y=dim-1; y>=0; y--) {
+		std::string line = myformat("# %2d | ", y + 1);
+
+		for(int x=0; x<dim; x++) {
+			int v = y * dim + x;
+
+			if (evals.at(v).valid)
+				line += myformat("%3d ", evals.at(v).score);
+			else
+				line += myformat("  %s ", board_t_names[b.getAt(x, y)]);
+		}
+
+		send(true, line.c_str());
+	}
+
+	std::string line = "#      ";
+	for(int x=0; x<dim; x++) {
+		char c = 'A' + x;
+		if (c >= 'I')
+			c++;
+
+		line += myformat(" %c  ", c);
+	}
+	send(true, line.c_str());
 
 	return v;
 }
@@ -954,6 +984,8 @@ int main(int argc, char *argv[])
 			send(true, "=%s quit", id.c_str());
 			send(true, "=%s loadsgf", id.c_str());
 			send(true, "=%s final_score", id.c_str());
+			send(true, "=%s time_settings", id.c_str());
+			send(true, "=%s time_left", id.c_str());
 		}
 		else if (parts.at(0) == "final_score") {
 			auto scores = score(*b);
