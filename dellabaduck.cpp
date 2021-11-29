@@ -687,6 +687,17 @@ void selectKillChains(const Board & b, const ChainMap & cm, const std::vector<ch
 	}
 }
 
+void selectAtLeastOne(const Board & b, const ChainMap & cm, const std::vector<chain_t *> & chainsWhite, const std::vector<chain_t *> & chainsBlack, const std::vector<chain_t *> & chainsEmpty, const player_t & p, std::vector<eval_t> *const evals)
+{
+	auto chain = chainsEmpty.at(0);
+	size_t chainSize = chain->chain.size();
+	auto it = chain->chain.begin();
+	const int v = it->getV();
+
+	evals->at(v).score++;
+	evals->at(v).valid = true;
+}
+
 constexpr int ttSize = 33554432;
 
 class tt {
@@ -695,11 +706,12 @@ public:
 	public:
 		uint32_t hash;
 		int16_t score;
-		int16_t depth;
+		int8_t depth, age;
 	};
 
 private:
 	entry table[ttSize][8];
+	uint8_t age { 0 };
 
 public:
 	tt() {
@@ -710,10 +722,17 @@ public:
 
 	void reset() {
 		memset(table, 0x00, sizeof table);
+		age = 0;
+	}
+
+	void incAge() {
+		age++;
 	}
 
 	void store(const uint32_t hash, const int score, const int depth) {
 		int index = hash % ttSize;
+
+		int putIndex = 0;
 
 		for(int i=0; i<8; i++) {
 			if (table[index][i].hash == hash) {
@@ -721,12 +740,14 @@ public:
 				table[index][i].depth = depth;
 				return;
 			}
+
+			if (table[index][i].age != age)
+				putIndex = i;
 		}
 
-		int i = rand() & 7;
-		table[index][i].hash  = hash;
-		table[index][i].score = score;
-		table[index][i].depth = depth;
+		table[index][putIndex].hash  = hash;
+		table[index][putIndex].score = score;
+		table[index][putIndex].depth = depth;
 	}
 
 	std::optional<tt::entry> lookup(const uint32_t hash) {
@@ -745,12 +766,14 @@ tt tt;
 
 int search(const Board & b, const player_t & p, int alpha, const int beta, const int depth)
 {
-	const int dim = b.getDim();
-
 	const uint32_t board_h = b.hash(p);
 	std::optional<tt::entry> tte = tt.lookup(board_h);
 	if (tte.has_value() && tte.value().depth >= depth)
 		return tte.value().score;
+
+	const int startAlpha = alpha;
+
+	const int dim = b.getDim();
 
 	std::vector<chain_t *> chainsEmpty;
 
@@ -794,12 +817,12 @@ int search(const Board & b, const player_t & p, int alpha, const int beta, const
 	}
 
 finished:
-	tt.store(board_h, bestScore, depth);
+	if (bestSore > startAlpha)
+		tt.store(board_h, bestScore, depth);
 
 	return bestScore;
 }
 
-// LAST 'select...'!
 void selectAlphaBeta(const Board & b, const ChainMap & cm, const std::vector<chain_t *> & chainsWhite, const std::vector<chain_t *> & chainsBlack, const std::vector<chain_t *> & chainsEmpty, const player_t & p, std::vector<eval_t> *const evals)
 {
 	const int dim = b.getDim();
@@ -813,7 +836,7 @@ void selectAlphaBeta(const Board & b, const ChainMap & cm, const std::vector<cha
 		Vertex v(i, dim);
 		play(&work, v, p);
 
-		int score = -search(work, p == P_BLACK ? P_WHITE : P_BLACK, -32768, 32768, 3);
+		int score = search(work, p == P_BLACK ? P_WHITE : P_BLACK, -32768, 32768, 3);
 
 		evals->at(i).score += score;
 	}
@@ -842,11 +865,13 @@ std::optional<Vertex> genMove(const Board & b, const player_t & p)
                 evals.push_back({ 0, false });
 
 	// algorithms
-	selectRandom(b, cm, chainsWhite, chainsBlack, chainsEmpty, p, &evals);
+// FIXME	selectRandom(b, cm, chainsWhite, chainsBlack, chainsEmpty, p, &evals);
 
 	selectExtendChains(b, cm, chainsWhite, chainsBlack, chainsEmpty, p, &evals);
 
 	selectKillChains(b, cm, chainsWhite, chainsBlack, chainsEmpty, p, &evals);
+
+	selectAtLeastOne(b, cm, chainsWhite, chainsBlack, chainsEmpty, p, &evals);
 
 	selectAlphaBeta(b, cm, chainsWhite, chainsBlack, chainsEmpty, p, &evals);
 
