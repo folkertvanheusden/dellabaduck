@@ -623,10 +623,12 @@ void selectExtendChains(const Board & b, const ChainMap & cm, const std::vector<
 		for(auto stone : chain->chain) {
 			auto empties = pickEmptyAround(cm, stone);
 
-			for(auto empty : empties) {
-				int v = empty.getV();
-				evals->at(v).score += 2;
-				evals->at(v).valid = true;
+			for(auto stone : empties) {
+				if (isValidMove(chainsEmpty, stone)) {
+					int v = stone.getV();
+					evals->at(v).score += 2;
+					evals->at(v).valid = true;
+				}
 			}
 		}
 	}
@@ -640,34 +642,81 @@ void selectKillChains(const Board & b, const ChainMap & cm, const std::vector<ch
 		const int add = chain->chain.size() - chain->freedoms.size();
 
 		for(auto stone : chain->freedoms) {
-			int v = stone.getV();
-			evals->at(v).score += add;
-			evals->at(v).valid = true;
+			if (isValidMove(chainsEmpty, stone)) {
+				int v = stone.getV();
+				evals->at(v).score += add;
+				evals->at(v).valid = true;
+			}
 		}
 	}
 }
 
-void selectImproveScore(const Board & b, const ChainMap & cm, const std::vector<chain_t *> & chainsWhite, const std::vector<chain_t *> & chainsBlack, const std::vector<chain_t *> & chainsEmpty, const player_t & p, std::vector<eval_t> *const evals)
+int search(const Board & b, const player_t & p, int alpha, const int beta, const int depth)
 {
 	const int dim = b.getDim();
 
-	auto scorePairBefore = score(b);
-	int scoreBefore = p == P_BLACK ? scorePairBefore.first - scorePairBefore.second : scorePairBefore.second - scorePairBefore.first;
+	std::vector<chain_t *> chainsEmpty;
 
-	for(int i=0; i<dim*dim; i++) {
+	if (depth > 0) {
+		ChainMap cm(dim);
+		std::vector<chain_t *> chainsWhite, chainsBlack;
+		findChains(b, &chainsWhite, &chainsBlack, &cm);
+
+		// find chains of freedoms
+		findChainsOfFreedoms(b, &chainsEmpty);
+		purgeFreedoms(&chainsEmpty, cm, p == P_BLACK ? B_BLACK : B_WHITE);
+	}
+
+	// no valid freedoms? return "pass".
+	if (chainsEmpty.empty()) {
+		auto s = score(b);
+		return p == P_BLACK ? s.first - s.second : s.second - s.first;
+	}
+
+	int bestScore = -32768;
+
+	for(auto chain : chainsEmpty) {
+		for(auto stone : chain->chain) {
+			Board work(b);
+
+			play(&work, stone, p);
+
+			int score = -search(work, p == P_WHITE ? P_BLACK : P_WHITE, -beta, -alpha, depth - 1);
+
+			if (score > bestScore) {
+				bestScore = score;
+
+				if (score > alpha) {
+					alpha = score;
+
+					if (score >= beta)
+						goto finished;
+				}
+			}
+		}
+	}
+
+finished:
+	return bestScore;
+}
+
+// LAST 'select...'!
+void selectAlphaBeta(const Board & b, const ChainMap & cm, const std::vector<chain_t *> & chainsWhite, const std::vector<chain_t *> & chainsBlack, const std::vector<chain_t *> & chainsEmpty, const player_t & p, std::vector<eval_t> *const evals)
+{
+	const int dim = b.getDim();
+
+	for(int i=0; i<dim * dim; i++) {
+		if (evals->at(i).valid == false)
+			continue;
+
 		Board work(b);
 
 		Vertex v(i, dim);
+		play(&work, v, p);
 
-		if (isValidMove(chainsEmpty, v)) {
-			play(&work, v, p);
+		int score = -search(work, p == P_BLACK ? P_WHITE : P_BLACK, -32768, 32768, 2);
 
-			auto scorePairAfter = score(work);
-			int scoreAfter = p == P_BLACK ? scorePairAfter.first - scorePairAfter.second : scorePairAfter.second - scorePairAfter.first;
-
-			evals->at(i).score += scoreAfter - scoreBefore;
-			evals->at(i).valid = true;
-		}
+		evals->at(i).score += score;
 	}
 }
 
@@ -700,7 +749,7 @@ std::optional<Vertex> genMove(const Board & b, const player_t & p)
 
 	selectKillChains(b, cm, chainsWhite, chainsBlack, chainsEmpty, p, &evals);
 
-	selectImproveScore(b, cm, chainsWhite, chainsBlack, chainsEmpty, p, &evals);
+	selectAlphaBeta(b, cm, chainsWhite, chainsBlack, chainsEmpty, p, &evals);
 
 	// find best
 	std::optional<Vertex> v;
