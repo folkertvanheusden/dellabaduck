@@ -722,8 +722,11 @@ public:
 
 		for(int i=0; i<8; i++) {
 			if (table[index][i].u.sv.hash == hash) {
-				table[index][i].u.sv.score = score;
-				table[index][i].u.sv.depth = depth;
+				if (depth > table[index][i].u.sv.depth) {
+					table[index][i].u.sv.score = score;
+					table[index][i].u.sv.depth = depth;
+				}
+
 				return;
 			}
 		}
