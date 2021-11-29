@@ -157,6 +157,8 @@ uint32_t adapted_murmur3_32(const board_t *key, const size_t len, const player_t
 	uint32_t h = 9;
 
 	h ^= adapted_murmur_32_scramble(p);
+	h = (h << 13) | (h >> 19);
+	h = h * 5 + 0xe6546b64;
 
 	for (size_t i = 0; i<len; i++) {
 		h ^= adapted_murmur_32_scramble(key[i]);
@@ -710,20 +712,26 @@ public:
 				int8_t depth;
 				int8_t age;
 			} sv;
-		} u;
 
-		uint64_t v;
+			uint64_t v;
+		} u;
+	};
+
+	struct bins {
+		entry entries[8];
 	};
 
 private:
-	entry table[ttSize][8];
+	bins *table { nullptr };
 	uint8_t age { 0 };
 
 public:
 	tt() {
+		table = new bins[ttSize];
 	}
 
 	~tt() {
+		delete [] table;
 	}
 
 	void reset() {
@@ -741,16 +749,17 @@ public:
 		int putIndex = 0;
 
 		for(int i=0; i<8; i++) {
-			if (table[index][i].u.sv.hash == hash) {
-				if (depth > table[index][i].u.sv.depth) {
-					table[index][i].u.sv.score = score;
-					table[index][i].u.sv.depth = depth;
+			if (table[index].entries[i].u.sv.hash == hash) {
+				if (depth > table[index].entries[i].u.sv.depth) {
+					table[index].entries[i].u.sv.score = score;
+					table[index].entries[i].u.sv.depth = depth;
+					table[index].entries[i].u.sv.age   = age;
 				}
 
 				return;
 			}
 
-			if (table[index][i].u.sv.age != age)
+			if (table[index].entries[i].u.sv.age != age)
 				putIndex = i;
 		}
 
@@ -758,16 +767,17 @@ public:
 		new_entry.u.sv.hash  = hash;
 		new_entry.u.sv.score = score;
 		new_entry.u.sv.depth = depth;
+		new_entry.u.sv.age   = age;
 
-		table[index][putIndex].v = new_entry.v;
+		table[index].entries[putIndex].u.v = new_entry.u.v;
 	}
 
 	std::optional<tt::entry> lookup(const uint32_t hash) {
 		int index = hash % ttSize;
 
 		for(int i=0; i<8; i++) {
-			if (table[index][i].u.sv.hash == hash)
-				return table[index][i];
+			if (table[index].entries[i].u.sv.hash == hash)
+				return table[index].entries[i];
 		}
 
 		return { };
@@ -775,13 +785,18 @@ public:
 };
 
 tt tt;
+uint64_t nodes = 0, ttHit = 0;
 
 int search(const Board & b, const player_t & p, int alpha, const int beta, const int depth)
 {
+	nodes++;
+
 	const uint32_t board_h = b.hash(p);
 	std::optional<tt::entry> tte = tt.lookup(board_h);
-	if (tte.has_value() && tte.value().u.sv.depth >= depth)
+	if (tte.has_value() && tte.value().u.sv.depth >= depth) {
+		ttHit++;
 		return tte.value().u.sv.score;
+	}
 
 	const int startAlpha = alpha;
 
@@ -1078,6 +1093,7 @@ int main(int argc, char *argv[])
 #elif 1
 	Board *b = new Board(9);
 	tt.reset();
+	tt.incAge();
 
 	setbuf(stdout, nullptr);
 	setbuf(stderr, nullptr);
@@ -1195,8 +1211,13 @@ int main(int argc, char *argv[])
 		else if (parts.at(0) == "autoplay") {
 			player_t p = P_BLACK;
 
+			uint64_t g_start_ts = get_ts_ms();
+			int n_moves = 0;
+
 			for(;;) {
 				uint64_t start_ts = get_ts_ms();
+
+				n_moves++;
 
 				auto v = genMove(*b, p);
 				if (v.has_value() == false)
@@ -1204,14 +1225,16 @@ int main(int argc, char *argv[])
 
 				uint64_t end_ts = get_ts_ms();
 
-				send(true, "# took %.3fs", (end_ts - start_ts) / 1000.0);
+				send(true, "# %s, took %.3fs (%.2f%% tt hit (%ld/%ld))", v2t(v.value()).c_str(), (end_ts - start_ts) / 1000.0, ttHit * 100.0 / nodes, ttHit, nodes);
 
 				play(b, v.value(), p);
 
 				p = p == P_BLACK ? P_WHITE : P_BLACK;
 			}
 
-			send(true, "# finished");
+			uint64_t g_end_ts = get_ts_ms();
+
+			send(true, "# finished %d moves in %.3fs", n_moves, (g_end_ts - g_start_ts) / 1000.0);
 		}
 		else if (parts.at(0) == "genmove" || parts.at(0) == "reg_genmove") {
 			player_t player = (parts.at(1) == "b" || parts.at(1) == "black") ? P_BLACK : P_WHITE;
