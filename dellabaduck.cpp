@@ -152,9 +152,11 @@ static inline uint32_t adapted_murmur_32_scramble(uint32_t k)
 	return k;
 }
 
-uint32_t adapted_murmur3_32(const board_t *key, size_t len)
+uint32_t adapted_murmur3_32(const board_t *key, const size_t len, const player_t p)
 {
 	uint32_t h = 9;
+
+	h ^= adapted_murmur_32_scramble(p);
 
 	for (size_t i = 0; i<len; i++) {
 		h ^= adapted_murmur_32_scramble(key[i]);
@@ -227,8 +229,8 @@ public:
 		b[v] = bv;
 	}
 
-	uint32_t hash() const {
-		return adapted_murmur3_32(b, dim * dim);
+	uint32_t hash(const player_t p) const {
+		return adapted_murmur3_32(b, dim * dim, p);
 	}
 };
 
@@ -686,34 +688,49 @@ void selectKillChains(const Board & b, const ChainMap & cm, const std::vector<ch
 }
 
 class tt {
-private:
+public:
 	class entry {
 	public:
 		uint32_t hash;
 		int16_t score;
+		int16_t depth;
 	};
 
-	entry *table;
+private:
+	entry table[67108864][8];
 
 public:
 	tt() {
-		table = new entry[67108864];
 	}
 
 	~tt() {
-		delete [] table;
 	}
 
-	void store(const uint32_t hash, const int score) {
+	void store(const uint32_t hash, const int score, const int depth) {
 		int index = hash % 67108864;
-		table[index].hash = hash;
-		table[index].score = score;
+
+		for(int i=0; i<8; i++) {
+			if (table[index][i].hash == hash) {
+				table[index][i].score = score;
+				table[index][i].depth = depth;
+				return;
+			}
+		}
+
+		int i = rand() & 7;
+		table[index][i].hash  = hash;
+		table[index][i].score = score;
+		table[index][i].depth = depth;
 	}
 
-	std::optional<int> lookup(const uint32_t hash) {
+	std::optional<tt::entry> lookup(const uint32_t hash) {
 		int index = hash % 67108864;
-		if (table[index].hash == hash)
-			return table[index].score;
+
+		for(int i=0; i<8; i++) {
+			if (table[index][i].hash == hash)
+				return table[index][i];
+		}
+
 		return { };
 	}
 };
@@ -724,10 +741,10 @@ int search(const Board & b, const player_t & p, int alpha, const int beta, const
 {
 	const int dim = b.getDim();
 
-	const uint32_t board_h = b.hash();
-	std::optional<int> tte = tt.lookup(board_h);
-	if (tte.has_value())
-		return tte.value();
+	const uint32_t board_h = b.hash(p);
+	std::optional<tt::entry> tte = tt.lookup(board_h);
+	if (tte.has_value() && tte.value().depth >= depth)
+		return tte.value().score;
 
 	std::vector<chain_t *> chainsEmpty;
 
@@ -771,7 +788,7 @@ int search(const Board & b, const player_t & p, int alpha, const int beta, const
 	}
 
 finished:
-	tt.store(board_h, bestScore);
+	tt.store(board_h, bestScore, depth);
 
 	return bestScore;
 }
@@ -1130,7 +1147,10 @@ int main(int argc, char *argv[])
 		}
 		else if (parts.at(0) == "genmove" || parts.at(0) == "reg_genmove") {
 			player_t player = (parts.at(1) == "b" || parts.at(1) == "black") ? P_BLACK : P_WHITE;
+
+			uint64_t start_ts = get_ts_ms();
 			auto v = genMove(*b, player);
+			uint64_t end_ts = get_ts_ms();
 
 			if (v.has_value()) {
 				send(true, "=%s %s", id.c_str(), v2t(v.value()).c_str());
@@ -1141,6 +1161,8 @@ int main(int argc, char *argv[])
 			else {
 				send(true, "=%s pass", id.c_str());
 			}
+
+			send(true, "# took %.3fs", (end_ts - start_ts) / 1000.0);
 		}
 		else if (parts.at(0) == "cputime") {
 			struct rusage ru { 0 };
