@@ -3,6 +3,7 @@
 #include <fstream>
 #include <optional>
 #include <set>
+#include <stdarg.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -18,6 +19,36 @@ typedef enum { B_EMPTY, B_WHITE, B_BLACK } board_t;
 const char *const board_t_names[] = { "empty", "white", "black" };
 
 FILE *fh = fopen("/tmp/input.dat", "a+");
+
+void send(const bool tx, const char *fmt, ...)
+{
+	uint64_t now = get_ts_ms();
+	time_t t_now = now / 1000;
+
+	struct tm tm { 0 };
+	if (!localtime_r(&t_now, &tm))
+		fprintf(stderr, "localtime_r: %s\n", strerror(errno));
+
+	char *ts_str = nullptr;
+	asprintf(&ts_str, "%04d-%02d-%02d %02d:%02d:%02d.%03d ",
+			tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday, tm.tm_hour, tm.tm_min, tm.tm_sec, int(now % 1000));
+
+	char *str = nullptr;
+
+	va_list ap;
+	va_start(ap, fmt);
+	(void)vasprintf(&str, fmt, ap);
+	va_end(ap);
+
+	fprintf(fh, "%s%s\n", ts_str, str);
+	fflush(fh);
+
+	if (tx)
+		printf("%s\n", str);
+
+	free(str);
+	free(ts_str);
+}
 
 class Vertex
 {
@@ -86,20 +117,20 @@ typedef struct {
 
 void dump(const chain_t & chain)
 {
-	fprintf(fh, "# Chain for %s:\n", board_t_names[chain.type]);
+	send(true, "# Chain for %s:", board_t_names[chain.type]);
 
-	fprintf(fh, "# ");
+	std::string line = "# ";
 	for(auto v : chain.chain) 
-		fprintf(fh, "%s ", v2t(v).c_str());
-	fprintf(fh, "\n");
+		line += myformat("%s ", v2t(v).c_str());
+	send(true, line.c_str());
 
 	if (chain.freedoms.empty() == false) {
-		fprintf(fh, "# Freedoms of that chain:\n");
+		send(true, "# Freedoms of that chain:");
 
-		fprintf(fh, "# ");
+		line = "# ";
 		for(auto v : chain.freedoms) 
-			fprintf(fh, "%s ", v2t(v).c_str());
-		fprintf(fh, "\n");
+			line += myformat("%s ", v2t(v).c_str());
+		send(true, line.c_str());
 	}
 }
 
@@ -204,25 +235,28 @@ void dump(const Board & b)
 {
 	const int dim = b.getDim();
 
+	std::string line;
+
 	for(int y=dim - 1; y>=0; y--) {
-		fprintf(fh, "# %2d | ", y + 1);
+		line = myformat("# %2d | ", y + 1);
+
 		for(int x=0; x<dim; x++) {
 			board_t bv = b.getAt(x, y);
 
 			if (bv == B_EMPTY)
-				fprintf(fh, ".");
+				line += ".";
 			else if (bv == B_BLACK)
-				fprintf(fh, "x");
+				line += "x";
 			else if (bv == B_WHITE)
-				fprintf(fh, "o");
+				line += "o";
 			else
-				fprintf(fh, "!");
+				line += "!";
 		}
 
-		fprintf(fh, "\n");
+		send(true, line.c_str());
 	}
 
-	fprintf(fh, "#      ");
+	line = "#      ";
 
 	for(int x=0; x<dim; x++) {
 		int xc = 'A' + x;
@@ -230,10 +264,10 @@ void dump(const Board & b)
 		if (xc >= 'I')
 			xc++;
 
-		fprintf(fh, "%c", xc);
+		line += myformat("%c", xc);
 	}
 
-	fprintf(fh, "\n");
+	send(true, line.c_str());
 }
 
 class ChainMap {
@@ -455,143 +489,6 @@ void play(Board *const b, const Vertex & v, const player_t & p)
 	purgeChains(&chainsWhite);
 }
 
-typedef struct {
-        int score;
-        bool valid;
-} eval_t;
-
-bool isValidMove(const std::vector<chain_t *> & chainsEmpty, const Vertex & v)
-{
-	for(auto chain : chainsEmpty) {
-		if (chain->chain.find(v) != chain->chain.end())
-			return true;
-	}
-
-	return false;
-}
-
-void selectRandom(const ChainMap & cm, const std::vector<chain_t *> & chainsWhite, const std::vector<chain_t *> & chainsBlack, const std::vector<chain_t *> & chainsEmpty, const player_t & p, std::vector<eval_t> *const evals)
-{
-	auto chain = chainsEmpty.at(rand() % chainsEmpty.size());
-	size_t chainSize = chain->chain.size();
-	int r = rand() % (chainSize - 1);
-
-	auto it = chain->chain.begin();
-	for(int i=0; i<r; i++)
-		it++;
-
-	const int v = it->getV();
-
-	evals->at(v).score++;
-	evals->at(v).valid = true;
-}
-
-std::vector<Vertex> pickEmptyAround(const ChainMap & cm, const Vertex & v)
-{
-	const int x = v.getX();
-	const int y = v.getY();
-	const int dim = cm.getDim();
-
-	std::vector<Vertex> out;
-
-	if (x > 0 && cm.getAt(x - 1, y) == nullptr)
-		out.push_back(Vertex(x - 1, y));
-
-	if (y > 0 && cm.getAt(x, y - 1) == nullptr)
-		out.push_back(Vertex(x, y - 1));
-
-	if (x < dim - 1 && cm.getAt(x + 1, y) == nullptr)
-		out.push_back(Vertex(x + 1, y));
-
-	if (y < dim - 1 && cm.getAt(x, y + 1) == nullptr)
-		out.push_back(Vertex(x, y + 1));
-
-	return out;
-}
-
-void selectExtendChains(const ChainMap & cm, const std::vector<chain_t *> & chainsWhite, const std::vector<chain_t *> & chainsBlack, const std::vector<chain_t *> & chainsEmpty, const player_t & p, std::vector<eval_t> *const evals)
-{
-	const std::vector<chain_t *> & scan = p == P_BLACK ? chainsWhite : chainsBlack;
-
-	for(auto chain : scan) {
-		for(auto stone : chain->chain) {
-			auto empties = pickEmptyAround(cm, stone);
-
-			for(auto empty : empties) {
-				int v = empty.getV();
-				evals->at(v).score += 2;
-				evals->at(v).valid = true;
-			}
-		}
-	}
-}
-
-void selectKillChains(const ChainMap & cm, const std::vector<chain_t *> & chainsWhite, const std::vector<chain_t *> & chainsBlack, const std::vector<chain_t *> & chainsEmpty, const player_t & p, std::vector<eval_t> *const evals)
-{
-	const std::vector<chain_t *> & scan = p == P_BLACK ? chainsBlack : chainsWhite;
-
-	for(auto chain : scan) {
-		const int add = chain->chain.size() - chain->freedoms.size();
-
-		for(auto stone : chain->freedoms) {
-			int v = stone.getV();
-			evals->at(v).score += add;
-			evals->at(v).valid = true;
-		}
-	}
-}
-
-std::optional<Vertex> genMove(const Board & b, const player_t & p)
-{
-	const int dim = b.getDim();
-
-	// find chains of stones
-	ChainMap cm(dim);
-	std::vector<chain_t *> chainsWhite, chainsBlack;
-	findChains(b, &chainsWhite, &chainsBlack, &cm);
-
-	// find chains of freedoms
-	std::vector<chain_t *> chainsEmpty;
-	findChainsOfFreedoms(b, &chainsEmpty);
-	purgeFreedoms(&chainsEmpty, cm, p == P_BLACK ? B_BLACK : B_WHITE);
-
-	// no valid freedoms? return "pass".
-	if (chainsEmpty.empty())
-		return { };
-
-        std::vector<eval_t> evals;
-        for(int i=0; i<dim * dim; i++)
-                evals.push_back({ 0, false });
-
-	// algorithms
-	selectRandom(cm, chainsWhite, chainsBlack, chainsEmpty, p, &evals);
-
-	selectExtendChains(cm, chainsWhite, chainsBlack, chainsEmpty, p, &evals);
-
-	selectKillChains(cm, chainsWhite, chainsBlack, chainsEmpty, p, &evals);
-
-	// find best
-	std::optional<Vertex> v;
-
-        int bestScore = -32767;
-        for(int i=0; i<dim * dim; i++) {
-                if (evals.at(i).score > bestScore && evals.at(i).valid) {
-                        Vertex temp = Vertex(i, dim);
-
-			if (isValidMove(chainsEmpty, temp)) {
-                                v.emplace(temp);
-                                bestScore = evals.at(i).score;
-                        }
-                }
-        }
-
-	purgeChains(&chainsBlack);
-	purgeChains(&chainsWhite);
-	purgeChains(&chainsEmpty);
-
-	return v;
-}
-
 // black, white
 std::pair<int, int> score(const Board & b)
 {
@@ -642,8 +539,6 @@ std::pair<int, int> score(const Board & b)
 			if (yc < dim)
 				neighbours.insert(b.getAt(xc, yc));
 
-			printf("%s: %zu\n", v2t(Vertex(x, y, dim)).c_str(), neighbours.size());
-
 			if (neighbours.size() < 3) {
 				if (neighbours.find(B_EMPTY) != neighbours.end() || neighbours.size() == 1) {
 					if (neighbours.find(B_WHITE) != neighbours.end())
@@ -658,13 +553,169 @@ std::pair<int, int> score(const Board & b)
 	purgeChains(&chainsBlack);
 	purgeChains(&chainsWhite);
 
-	printf("%d %d\n", blackStones, blackEmpty);
-	printf("%d %d\n", whiteStones, whiteEmpty);
-
 	int blackScore = blackStones + blackEmpty;
 	int whiteScore = whiteStones + whiteEmpty;
 
 	return { blackScore, whiteScore };
+}
+
+typedef struct {
+        int score;
+        bool valid;
+} eval_t;
+
+bool isValidMove(const std::vector<chain_t *> & chainsEmpty, const Vertex & v)
+{
+	for(auto chain : chainsEmpty) {
+		if (chain->chain.find(v) != chain->chain.end())
+			return true;
+	}
+
+	return false;
+}
+
+void selectRandom(const Board & b, const ChainMap & cm, const std::vector<chain_t *> & chainsWhite, const std::vector<chain_t *> & chainsBlack, const std::vector<chain_t *> & chainsEmpty, const player_t & p, std::vector<eval_t> *const evals)
+{
+	auto chain = chainsEmpty.at(rand() % chainsEmpty.size());
+	size_t chainSize = chain->chain.size();
+	int r = rand() % (chainSize - 1);
+
+	auto it = chain->chain.begin();
+	for(int i=0; i<r; i++)
+		it++;
+
+	const int v = it->getV();
+
+	evals->at(v).score++;
+	evals->at(v).valid = true;
+}
+
+std::vector<Vertex> pickEmptyAround(const ChainMap & cm, const Vertex & v)
+{
+	const int x = v.getX();
+	const int y = v.getY();
+	const int dim = cm.getDim();
+
+	std::vector<Vertex> out;
+
+	if (x > 0 && cm.getAt(x - 1, y) == nullptr)
+		out.push_back(Vertex(x - 1, y));
+
+	if (y > 0 && cm.getAt(x, y - 1) == nullptr)
+		out.push_back(Vertex(x, y - 1));
+
+	if (x < dim - 1 && cm.getAt(x + 1, y) == nullptr)
+		out.push_back(Vertex(x + 1, y));
+
+	if (y < dim - 1 && cm.getAt(x, y + 1) == nullptr)
+		out.push_back(Vertex(x, y + 1));
+
+	return out;
+}
+
+void selectExtendChains(const Board & b, const ChainMap & cm, const std::vector<chain_t *> & chainsWhite, const std::vector<chain_t *> & chainsBlack, const std::vector<chain_t *> & chainsEmpty, const player_t & p, std::vector<eval_t> *const evals)
+{
+	const std::vector<chain_t *> & scan = p == P_BLACK ? chainsWhite : chainsBlack;
+
+	for(auto chain : scan) {
+		for(auto stone : chain->chain) {
+			auto empties = pickEmptyAround(cm, stone);
+
+			for(auto empty : empties) {
+				int v = empty.getV();
+				evals->at(v).score += 2;
+				evals->at(v).valid = true;
+			}
+		}
+	}
+}
+
+void selectKillChains(const Board & b, const ChainMap & cm, const std::vector<chain_t *> & chainsWhite, const std::vector<chain_t *> & chainsBlack, const std::vector<chain_t *> & chainsEmpty, const player_t & p, std::vector<eval_t> *const evals)
+{
+	const std::vector<chain_t *> & scan = p == P_BLACK ? chainsBlack : chainsWhite;
+
+	for(auto chain : scan) {
+		const int add = chain->chain.size() - chain->freedoms.size();
+
+		for(auto stone : chain->freedoms) {
+			int v = stone.getV();
+			evals->at(v).score += add;
+			evals->at(v).valid = true;
+		}
+	}
+}
+
+void selectImproveScore(const Board & b, const ChainMap & cm, const std::vector<chain_t *> & chainsWhite, const std::vector<chain_t *> & chainsBlack, const std::vector<chain_t *> & chainsEmpty, const player_t & p, std::vector<eval_t> *const evals)
+{
+	const int dim = b.getDim();
+
+	auto scorePairBefore = score(b);
+	int scoreBefore = p == P_BLACK ? scorePairBefore.first - scorePairBefore.second : scorePairBefore.second - scorePairBefore.first;
+
+	for(int v=0; v<dim*dim; v++) {
+		Board work(b);
+
+		play(&work, Vertex(v, dim), p);
+
+		auto scorePairAfter = score(b);
+		int scoreAfter = p == P_BLACK ? scorePairAfter.first - scorePairAfter.second : scorePairAfter.second - scorePairAfter.first;
+
+		evals->at(v).score += scoreAfter - scoreBefore;
+		evals->at(v).valid = true;
+	}
+}
+
+std::optional<Vertex> genMove(const Board & b, const player_t & p)
+{
+	const int dim = b.getDim();
+
+	// find chains of stones
+	ChainMap cm(dim);
+	std::vector<chain_t *> chainsWhite, chainsBlack;
+	findChains(b, &chainsWhite, &chainsBlack, &cm);
+
+	// find chains of freedoms
+	std::vector<chain_t *> chainsEmpty;
+	findChainsOfFreedoms(b, &chainsEmpty);
+	purgeFreedoms(&chainsEmpty, cm, p == P_BLACK ? B_BLACK : B_WHITE);
+
+	// no valid freedoms? return "pass".
+	if (chainsEmpty.empty())
+		return { };
+
+        std::vector<eval_t> evals;
+        for(int i=0; i<dim * dim; i++)
+                evals.push_back({ 0, false });
+
+	// algorithms
+	selectRandom(b, cm, chainsWhite, chainsBlack, chainsEmpty, p, &evals);
+
+	selectExtendChains(b, cm, chainsWhite, chainsBlack, chainsEmpty, p, &evals);
+
+	selectKillChains(b, cm, chainsWhite, chainsBlack, chainsEmpty, p, &evals);
+
+	selectImproveScore(b, cm, chainsWhite, chainsBlack, chainsEmpty, p, &evals);
+
+	// find best
+	std::optional<Vertex> v;
+
+        int bestScore = -32767;
+        for(int i=0; i<dim * dim; i++) {
+                if (evals.at(i).score > bestScore && evals.at(i).valid) {
+                        Vertex temp = Vertex(i, dim);
+
+			if (isValidMove(chainsEmpty, temp)) {
+                                v.emplace(temp);
+                                bestScore = evals.at(i).score;
+                        }
+                }
+        }
+
+	purgeChains(&chainsBlack);
+	purgeChains(&chainsWhite);
+	purgeChains(&chainsEmpty);
+
+	return v;
 }
 
 double benchmark(const Board & in, const int ms)
@@ -701,7 +752,7 @@ double benchmark(const Board & in, const int ms)
 	while(end - start < ms);
 
 	double pops = n * double(ms) / (end - start);
-	fprintf(fh, "%f\n", pops);
+	send(true, "# playouts per second: %f", pops);
 
 	return pops;
 }
@@ -727,7 +778,7 @@ Board loadSgf(const std::string & filename)
 {
 	FILE *sfh = fopen(filename.c_str(), "r");
 	if (!sfh) {
-		fprintf(fh, "Cannot open %s\n", filename.c_str());
+		send(true, "Cannot open %s\n", filename.c_str());
 		return Board(9);
 	}
 
@@ -827,7 +878,7 @@ int main(int argc, char *argv[])
 		if (buffer[0] == 0x00)
 			continue;
 
-		fprintf(fh, "> %s\n", buffer);
+		send(false, "> %s", buffer);
 
 		std::vector<std::string> parts = split(buffer, " ");
 
@@ -838,21 +889,21 @@ int main(int argc, char *argv[])
 		}
 
 		if (parts.at(0) == "protocol_version")
-			printf("=%s 2\n\n", id.c_str());
+			send(true, "=%s 2", id.c_str());
 		else if (parts.at(0) == "name")
-			printf("=%s DellaBaduck\n\n", id.c_str());
+			send(true, "=%s DellaBaduck", id.c_str());
 		else if (parts.at(0) == "version")
-			printf("=%s 0.1\n\n", id.c_str());
+			send(true, "=%s 0.1", id.c_str());
 		else if (parts.at(0) == "boardsize") {
 			delete b;
 			b = new Board(atoi(parts.at(1).c_str()));
-			printf("=%s\n\n", id.c_str());
+			send(true, "=%s", id.c_str());
 		}
 		else if (parts.at(0) == "clear_board") {
 			int dim = b->getDim();
 			delete b;
 			b = new Board(dim);
-			printf("=%s\n\n", id.c_str());
+			send(true, "=%s", id.c_str());
 		}
 		else if (parts.at(0) == "play") {
 			if (str_tolower(parts.at(2)) != "pass") {
@@ -860,83 +911,83 @@ int main(int argc, char *argv[])
 				play(b, v, (parts.at(1) == "b" || parts.at(1) == "black") ? P_BLACK : P_WHITE);
 			}
 
-			printf("=%s\n\n", id.c_str());
+			send(true, "=%s", id.c_str());
 		}
 		else if (parts.at(0) == "dump") {
 			dump(*b);
 		}
 		else if (parts.at(0) == "quit") {
-			printf("=%s\n\n", id.c_str());
+			send(true, "=%s", id.c_str());
 			break;
 		}
 		else if (parts.at(0) == "known_command") {  // TODO
 			if (parts.at(1) == "known_command")
-				printf("=%s true\n\n", id.c_str());
+				send(true, "=%s true", id.c_str());
 			else
-				printf("=%s false\n\n", id.c_str());
+				send(true, "=%s false", id.c_str());
 		}
 		else if (parts.at(0) == "benchmark") {
 			// play outs per second
 			double pops = benchmark(*b, parts.size() == 2 ? atoi(parts.at(1).c_str()) : 1000);
 
-			printf("=%s %f\n\n", id.c_str(), pops);
+			send(true, "=%s %f", id.c_str(), pops);
 		}
 		else if (parts.at(0) == "komi") {
-			printf("=%s\n\n", id.c_str());  // TODO
+			send(true, "=%s", id.c_str());  // TODO
 		}
 		else if (parts.at(0) == "time_settings") {
-			printf("=%s\n\n", id.c_str());  // TODO
+			send(true, "=%s", id.c_str());  // TODO
 		}
 		else if (parts.at(0) == "time_left") {
-			printf("=%s\n\n", id.c_str());  // TODO
+			send(true, "=%s", id.c_str());  // TODO
 		}
 		else if (parts.at(0) == "list_commands") {
-			printf("=%s name\n", id.c_str());
-			printf("=%s version\n", id.c_str());
-			printf("=%s boardsize\n", id.c_str());
-			printf("=%s clear_board\n", id.c_str());
-			printf("=%s play\n", id.c_str());
-			printf("=%s genmove\n", id.c_str());
-			printf("=%s komi\n", id.c_str());
-			printf("=%s quit\n", id.c_str());
-			printf("=%s loadsgf\n", id.c_str());
-			printf("=%s final_score\n", id.c_str());
-			printf("\n");
+			send(true, "=%s name", id.c_str());
+			send(true, "=%s version", id.c_str());
+			send(true, "=%s boardsize", id.c_str());
+			send(true, "=%s clear_board", id.c_str());
+			send(true, "=%s play", id.c_str());
+			send(true, "=%s genmove", id.c_str());
+			send(true, "=%s komi", id.c_str());
+			send(true, "=%s quit", id.c_str());
+			send(true, "=%s loadsgf", id.c_str());
+			send(true, "=%s final_score", id.c_str());
 		}
 		else if (parts.at(0) == "final_score") {
 			auto scores = score(*b);
 
 			if (scores.first == scores.second)
-				printf("=%s 0\n\n", id.c_str());
+				send(true, "=%s 0", id.c_str());
 			else if (scores.first > scores.second)
-				printf("=%s B+%d\n\n", id.c_str(), scores.first - scores.second);
+				send(true, "=%s B+%d", id.c_str(), scores.first - scores.second);
 			else
-				printf("=%s W+%d\n\n", id.c_str(), scores.second - scores.first);
+				send(true, "=%s W+%d", id.c_str(), scores.second - scores.first);
 		}
 		else if (parts.at(0) == "loadsgf") {
 			delete b;
 			b = new Board(loadSgf(parts.at(1)));
 
-			printf("=%s\n\n", id.c_str());
+			send(true, "=%s", id.c_str());
 		}
 		else if (parts.at(0) == "genmove" || parts.at(0) == "reg_genmove") {
 			player_t player = (parts.at(1) == "b" || parts.at(1) == "black") ? P_BLACK : P_WHITE;
 			auto v = genMove(*b, player);
 
 			if (v.has_value()) {
-				printf("=%s %s\n\n", id.c_str(), v2t(v.value()).c_str());
-				fprintf(fh, "< %s\n", v2t(v.value()).c_str());
+				send(true, "=%s %s", id.c_str(), v2t(v.value()).c_str());
 
 				if (parts.at(0) == "genmove")
 					play(b, v.value(), player);
 			}
 			else {
-				printf("=%s pass\n\n", id.c_str());
+				send(true, "=%s pass", id.c_str());
 			}
 		}
 		else {
-			printf("?\n\n");
+			send(true, "?");
 		}
+
+		send(true, "");
 
 		fflush(nullptr);
 	}
