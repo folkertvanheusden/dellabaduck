@@ -677,6 +677,9 @@ int search(const Board & b, const player_t & p, int alpha, const int beta, const
 		// find chains of freedoms
 		findChainsOfFreedoms(b, &chainsEmpty);
 		purgeFreedoms(&chainsEmpty, cm, p == P_BLACK ? B_BLACK : B_WHITE);
+
+		purgeChains(&chainsBlack);
+		purgeChains(&chainsWhite);
 	}
 
 	// no valid freedoms? return score (eval)
@@ -711,6 +714,8 @@ int search(const Board & b, const player_t & p, int alpha, const int beta, const
 	}
 
 finished:
+	purgeChains(&chainsEmpty);
+
 	return bestScore;
 }
 
