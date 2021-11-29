@@ -687,9 +687,11 @@ void selectKillChains(const Board & b, const ChainMap & cm, const std::vector<ch
 	}
 }
 
+constexpr int ttSize = 33554432;
+
 class tt {
 public:
-	class entry {
+	struct entry {
 	public:
 		uint32_t hash;
 		int16_t score;
@@ -697,7 +699,7 @@ public:
 	};
 
 private:
-	entry table[67108864][8];
+	entry table[ttSize][8];
 
 public:
 	tt() {
@@ -706,8 +708,12 @@ public:
 	~tt() {
 	}
 
+	void reset() {
+		memset(table, 0x00, sizeof table);
+	}
+
 	void store(const uint32_t hash, const int score, const int depth) {
-		int index = hash % 67108864;
+		int index = hash % ttSize;
 
 		for(int i=0; i<8; i++) {
 			if (table[index][i].hash == hash) {
@@ -724,7 +730,7 @@ public:
 	}
 
 	std::optional<tt::entry> lookup(const uint32_t hash) {
-		int index = hash % 67108864;
+		int index = hash % ttSize;
 
 		for(int i=0; i<8; i++) {
 			if (table[index][i].hash == hash)
@@ -1034,6 +1040,7 @@ int main(int argc, char *argv[])
 	return 0;
 #elif 1
 	Board *b = new Board(9);
+	tt.reset();
 
 	setbuf(stdout, nullptr);
 	setbuf(stderr, nullptr);
@@ -1071,12 +1078,14 @@ int main(int argc, char *argv[])
 		else if (parts.at(0) == "boardsize") {
 			delete b;
 			b = new Board(atoi(parts.at(1).c_str()));
+			tt.reset();
 			send(true, "=%s", id.c_str());
 		}
 		else if (parts.at(0) == "clear_board") {
 			int dim = b->getDim();
 			delete b;
 			b = new Board(dim);
+			tt.reset();
 			send(true, "=%s", id.c_str());
 		}
 		else if (parts.at(0) == "play") {
@@ -1142,8 +1151,28 @@ int main(int argc, char *argv[])
 		else if (parts.at(0) == "loadsgf") {
 			delete b;
 			b = new Board(loadSgf(parts.at(1)));
+			tt.reset();
 
 			send(true, "=%s", id.c_str());
+		}
+		else if (parts.at(0) == "autoplay") {
+			player_t p = P_BLACK;
+
+			for(;;) {
+				uint64_t start_ts = get_ts_ms();
+
+				auto v = genMove(*b, p);
+				if (v.has_value() == false)
+					break;
+
+				uint64_t end_ts = get_ts_ms();
+
+				send(true, "# took %.3fs", (end_ts - start_ts) / 1000.0);
+
+				play(b, v.value(), p);
+
+				p = p == P_BLACK ? P_WHITE : P_BLACK;
+			}
 		}
 		else if (parts.at(0) == "genmove" || parts.at(0) == "reg_genmove") {
 			player_t player = (parts.at(1) == "b" || parts.at(1) == "black") ? P_BLACK : P_WHITE;
