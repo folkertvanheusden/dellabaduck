@@ -10,6 +10,8 @@
 #include <string.h>
 #include <time.h>
 #include <vector>
+#include <sys/resource.h>
+#include <sys/time.h>
 
 #include "str.h"
 #include "time.h"
@@ -981,6 +983,17 @@ int main(int argc, char *argv[])
 			}
 			else {
 				send(true, "=%s pass", id.c_str());
+			}
+		}
+		else if (parts.at(0) == "cputime") {
+			struct rusage ru { 0 };
+
+			if (getrusage(RUSAGE_SELF, &ru) == -1)
+				send(true, "# getrusage failed");
+			else {
+				double usage = ru.ru_utime.tv_sec + ru.ru_utime.tv_usec / 1000000.0;
+
+				send(true, "=%s %.4f", id.c_str(), usage);
 			}
 		}
 		else {
