@@ -750,7 +750,7 @@ public:
 				return;
 			}
 
-			if (table[index][i].age != age)
+			if (table[index][i].u.sv.age != age)
 				putIndex = i;
 		}
 
@@ -1210,6 +1210,8 @@ int main(int argc, char *argv[])
 
 				p = p == P_BLACK ? P_WHITE : P_BLACK;
 			}
+
+			send(true, "# finished");
 		}
 		else if (parts.at(0) == "genmove" || parts.at(0) == "reg_genmove") {
 			player_t player = (parts.at(1) == "b" || parts.at(1) == "black") ? P_BLACK : P_WHITE;
