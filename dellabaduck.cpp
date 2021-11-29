@@ -592,6 +592,86 @@ std::optional<Vertex> genMove(const Board & b, const player_t & p)
 	return v;
 }
 
+// black, white
+std::pair<int, int> score(const Board & b)
+{
+	const int dim = b.getDim();
+
+	// find chains of stones
+	ChainMap cm(dim);
+	std::vector<chain_t *> chainsWhite, chainsBlack;
+	findChains(b, &chainsWhite, &chainsBlack, &cm);
+
+	// find chains of freedoms
+	std::vector<chain_t *> chainsEmpty;
+	findChainsOfFreedoms(b, &chainsEmpty);
+	purgeFreedoms(&chainsEmpty, cm, B_BLACK);
+	purgeFreedoms(&chainsEmpty, cm, B_WHITE);
+
+	// number of stones for each
+	int blackStones = 0;
+	for(auto chain : chainsBlack)
+		blackStones += chain->chain.size();
+
+	int whiteStones = 0;
+	for(auto chain : chainsWhite)
+		whiteStones += chain->chain.size();
+
+	int blackEmpty = 0, whiteEmpty = 0;
+	for(auto chain : chainsEmpty) {
+		for(auto stone : chain->chain) {
+			const int x = stone.getX();
+			const int y = stone.getY();
+
+			std::set<board_t> neighbours;
+			int xc = x, yc = y;
+			while(xc >= 0 && b.getAt(xc, yc) == B_EMPTY)
+				xc--;
+			if (xc >= 0)
+				neighbours.insert(b.getAt(xc, yc));
+
+			xc = x, yc = y;
+			while(xc < dim && b.getAt(xc, yc) == B_EMPTY)
+				xc++;
+			if (xc < dim)
+				neighbours.insert(b.getAt(xc, yc));
+
+			xc = x, yc = y;
+			while(yc >= 0 && b.getAt(xc, yc) == B_EMPTY)
+				yc--;
+			if (yc >= 0)
+				neighbours.insert(b.getAt(xc, yc));
+
+			xc = x, yc = y;
+			while(yc < dim && b.getAt(xc, yc) == B_EMPTY)
+				yc++;
+			if (yc < dim)
+				neighbours.insert(b.getAt(xc, yc));
+
+			if (neighbours.size() < 3) {
+				if (neighbours.find(B_EMPTY) != neighbours.end() || neighbours.size() == 1) {
+					if (neighbours.find(B_WHITE) != neighbours.end())
+						whiteEmpty++;
+					else if (neighbours.find(B_BLACK) != neighbours.end())
+						blackEmpty++;
+				}
+			}
+		}
+	}
+
+	purgeChains(&chainsBlack);
+	purgeChains(&chainsWhite);
+	purgeChains(&chainsEmpty);
+
+	printf("%d %d\n", blackStones, blackEmpty);
+	printf("%d %d\n", whiteStones, whiteEmpty);
+
+	int blackScore = blackStones + blackEmpty;
+	int whiteScore = whiteStones + whiteEmpty;
+
+	return { blackScore, whiteScore };
+}
+
 double benchmark(const Board & in, const int ms)
 {
 	// benchmark
@@ -800,7 +880,7 @@ int main(int argc, char *argv[])
 		}
 		else if (parts.at(0) == "benchmark") {
 			// play outs per second
-			double pops = benchmark(*b, atoi(parts.at(1).c_str()));
+			double pops = benchmark(*b, parts.size() == 2 ? atoi(parts.at(1).c_str()) : 1000);
 
 			printf("=%s %f\n\n", id.c_str(), pops);
 		}
@@ -823,7 +903,18 @@ int main(int argc, char *argv[])
 			printf("=%s komi\n", id.c_str());
 			printf("=%s quit\n", id.c_str());
 			printf("=%s loadsgf\n", id.c_str());
+			printf("=%s final_score\n", id.c_str());
 			printf("\n");
+		}
+		else if (parts.at(0) == "final_score") {
+			auto scores = score(*b);
+
+			if (scores.first == scores.second)
+				printf("=%s 0\n\n", id.c_str());
+			else if (scores.first > scores.second)
+				printf("=%s B+%d\n\n", id.c_str(), scores.first - scores.second);
+			else
+				printf("=%s W+%d\n\n", id.c_str(), scores.second - scores.first);
 		}
 		else if (parts.at(0) == "loadsgf") {
 			delete b;
@@ -845,9 +936,6 @@ int main(int argc, char *argv[])
 			else {
 				printf("=%s pass\n\n", id.c_str());
 			}
-		}
-		else if (parts.at(0) == "final_score") {
-			printf("=%s 0.0\n\n", id.c_str());  // TODO
 		}
 		else {
 			printf("?\n\n");
