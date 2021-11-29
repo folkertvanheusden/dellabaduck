@@ -842,7 +842,7 @@ double benchmark(const Board & in, const int ms)
 
 	// benchmark
 	uint64_t start = get_ts_ms(), end = 0;
-	uint64_t n = 0;
+	uint64_t n = 0, total_puts = 0;
 
 	do {
 		Board b(in);
@@ -888,6 +888,8 @@ double benchmark(const Board & in, const int ms)
 				break;
 		}
 
+		total_puts += mc;
+
 		n++;
 
 		end = get_ts_ms();
@@ -895,7 +897,7 @@ double benchmark(const Board & in, const int ms)
 	while(end - start < ms);
 
 	double pops = n * double(ms) / (end - start);
-	send(true, "# playouts per second: %f", pops);
+	send(true, "# playouts per second: %f (%.1f stones on average)", pops, total_puts / double(n));
 
 	return pops;
 }
