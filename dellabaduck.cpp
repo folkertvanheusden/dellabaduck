@@ -745,7 +745,7 @@ public:
 		age++;
 	}
 
-	void store(const uint32_t hash, const int score, const int depth) {
+	void store(const uint32_t hash, const int score, const int depth, const Vertex & v) {
 		int index = hash % ttSize;
 
 		int putIndex = 0;
@@ -756,6 +756,8 @@ public:
 					table[index].entries[i].u.sv.score = score;
 					table[index].entries[i].u.sv.depth = depth;
 					table[index].entries[i].u.sv.age   = age;
+					table[index].entries[i].u.sv.x     = v.getX();
+					table[index].entries[i].u.sv.y     = v.getY();
 				}
 
 				return;
@@ -769,6 +771,8 @@ public:
 		new_entry.u.sv.score = score;
 		new_entry.u.sv.depth = depth;
 		new_entry.u.sv.age   = age;
+		new_entry.u.sv.x     = v.getX();
+		new_entry.u.sv.y     = v.getY();
 
 		table[index].entries[putIndex].hash = hash;
 		table[index].entries[putIndex].u.v = new_entry.u.v;
@@ -809,7 +813,7 @@ int search(const Board & b, const player_t & p, int alpha, const int beta, const
 		purgeFreedoms(&chainsEmpty, cm, p == P_BLACK ? B_BLACK : B_WHITE);
 	}
 
-	// no valid freedoms? return "pass".
+	// no valid freedoms? return score (eval)
 	if (chainsEmpty.empty()) {
 		auto s = score(b);
 		return p == P_BLACK ? s.first - s.second : s.second - s.first;
@@ -822,6 +826,7 @@ int search(const Board & b, const player_t & p, int alpha, const int beta, const
 
 		if (isValidMove(chainsEmpty, v)) {
 			ttHit++;
+			fprintf(stderr, "hit at %d\n", depth);
 			return tte.value().u.sv.score;
 		}
 
@@ -829,6 +834,7 @@ int search(const Board & b, const player_t & p, int alpha, const int beta, const
 	}
 
 	int bestScore = -32768;
+	std::optional<Vertex> bestMove;
 
 	for(auto chain : chainsEmpty) {
 		for(auto stone : chain->chain) {
@@ -840,6 +846,7 @@ int search(const Board & b, const player_t & p, int alpha, const int beta, const
 
 			if (score > bestScore) {
 				bestScore = score;
+				bestMove.emplace(stone);
 
 				if (score > alpha) {
 					alpha = score;
@@ -853,7 +860,7 @@ int search(const Board & b, const player_t & p, int alpha, const int beta, const
 
 finished:
 	if (bestScore > startAlpha)
-		tt.store(board_h, bestScore, depth);
+		tt.store(board_h, bestScore, depth, bestMove.value());
 
 	return bestScore;
 }
@@ -1233,7 +1240,7 @@ int main(int argc, char *argv[])
 
 				uint64_t end_ts = get_ts_ms();
 
-				send(true, "# %s, took %.3fs (%.2f%% tt hit (%ld/%ld|%ld))", v2t(v.value()).c_str(), (end_ts - start_ts) / 1000.0, ttHit * 100.0 / nodes, ttHit, nodes, ttInvalidMove);
+				send(true, "# %s, took %.3fs/%d (%.2f%% tt hit (%ld/%ld|%ld))", v2t(v.value()).c_str(), (end_ts - start_ts) / 1000.0, n_moves, ttHit * 100.0 / nodes, ttHit, nodes, ttInvalidMove);
 
 				play(b, v.value(), p);
 
