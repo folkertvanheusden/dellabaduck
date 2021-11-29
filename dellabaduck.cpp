@@ -838,7 +838,7 @@ std::optional<Vertex> genMove(Board *const b, const player_t & p, const bool pla
 
 double benchmark(const Board & in, const int ms)
 {
-	send(true, "# starting benchmark. duration: %.3fs", ms / 1000.0);
+	send(true, "# starting benchmark: duration: %.3fs, board dimensions: %d", ms / 1000.0, in.getDim());
 
 	// benchmark
 	uint64_t start = get_ts_ms(), end = 0;
@@ -896,8 +896,8 @@ double benchmark(const Board & in, const int ms)
 	}
 	while(end - start < ms);
 
-	double pops = n * double(ms) / (end - start);
-	send(true, "# playouts per second: %f (%.1f stones on average)", pops, total_puts / double(n));
+	double pops = n * double(1000.0) / (end - start);
+	send(true, "# playouts (%d) per second: %f (%.1f stones on average)", n, pops, total_puts / double(n));
 
 	return pops;
 }
