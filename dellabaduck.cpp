@@ -705,12 +705,14 @@ constexpr int ttSize = 33554432;
 class tt {
 public:
 	struct __attribute__ ((__packed__)) entry {
+		uint64_t hash;
+
 		union _u {
 			struct _sv {
-				uint32_t hash;
 				int16_t score;
 				int8_t depth;
 				int8_t age;
+				uint8_t x, y;
 			} sv;
 
 			uint64_t v;
@@ -749,7 +751,7 @@ public:
 		int putIndex = 0;
 
 		for(int i=0; i<8; i++) {
-			if (table[index].entries[i].u.sv.hash == hash) {
+			if (table[index].entries[i].hash == hash) {
 				if (depth > table[index].entries[i].u.sv.depth) {
 					table[index].entries[i].u.sv.score = score;
 					table[index].entries[i].u.sv.depth = depth;
@@ -764,11 +766,11 @@ public:
 		}
 
 		tt::entry new_entry;
-		new_entry.u.sv.hash  = hash;
 		new_entry.u.sv.score = score;
 		new_entry.u.sv.depth = depth;
 		new_entry.u.sv.age   = age;
 
+		table[index].entries[putIndex].hash = hash;
 		table[index].entries[putIndex].u.v = new_entry.u.v;
 	}
 
@@ -776,7 +778,7 @@ public:
 		int index = hash % ttSize;
 
 		for(int i=0; i<8; i++) {
-			if (table[index].entries[i].u.sv.hash == hash)
+			if (table[index].entries[i].hash == hash)
 				return table[index].entries[i];
 		}
 
@@ -785,18 +787,11 @@ public:
 };
 
 tt tt;
-uint64_t nodes = 0, ttHit = 0;
+uint64_t nodes = 0, ttHit = 0, ttInvalidMove = 0;
 
 int search(const Board & b, const player_t & p, int alpha, const int beta, const int depth)
 {
 	nodes++;
-
-	const uint32_t board_h = b.hash(p);
-	std::optional<tt::entry> tte = tt.lookup(board_h);
-	if (tte.has_value() && tte.value().u.sv.depth >= depth) {
-		ttHit++;
-		return tte.value().u.sv.score;
-	}
 
 	const int startAlpha = alpha;
 
@@ -818,6 +813,19 @@ int search(const Board & b, const player_t & p, int alpha, const int beta, const
 	if (chainsEmpty.empty()) {
 		auto s = score(b);
 		return p == P_BLACK ? s.first - s.second : s.second - s.first;
+	}
+
+	const uint32_t board_h = b.hash(p);
+	std::optional<tt::entry> tte = tt.lookup(board_h);
+	if (tte.has_value() && tte.value().u.sv.depth >= depth) {
+		Vertex v(tte.value().u.sv.x, tte.value().u.sv.y, dim);
+
+		if (isValidMove(chainsEmpty, v)) {
+			ttHit++;
+			return tte.value().u.sv.score;
+		}
+
+		ttInvalidMove++;
 	}
 
 	int bestScore = -32768;
@@ -1225,7 +1233,7 @@ int main(int argc, char *argv[])
 
 				uint64_t end_ts = get_ts_ms();
 
-				send(true, "# %s, took %.3fs (%.2f%% tt hit (%ld/%ld))", v2t(v.value()).c_str(), (end_ts - start_ts) / 1000.0, ttHit * 100.0 / nodes, ttHit, nodes);
+				send(true, "# %s, took %.3fs (%.2f%% tt hit (%ld/%ld|%ld))", v2t(v.value()).c_str(), (end_ts - start_ts) / 1000.0, ttHit * 100.0 / nodes, ttHit, nodes, ttInvalidMove);
 
 				play(b, v.value(), p);
 
