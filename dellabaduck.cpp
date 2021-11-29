@@ -17,7 +17,7 @@
 #include "time.h"
 
 typedef enum { P_BLACK, P_WHITE } player_t;
-typedef enum { B_EMPTY, B_WHITE, B_BLACK } board_t;
+typedef enum { B_EMPTY, B_WHITE, B_BLACK, B_LAST } board_t;
 const char *const board_t_names[] = { ".", "o", "x" };
 
 FILE *fh = fopen("/tmp/input.dat", "a+");
@@ -516,36 +516,37 @@ std::pair<int, int> score(const Board & b)
 			if (b.getAt(x, y) != B_EMPTY)
 				continue;
 
-			std::set<board_t> neighbours;
+			bool has_b[B_LAST] { false };
 			int xc = x, yc = y;
 			while(xc >= 0 && b.getAt(xc, yc) == B_EMPTY)
 				xc--;
 			if (xc >= 0)
-				neighbours.insert(b.getAt(xc, yc));
+				has_b[b.getAt(xc, yc)] = true;
 
 			xc = x, yc = y;
 			while(xc < dim && b.getAt(xc, yc) == B_EMPTY)
 				xc++;
 			if (xc < dim)
-				neighbours.insert(b.getAt(xc, yc));
+				has_b[b.getAt(xc, yc)] = true;
 
 			xc = x, yc = y;
 			while(yc >= 0 && b.getAt(xc, yc) == B_EMPTY)
 				yc--;
 			if (yc >= 0)
-				neighbours.insert(b.getAt(xc, yc));
+				has_b[b.getAt(xc, yc)] = true;
 
 			xc = x, yc = y;
 			while(yc < dim && b.getAt(xc, yc) == B_EMPTY)
 				yc++;
 			if (yc < dim)
-				neighbours.insert(b.getAt(xc, yc));
+				has_b[b.getAt(xc, yc)] = true;
 
-			if (neighbours.size() < 3) {
-				if (neighbours.find(B_EMPTY) != neighbours.end() || neighbours.size() == 1) {
-					if (neighbours.find(B_WHITE) != neighbours.end())
+			int count_set = has_b[B_EMPTY] + has_b[B_WHITE] + has_b[B_BLACK];
+			if (count_set < 3) {
+				if (has_b[B_EMPTY] || count_set == 1) {
+					if (has_b[B_WHITE])
 						whiteEmpty++;
-					else if (neighbours.find(B_BLACK) != neighbours.end())
+					else if (has_b[B_BLACK])
 						blackEmpty++;
 				}
 			}
