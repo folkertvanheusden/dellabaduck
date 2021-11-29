@@ -707,7 +707,8 @@ public:
 			struct _sv {
 				uint32_t hash;
 				int16_t score;
-				int16_t depth;
+				int8_t depth;
+				int8_t age;
 			} sv;
 		} u;
 
@@ -828,7 +829,7 @@ int search(const Board & b, const player_t & p, int alpha, const int beta, const
 	}
 
 finished:
-	if (bestSore > startAlpha)
+	if (bestScore > startAlpha)
 		tt.store(board_h, bestScore, depth);
 
 	return bestScore;
@@ -1228,6 +1229,8 @@ int main(int argc, char *argv[])
 			}
 
 			send(true, "# took %.3fs", (end_ts - start_ts) / 1000.0);
+
+			tt.incAge();
 		}
 		else if (parts.at(0) == "cputime") {
 			struct rusage ru { 0 };
