@@ -702,11 +702,16 @@ constexpr int ttSize = 33554432;
 
 class tt {
 public:
-	struct entry {
-	public:
-		uint32_t hash;
-		int16_t score;
-		int8_t depth, age;
+	struct __attribute__ ((__packed__)) entry {
+		union _u {
+			struct _sv {
+				uint32_t hash;
+				int16_t score;
+				int16_t depth;
+			} sv;
+		} u;
+
+		uint64_t v;
 	};
 
 private:
@@ -735,9 +740,12 @@ public:
 		int putIndex = 0;
 
 		for(int i=0; i<8; i++) {
-			if (table[index][i].hash == hash) {
-				table[index][i].score = score;
-				table[index][i].depth = depth;
+			if (table[index][i].u.sv.hash == hash) {
+				if (depth > table[index][i].u.sv.depth) {
+					table[index][i].u.sv.score = score;
+					table[index][i].u.sv.depth = depth;
+				}
+
 				return;
 			}
 
@@ -745,16 +753,19 @@ public:
 				putIndex = i;
 		}
 
-		table[index][putIndex].hash  = hash;
-		table[index][putIndex].score = score;
-		table[index][putIndex].depth = depth;
+		tt::entry new_entry;
+		new_entry.u.sv.hash  = hash;
+		new_entry.u.sv.score = score;
+		new_entry.u.sv.depth = depth;
+
+		table[index][putIndex].v = new_entry.v;
 	}
 
 	std::optional<tt::entry> lookup(const uint32_t hash) {
 		int index = hash % ttSize;
 
 		for(int i=0; i<8; i++) {
-			if (table[index][i].hash == hash)
+			if (table[index][i].u.sv.hash == hash)
 				return table[index][i];
 		}
 
@@ -768,8 +779,8 @@ int search(const Board & b, const player_t & p, int alpha, const int beta, const
 {
 	const uint32_t board_h = b.hash(p);
 	std::optional<tt::entry> tte = tt.lookup(board_h);
-	if (tte.has_value() && tte.value().depth >= depth)
-		return tte.value().score;
+	if (tte.has_value() && tte.value().u.sv.depth >= depth)
+		return tte.value().u.sv.score;
 
 	const int startAlpha = alpha;
 
