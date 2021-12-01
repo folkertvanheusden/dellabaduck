@@ -278,7 +278,7 @@ private:
 	chain_t **const cm;
 
 public:
-	ChainMap(const int dim) : dim(dim), cm(new chain_t *[(dim + 2) * (dim + 2)]()) {
+	ChainMap(const int dim) : dim(dim), cm(new chain_t *[dim * dim]()) {
 		assert(dim & 1);
 	}
 
@@ -291,9 +291,9 @@ public:
 	}
 
 	chain_t * getAt(const int x, const int y) const {
-		assert(x < dim + 1 && x >= -1);
-		assert(y < dim + 1 && y >= -1);
-		int v = (y + 1) * dim + x + 1;
+		assert(x < dim && x >= 0);
+		assert(y < dim && y >= 0);
+		int v = y * dim + x;
 		return cm[v];
 	}
 
@@ -302,9 +302,9 @@ public:
 	}
 
 	void setAt(const int x, const int y, chain_t *const chain) {
-		assert(x < dim + 1 && x >= -1);
-		assert(y < dim + 1 && y >= -1);
-		int v = (y + 1) * dim + x + 1;
+		assert(x < dim && x >= 0);
+		assert(y < dim && y >= 0);
+		int v = y * dim + x;
 		cm[v] = chain;
 	}
 };
@@ -427,6 +427,8 @@ void purgeChains(std::vector<chain_t *> *const chains)
 
 void purgeFreedoms(std::vector<chain_t *> *const chainsPurge, const ChainMap & cm, const board_t me)
 {
+	const int dim = cm.getDim();
+
 	// go through all chains from chainsPurge
 	for(auto it = chainsPurge->begin(); it != chainsPurge->end();) {
 		bool considerPurge = false;
@@ -442,21 +444,29 @@ void purgeFreedoms(std::vector<chain_t *> *const chainsPurge, const ChainMap & c
 				const int x = stone.getX();
 				const int y = stone.getY();
 
-				const chain_t *const north = cm.getAt(x, y - 1);
-				if (north && north->type == me && north->freedoms.size() == 1)
-					considerPurge = true;
+				if (y) {
+					const chain_t *const north = cm.getAt(x, y - 1);
+					if (north && north->type == me && north->freedoms.size() == 1)
+						considerPurge = true;
+				}
 
-				const chain_t *const west  = cm.getAt(x - 1, y);
-				if (west && west->type == me && west->freedoms.size() == 1)
-					considerPurge = true;
+				if (x) {
+					const chain_t *const west  = cm.getAt(x - 1, y);
+					if (west && west->type == me && west->freedoms.size() == 1)
+						considerPurge = true;
+				}
 
-				const chain_t *const south = cm.getAt(x, y + 1);
-				if (south && south->type == me && south->freedoms.size() == 1)
-					considerPurge = true;
+				if (y < dim - 1) {
+					const chain_t *const south = cm.getAt(x, y + 1);
+					if (south && south->type == me && south->freedoms.size() == 1)
+						considerPurge = true;
+				}
 
-				const chain_t *const east  = cm.getAt(x + 1, y);
-				if (east && east->type == me && east->freedoms.size() == 1)
-					considerPurge = true;
+				if (x < dim - 1) {
+					const chain_t *const east  = cm.getAt(x + 1, y);
+					if (east && east->type == me && east->freedoms.size() == 1)
+						considerPurge = true;
+				}
 			}
 		}
 
