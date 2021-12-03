@@ -837,12 +837,12 @@ double benchmark(const Board & in, const int ms)
 			findChainsOfFreedoms(b, &chainsEmpty);
 			purgeFreedoms(&chainsEmpty, cm, p == P_BLACK ? B_BLACK : B_WHITE);
 
-			purgeChains(&chainsBlack);
-			purgeChains(&chainsWhite);
-
 			// no valid freedoms? return "pass".
-			if (chainsEmpty.empty())
+			if (chainsEmpty.empty()) {
+				purgeChains(&chainsBlack);
+				purgeChains(&chainsWhite);
 				break;
+			}
 
 			auto chain = chainsEmpty.at(rand() % chainsEmpty.size());
 			size_t chainSize = chain->chain.size();
@@ -874,6 +874,8 @@ double benchmark(const Board & in, const int ms)
 			}
 
 			purgeChains(&chainsEmpty);
+			purgeChains(&chainsBlack);
+			purgeChains(&chainsWhite);
 
 			p = p == P_BLACK ? P_WHITE : P_BLACK;
 			mc++;
