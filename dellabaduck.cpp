@@ -431,46 +431,9 @@ void purgeFreedoms(std::vector<chain_t *> *const chainsPurge, const ChainMap & c
 
 	// go through all chains from chainsPurge
 	for(auto it = chainsPurge->begin(); it != chainsPurge->end();) {
-		bool considerPurge = false;
-
 		bool mustPurge = (*it)->chain.size() == 1;
 
-		if (!mustPurge) {
-			// - if a freedom is 'connected to an opponent chain' with 1
-			//   freedom, then valid
-			// - if a freedom is 'connected to a chain of myself' with 1
-			//   freedom, then invalid
-			for(auto stone : (*it)->chain) {
-				const int x = stone.getX();
-				const int y = stone.getY();
-
-				if (y) {
-					const chain_t *const north = cm.getAt(x, y - 1);
-					if (north && north->type == me && north->freedoms.size() == 1)
-						considerPurge = true;
-				}
-
-				if (x) {
-					const chain_t *const west  = cm.getAt(x - 1, y);
-					if (west && west->type == me && west->freedoms.size() == 1)
-						considerPurge = true;
-				}
-
-				if (y < dim - 1) {
-					const chain_t *const south = cm.getAt(x, y + 1);
-					if (south && south->type == me && south->freedoms.size() == 1)
-						considerPurge = true;
-				}
-
-				if (x < dim - 1) {
-					const chain_t *const east  = cm.getAt(x + 1, y);
-					if (east && east->type == me && east->freedoms.size() == 1)
-						considerPurge = true;
-				}
-			}
-		}
-
-		if ((considerPurge && (*it)->chain.size() == 1) || mustPurge) {
+		if (mustPurge) {
 			delete *it;
 			it = chainsPurge->erase(it);
 		}
