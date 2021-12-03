@@ -813,6 +813,8 @@ double benchmark(const Board & in, const int ms)
 {
 	send(true, "# starting benchmark: duration: %.3fs, board dimensions: %d", ms / 1000.0, in.getDim());
 
+	const int dim = in.getDim();
+
 	// benchmark
 	uint64_t start = get_ts_ms(), end = 0;
 	uint64_t n = 0, total_puts = 0;
@@ -850,7 +852,26 @@ double benchmark(const Board & in, const int ms)
 			for(int i=0; i<r; i++)
 				it++;
 
-			play(&b, *it, p);
+			b.setAt(*it, p == P_BLACK ? B_BLACK : B_WHITE);
+
+			const int x = it->getX();
+			const int y = it->getY();
+			const board_t oppType = p == P_BLACK ? B_WHITE : B_BLACK;
+
+			std::set<chain_t *> toPurge;
+			if (y && b.getAt(x, y - 1) == oppType && cm.getAt(x, y - 1)->freedoms.size() == 1)
+				toPurge.insert(cm.getAt(x, y - 1));
+			if (y < dim - 1 && b.getAt(x, y + 1) == oppType && cm.getAt(x, y + 1)->freedoms.size() == 1)
+				toPurge.insert(cm.getAt(x, y + 1));
+			if (x && b.getAt(x - 1, y) == oppType && cm.getAt(x - 1, y)->freedoms.size() == 1)
+				toPurge.insert(cm.getAt(x - 1, y));
+			if (x < dim - 1 && b.getAt(x + 1, y) == oppType && cm.getAt(x + 1, y)->freedoms.size() == 1)
+				toPurge.insert(cm.getAt(x + 1, y));
+
+			for(auto chain : toPurge) {
+				for(auto ve : chain->chain)
+					b.setAt(ve, B_EMPTY);
+			}
 
 			purgeChains(&chainsEmpty);
 
