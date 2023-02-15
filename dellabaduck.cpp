@@ -170,12 +170,15 @@ public:
 	Board(const Board & bIn) : dim(bIn.getDim()), b(new board_t[dim * dim]) {
 		assert(dim & 1);
 
-		for(int i=0; i<dim*dim; i++)
-			b[i] = bIn.getAt(i);
+		bIn.getTo(b);
 	}
 
 	int getDim() const {
 		return dim;
+	}
+
+	void getTo(board_t *const bto) const {
+		memcpy(bto, b, dim * dim * sizeof(*b));
 	}
 
 	board_t getAt(const int v) const {
