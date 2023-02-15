@@ -22,8 +22,13 @@ const char *const board_t_names[] = { ".", "o", "x" };
 
 FILE *fh = fopen("/tmp/input.dat", "a+");
 
+bool cgos = true;
+
 void send(const bool tx, const char *fmt, ...)
 {
+	if (cgos && fmt[0] == '#')
+		return;
+
 	uint64_t now = get_ts_ms();
 	time_t t_now = now / 1000;
 
@@ -1147,10 +1152,14 @@ int main(int argc, char *argv[])
 			auto v = genMove(b, player, parts.at(0) == "genmove");
 			uint64_t end_ts = get_ts_ms();
 
-			if (v.has_value())
+			if (v.has_value()) {
 				send(true, "=%s %s", id.c_str(), v2t(v.value()).c_str());
-			else
+
+				play(b, v.value(), player);
+			}
+			else {
 				send(true, "=%s pass", id.c_str());
+			}
 
 			send(true, "# took %.3fs", (end_ts - start_ts) / 1000.0);
 		}
