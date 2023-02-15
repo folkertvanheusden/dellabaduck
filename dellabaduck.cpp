@@ -360,10 +360,12 @@ void findChains(const Board & b, std::vector<chain_t *> *const chainsWhite, std:
 
 	for(int y=0; y<dim; y++) {
 		for(int x=0; x<dim; x++) {
-			if (scanned[y * dim + x])
+			int v = y * dim + x;
+
+			if (scanned[v])
 				continue;
 
-			board_t bv = b.getAt(x, y);
+			board_t bv = b.getAt(v);
 			if (bv == B_EMPTY)
 				continue;
 
@@ -414,10 +416,12 @@ void findChainsOfFreedoms(const Board & b, std::vector<chain_t *> *const chainsE
 
 	for(int y=0; y<dim; y++) {
 		for(int x=0; x<dim; x++) {
-			if (scanned[y * dim + x])
+			int v = y * dim + x;
+
+			if (scanned[v])
 				continue;
 
-			board_t bv = b.getAt(x, y);
+			board_t bv = b.getAt(v);
 			if (bv != B_EMPTY)
 				continue;
 
