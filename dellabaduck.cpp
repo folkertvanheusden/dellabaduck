@@ -662,6 +662,7 @@ int search(const Board & b, const player_t & p, int alpha, const int beta, const
 
 	std::vector<chain_t *> chainsEmpty;
 
+	// do not calculate chains when at depth 0 as they're not used then
 	if (depth > 0) {
 		ChainMap cm(dim);
 		std::vector<chain_t *> chainsWhite, chainsBlack;
