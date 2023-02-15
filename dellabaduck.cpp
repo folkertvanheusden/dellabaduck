@@ -114,7 +114,7 @@ Vertex t2v(const std::string & str, const int dim)
 
 	int y = atoi(str.substr(1).c_str()) - 1;
 
-	return Vertex(x, y, dim);
+	return { x, y, dim };
 }
 
 auto vertexCmp = [](const Vertex & a, const Vertex & b)
@@ -336,7 +336,7 @@ void scanChains(const Board & b, bool *const scanned, chain_t *const curChain, c
 
 		cm->setAt(x, y, curChain);
 
-		curChain->chain.insert(Vertex(x, y, dim));
+		curChain->chain.insert({ x, y, dim });
 
 		if (y > 0)
 			scanChains(b, scanned, curChain, x, y - 1, startType, cm);
@@ -348,7 +348,7 @@ void scanChains(const Board & b, bool *const scanned, chain_t *const curChain, c
 			scanChains(b, scanned, curChain, x + 1, y, startType, cm);
 	}
 	else if (bv == B_EMPTY) {
-		curChain->freedoms.insert(Vertex(x, y, dim));  // only for counting the total number of freedoms
+		curChain->freedoms.insert({ x, y, dim });  // only for counting the total number of freedoms
 	}
 }
 
@@ -393,7 +393,7 @@ void scanChainsOfFreedoms(const Board & b, bool *const scanned, chain_t *const c
 	if (bv == B_EMPTY && scanned[v] == false) {
 		scanned[v] = true;
 
-		curChain->chain.insert(Vertex(x, y, dim));
+		curChain->chain.insert({ x, y, dim });
 
 		if (y > 0)
 			scanChainsOfFreedoms(b, scanned, curChain, x, y - 1);
@@ -595,16 +595,16 @@ std::vector<Vertex> pickEmptyAround(const ChainMap & cm, const Vertex & v)
 	std::vector<Vertex> out;
 
 	if (x > 0 && cm.getAt(x - 1, y) == nullptr)
-		out.push_back(Vertex(x - 1, y));
+		out.push_back({ x - 1, y });
 
 	if (y > 0 && cm.getAt(x, y - 1) == nullptr)
-		out.push_back(Vertex(x, y - 1));
+		out.push_back({ x, y - 1 });
 
 	if (x < dim - 1 && cm.getAt(x + 1, y) == nullptr)
-		out.push_back(Vertex(x + 1, y));
+		out.push_back({ x + 1, y });
 
 	if (y < dim - 1 && cm.getAt(x, y + 1) == nullptr)
-		out.push_back(Vertex(x, y + 1));
+		out.push_back({ x, y + 1 });
 
 	return out;
 }
@@ -723,7 +723,7 @@ void selectAlphaBeta(const Board & b, const ChainMap & cm, const std::vector<cha
 
 		Board work(b);
 
-		Vertex v(i, dim);
+		Vertex v { i, dim };
 		play(&work, v, p, false);
 
 		int score = search(work, p == P_BLACK ? P_WHITE : P_BLACK, -32768, 32768, 3);
@@ -776,7 +776,7 @@ std::optional<Vertex> genMove(Board *const b, const player_t & p, const bool doP
         int bestScore = -32767;
         for(int i=0; i<dim * dim; i++) {
                 if (evals.at(i).score > bestScore && evals.at(i).valid) {
-                        Vertex temp = Vertex(i, dim);
+                        Vertex temp { i, dim };
 
 			if (isValidMove(chainsEmpty, temp)) {
                                 v.emplace(temp);
