@@ -26,9 +26,6 @@ bool cgos = true;
 
 void send(const bool tx, const char *fmt, ...)
 {
-	if (cgos && fmt[0] == '#')
-		return;
-
 	uint64_t now = get_ts_ms();
 	time_t t_now = now / 1000;
 
@@ -50,11 +47,20 @@ void send(const bool tx, const char *fmt, ...)
 	fprintf(fh, "%s%s\n", ts_str, str);
 	fflush(fh);
 
-	if (tx)
+	if (tx) {
+		if (cgos && fmt[0] == '#')
+			return;
+
 		printf("%s\n", str);
+	}
 
 	free(str);
 	free(ts_str);
+}
+
+board_t playerToStone(const player_t & p)
+{
+	return p == P_BLACK ? B_BLACK : B_WHITE;
 }
 
 class Vertex
@@ -448,9 +454,12 @@ void purgeFreedoms(std::vector<chain_t *> *const chainsPurge, const ChainMap & c
 	}
 }
 
-void play(Board *const b, const Vertex & v, const player_t & p)
+void play(Board *const b, const Vertex & v, const player_t & p, bool debug)
 {
-	b->setAt(v, p == P_BLACK ? B_BLACK : B_WHITE);
+	if (debug)
+	send(false, "# set at %s", v2t(v).c_str());
+
+	b->setAt(v, playerToStone(p));
 
 	ChainMap cm(b->getDim());
 	std::vector<chain_t *> chainsWhite, chainsBlack;
@@ -460,8 +469,11 @@ void play(Board *const b, const Vertex & v, const player_t & p)
 
 	for(auto chain : scan) {
 		if (chain->freedoms.empty()) {
-			for(auto ve : chain->chain)
+			for(auto ve : chain->chain) {
+				if (debug)
+				send(false, "# purge %s (no freedoms)", v2t(ve).c_str());
 				b->setAt(ve, B_EMPTY);
+			}
 		}
 	}
 
@@ -654,7 +666,7 @@ int search(const Board & b, const player_t & p, int alpha, const int beta, const
 
 		// find chains of freedoms
 		findChainsOfFreedoms(b, &chainsEmpty);
-		purgeFreedoms(&chainsEmpty, cm, p == P_BLACK ? B_BLACK : B_WHITE);
+		purgeFreedoms(&chainsEmpty, cm, playerToStone(p));
 
 		purgeChains(&chainsBlack);
 		purgeChains(&chainsWhite);
@@ -673,7 +685,7 @@ int search(const Board & b, const player_t & p, int alpha, const int beta, const
 		for(auto stone : chain->chain) {
 			Board work(b);
 
-			play(&work, stone, p);
+			play(&work, stone, p, false);
 
 			int score = -search(work, p == P_WHITE ? P_BLACK : P_WHITE, -beta, -alpha, depth - 1);
 
@@ -708,7 +720,7 @@ void selectAlphaBeta(const Board & b, const ChainMap & cm, const std::vector<cha
 		Board work(b);
 
 		Vertex v(i, dim);
-		play(&work, v, p);
+		play(&work, v, p, false);
 
 		int score = search(work, p == P_BLACK ? P_WHITE : P_BLACK, -32768, 32768, 3);
 
@@ -716,7 +728,7 @@ void selectAlphaBeta(const Board & b, const ChainMap & cm, const std::vector<cha
 	}
 }
 
-std::optional<Vertex> genMove(Board *const b, const player_t & p, const bool play)
+std::optional<Vertex> genMove(Board *const b, const player_t & p, const bool doPlay)
 {
 	const int dim = b->getDim();
 
@@ -725,10 +737,19 @@ std::optional<Vertex> genMove(Board *const b, const player_t & p, const bool pla
 	std::vector<chain_t *> chainsWhite, chainsBlack;
 	findChains(*b, &chainsWhite, &chainsBlack, &cm);
 
+//	send(false, "# chainsWhite:");
+//	dump(chainsWhite);
+//	send(false, "# chainsBlack:");
+//	dump(chainsBlack);
+
 	// find chains of freedoms
 	std::vector<chain_t *> chainsEmpty;
 	findChainsOfFreedoms(*b, &chainsEmpty);
-	purgeFreedoms(&chainsEmpty, cm, p == P_BLACK ? B_BLACK : B_WHITE);
+//	send(false, "# chainsEmpty1:");
+//	dump(chainsEmpty);
+	purgeFreedoms(&chainsEmpty, cm, playerToStone(p));
+//	send(false, "# chainsEmpty2:");
+//	dump(chainsEmpty);
 
 	// no valid freedoms? return "pass".
 	if (chainsEmpty.empty()) {
@@ -796,16 +817,9 @@ std::optional<Vertex> genMove(Board *const b, const player_t & p, const bool pla
 	send(true, line.c_str());
 
 	// remove any chains that no longer have freedoms after this move
-	if (play && v.has_value()) {
-		std::vector<chain_t *> & scan = p == P_BLACK ? chainsWhite : chainsBlack;
-
-		for(auto chain : scan) {
-			if (chain->freedoms.find(v.value()) != chain->freedoms.end()) {
-				for(auto ve : chain->chain)
-					b->setAt(ve, B_EMPTY);
-			}
-		}
-	}
+	// also play the move
+	if (doPlay && v.has_value())
+		play(b, v.value(), p, true);
 
 	purgeChains(&chainsBlack);
 	purgeChains(&chainsWhite);
@@ -840,7 +854,7 @@ double benchmark(const Board & in, const int ms)
 			// find chains of freedoms
 			std::vector<chain_t *> chainsEmpty;
 			findChainsOfFreedoms(b, &chainsEmpty);
-			purgeFreedoms(&chainsEmpty, cm, p == P_BLACK ? B_BLACK : B_WHITE);
+			purgeFreedoms(&chainsEmpty, cm, playerToStone(p));
 
 			// no valid freedoms? return "pass".
 			if (chainsEmpty.empty()) {
@@ -857,7 +871,7 @@ double benchmark(const Board & in, const int ms)
 			for(int i=0; i<r; i++)
 				it++;
 
-			b.setAt(*it, p == P_BLACK ? B_BLACK : B_WHITE);
+			b.setAt(*it, playerToStone(p));
 
 			const int x = it->getX();
 			const int y = it->getY();
@@ -1056,7 +1070,7 @@ int main(int argc, char *argv[])
 		else if (parts.at(0) == "play") {
 			if (str_tolower(parts.at(2)) != "pass") {
 				Vertex v = t2v(parts.at(2), b->getDim());
-				play(b, v, (parts.at(1) == "b" || parts.at(1) == "black") ? P_BLACK : P_WHITE);
+				play(b, v, (parts.at(1) == "b" || parts.at(1) == "black") ? P_BLACK : P_WHITE, false);
 			}
 
 			send(true, "=%s", id.c_str());
@@ -1152,14 +1166,10 @@ int main(int argc, char *argv[])
 			auto v = genMove(b, player, parts.at(0) == "genmove");
 			uint64_t end_ts = get_ts_ms();
 
-			if (v.has_value()) {
+			if (v.has_value())
 				send(true, "=%s %s", id.c_str(), v2t(v.value()).c_str());
-
-				play(b, v.value(), player);
-			}
-			else {
+			else
 				send(true, "=%s pass", id.c_str());
-			}
 
 			send(true, "# took %.3fs", (end_ts - start_ts) / 1000.0);
 		}
@@ -1179,6 +1189,8 @@ int main(int argc, char *argv[])
 		}
 
 		send(true, "");
+
+//		dump(*b);
 
 		fflush(nullptr);
 	}

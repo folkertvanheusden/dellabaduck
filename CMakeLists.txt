@@ -13,7 +13,7 @@ add_executable(
 )
 
 # disable assert()
-add_definitions(-DNDEBUG)
+#add_definitions(-DNDEBUG)
 
 set(CMAKE_BUILD_TYPE Debug)
 
