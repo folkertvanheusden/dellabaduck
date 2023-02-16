@@ -816,8 +816,7 @@ std::optional<Vertex> genMove(Board *const b, const player_t & p, const bool doP
 	send(false, "# timeLeft: %f, useTime: %f, total chain-count: %zu, board dimension: %d", timeLeft, useTime, totalNChains, dim);
 
         std::vector<eval_t> evals;
-        for(int i=0; i<p2dim; i++)
-                evals.push_back({ 0, false });
+	evals.resize(p2dim);
 
 	// algorithms
 // FIXME	selectRandom(*b, cm, chainsWhite, chainsBlack, chainsEmpty, p, &evals);
