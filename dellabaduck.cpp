@@ -1025,15 +1025,28 @@ Board loadSgf(const std::string & filename)
 
 int main(int argc, char *argv[])
 {
-#if 0
-        Board b = stringToBoard(
-                        ".o.o.\n"
-                        "o.o.o\n"
-                        ".oooo\n"
-                        "ooooo\n"
-                        "oo.o.\n"
+#if 1
+        Board b5 = stringToBoard(
+                        ".....\n"
+                        "xx...\n"
+                        "ox...\n"
+                        ".x...\n"
+                        ".x...\n"
                         );
 
+        Board b7 = stringToBoard(
+                        "oox.ox.\n"
+                        "o.x.ox.\n"
+                        "xxxoox.\n"
+                        "x.o.ox.\n"
+                        "ooooox.\n"
+                        "xxxxxx.\n"
+                        ".......\n"
+                        );
+
+	Board & b = b5;
+
+#if 0
 	auto scores = score(b);
 
 	std::string id;
@@ -1046,25 +1059,37 @@ int main(int argc, char *argv[])
 
 	return 0;
 
-#if 0
+#endif
         dump(b);
 
 	ChainMap cm(b.getDim());
         std::vector<chain_t *> chainsWhite, chainsBlack;
         findChains(b, &chainsWhite, &chainsBlack, &cm);
-        //dump(chainsWhite);
+
+	send(false, "#");
+	send(false, "# white:");
+        dump(chainsWhite);
+
+	send(false, "#");
+	send(false, "# black:");
         dump(chainsBlack);
 
 	std::vector<chain_t *> chainsEmpty;
 	findChainsOfFreedoms(b, &chainsEmpty);
-	fprintf(fh, "\n\npurge empty\n");
+	send(false, "#");
+	send(false, "# empty:");
+	dump(chainsEmpty);
+
 	purgeFreedoms(&chainsEmpty, cm, B_BLACK);
-//	dump(chainsEmpty);
+	send(false, "#");
+	send(false, "# empty after purge:");
+	dump(chainsEmpty);
 
 	purgeChains(&chainsBlack);
 	purgeChains(&chainsWhite);
 	purgeChains(&chainsEmpty);
 #endif
+#if 0
 	dump(b);
 	auto v = genMove(b, P_BLACK, true);
 	if (v.has_value())
@@ -1075,7 +1100,7 @@ int main(int argc, char *argv[])
 	fclose(fh);
 
 	return 0;
-#elif 1
+#elif 0
 	Board *b = new Board(9);
 
 	setbuf(stdout, nullptr);
