@@ -724,7 +724,7 @@ finished:
 	return bestScore;
 }
 
-void selectAlphaBeta(const Board & b, const ChainMap & cm, const std::vector<chain_t *> & chainsWhite, const std::vector<chain_t *> & chainsBlack, const std::vector<chain_t *> & chainsEmpty, const player_t & p, std::vector<eval_t> *const evals, const double timeLeft)
+void selectAlphaBeta(const Board & b, const ChainMap & cm, const std::vector<chain_t *> & chainsWhite, const std::vector<chain_t *> & chainsBlack, const std::vector<chain_t *> & chainsEmpty, const player_t & p, std::vector<eval_t> *const evals, const double useTime)
 {
 	const int dim = b.getDim();
 
@@ -733,21 +733,21 @@ void selectAlphaBeta(const Board & b, const ChainMap & cm, const std::vector<cha
 	for(int i=0; i<dim * dim; i++)
 		valid[i] = isValidMove(chainsEmpty, { i, dim });
 
-	uint64_t start_t = get_ts_ms();
-	uint64_t hend_t  = start_t + timeLeft * 1000 / 2;
-	uint64_t end_t   = start_t + timeLeft * 1000;
+	uint64_t start_t = get_ts_ms();  // TODO: start of genMove()
+	uint64_t hend_t  = start_t + useTime * 1000 / 2;
+	uint64_t end_t   = start_t + useTime * 1000;
 
 	int depth = 1;
 
 	while(get_ts_ms() < hend_t) {
 		int *scores = new int[dim * dim]();
 
+		send(false, "# a/b depth: %d", depth);
+
 		bool to = false;
 
 		for(int i=0; i<dim * dim; i++) {
-			Vertex v { i, dim };
-
-			if (isValidMove(chainsEmpty, v) == false)
+			if (valid[i] == false)
 				continue;
 
 			if (get_ts_ms() >= end_t) {
@@ -757,7 +757,7 @@ void selectAlphaBeta(const Board & b, const ChainMap & cm, const std::vector<cha
 
 			Board work(b);
 
-			play(&work, v, p, false);
+			play(&work, { i, dim }, p, false);
 
 			scores[i] = search(work, p == P_BLACK ? P_WHITE : P_BLACK, -32768, 32768, depth);
 		}
@@ -775,9 +775,20 @@ void selectAlphaBeta(const Board & b, const ChainMap & cm, const std::vector<cha
 	delete [] valid;
 }
 
+int calcN(const std::vector<chain_t *> & chains)
+{
+	int n = 0;
+
+	for(auto chain : chains)
+		n += chain->chain.size();
+
+	return n;
+}
+
 std::optional<Vertex> genMove(Board *const b, const player_t & p, const bool doPlay, const double timeLeft)
 {
 	const int dim = b->getDim();
+	const int p2dim = dim * dim;
 
 	// find chains of stones
 	ChainMap cm(dim);
@@ -798,8 +809,14 @@ std::optional<Vertex> genMove(Board *const b, const player_t & p, const bool doP
 		return { };
 	}
 
+	size_t totalNChains = chainsWhite.size() + chainsBlack.size();
+
+	double useTime = (timeLeft / 2.) * totalNChains / p2dim * 0.95;
+
+	send(false, "# timeLeft: %f, useTime: %f, total chain-count: %zu, board dimension: %d", timeLeft, useTime, totalNChains, dim);
+
         std::vector<eval_t> evals;
-        for(int i=0; i<dim * dim; i++)
+        for(int i=0; i<p2dim; i++)
                 evals.push_back({ 0, false });
 
 	// algorithms
@@ -811,13 +828,13 @@ std::optional<Vertex> genMove(Board *const b, const player_t & p, const bool doP
 
 	selectAtLeastOne(*b, cm, chainsWhite, chainsBlack, chainsEmpty, p, &evals);
 
-	selectAlphaBeta(*b, cm, chainsWhite, chainsBlack, chainsEmpty, p, &evals, 1.0);  // TODO: timeLeft
+	selectAlphaBeta(*b, cm, chainsWhite, chainsBlack, chainsEmpty, p, &evals, useTime);
 
 	// find best
 	std::optional<Vertex> v;
 
         int bestScore = -32767;
-        for(int i=0; i<dim * dim; i++) {
+        for(int i=0; i<p2dim; i++) {
                 if (evals.at(i).score > bestScore && evals.at(i).valid) {
                         Vertex temp { i, dim };
 
@@ -1142,7 +1159,7 @@ int main(int argc, char *argv[])
 			send(true, "=%s", id.c_str());  // TODO
 		}
 		else if (parts.at(0) == "time_left") {
-			timeLeft = atof(parts.at(1).c_str());
+			timeLeft = atof(parts.at(2).c_str());
 
 			send(true, "=%s", id.c_str());  // TODO
 		}
