@@ -729,7 +729,9 @@ void selectAlphaBeta(const Board & b, const ChainMap & cm, const std::vector<cha
 	const int dim = b.getDim();
 
 	for(int i=0; i<dim * dim; i++) {
-		if (evals->at(i).valid == false)
+                Vertex temp { i, dim };
+
+		if (isValidMove(chainsEmpty, temp) == false)
 			continue;
 
 		Board work(b);
@@ -738,6 +740,8 @@ void selectAlphaBeta(const Board & b, const ChainMap & cm, const std::vector<cha
 		play(&work, v, p, false);
 
 		int score = search(work, p == P_BLACK ? P_WHITE : P_BLACK, -32768, 32768, 3);
+
+		//printf("%d %d\n", i, score);
 
 		evals->at(i).score += score;
 	}
