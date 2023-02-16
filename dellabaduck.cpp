@@ -63,6 +63,11 @@ board_t playerToStone(const player_t & p)
 	return p == P_BLACK ? B_BLACK : B_WHITE;
 }
 
+player_t getOpponent(const player_t & p)
+{
+	return p == P_WHITE ? P_BLACK : P_WHITE;
+}
+
 class Vertex
 {
 private:
@@ -689,13 +694,15 @@ int search(const Board & b, const player_t & p, int alpha, const int beta, const
 	int bestScore = -32768;
 	std::optional<Vertex> bestMove;
 
+	player_t opponent = getOpponent(p);
+
 	for(auto chain : chainsEmpty) {
 		for(auto stone : chain->chain) {
 			Board work(b);
 
 			play(&work, stone, p, false);
 
-			int score = -search(work, p == P_WHITE ? P_BLACK : P_WHITE, -beta, -alpha, depth - 1);
+			int score = -search(work, opponent, -beta, -alpha, depth - 1);
 
 			if (score > bestScore) {
 				bestScore = score;
