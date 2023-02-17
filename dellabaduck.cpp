@@ -1053,16 +1053,20 @@ double benchmark(const Board & in, const int ms)
 			const board_t oppType = p == P_BLACK ? B_WHITE : B_BLACK;
 
 			std::set<chain_t *> toPurge;
-			if (y && b.getAt(x, y - 1) == oppType && cm.getAt(x, y - 1)->freedoms.size() == 1)
+
+			if (y)
 				toPurge.insert(cm.getAt(x, y - 1));
-			if (y < dim - 1 && b.getAt(x, y + 1) == oppType && cm.getAt(x, y + 1)->freedoms.size() == 1)
+			if (y < dim - 1)
 				toPurge.insert(cm.getAt(x, y + 1));
-			if (x && b.getAt(x - 1, y) == oppType && cm.getAt(x - 1, y)->freedoms.size() == 1)
+			if (x)
 				toPurge.insert(cm.getAt(x - 1, y));
-			if (x < dim - 1 && b.getAt(x + 1, y) == oppType && cm.getAt(x + 1, y)->freedoms.size() == 1)
+			if (x < dim - 1)
 				toPurge.insert(cm.getAt(x + 1, y));
 
 			for(auto chain : toPurge) {
+				if (chain->type != oppType || chain->freedoms.size() > 1)
+					continue;
+
 				for(auto ve : chain->chain)
 					b.setAt(ve, B_EMPTY);
 			}
