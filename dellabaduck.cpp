@@ -613,11 +613,11 @@ void scoreFloodFill(const Board & b, const int dim, bool *const reachable, const
 
 	if (x > 0)
 		scoreFloodFill(b, dim, reachable, x - 1, y, lookFor);
-	if (y > 0)
-		scoreFloodFill(b, dim, reachable, x, y - 1, lookFor);
-
 	if (x < dimm1)
 		scoreFloodFill(b, dim, reachable, x + 1, y, lookFor);
+
+	if (y > 0)
+		scoreFloodFill(b, dim, reachable, x, y - 1, lookFor);
 	if (y < dimm1)
 		scoreFloodFill(b, dim, reachable, x, y + 1, lookFor);
 }
