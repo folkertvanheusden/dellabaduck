@@ -1050,7 +1050,7 @@ double benchmark(const Board & in, const int ms)
 
 			const int x = it->getX();
 			const int y = it->getY();
-			const board_t oppType = p == P_BLACK ? B_WHITE : B_BLACK;
+			const board_t oppType = playerToStone(getOpponent(p));
 
 			std::set<chain_t *> toPurge;
 
@@ -1064,7 +1064,7 @@ double benchmark(const Board & in, const int ms)
 				toPurge.insert(cm.getAt(x + 1, y));
 
 			for(auto chain : toPurge) {
-				if (chain->type != oppType || chain->freedoms.size() > 1)
+				if (chain == nullptr || chain->type != oppType || chain->freedoms.size() > 1)
 					continue;
 
 				for(auto ve : chain->chain)
@@ -1075,7 +1075,7 @@ double benchmark(const Board & in, const int ms)
 			purgeChains(&chainsBlack);
 			purgeChains(&chainsWhite);
 
-			p = p == P_BLACK ? P_WHITE : P_BLACK;
+			p = getOpponent(p);
 			mc++;
 
 			if (mc == 150)
