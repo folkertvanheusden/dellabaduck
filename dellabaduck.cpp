@@ -598,10 +598,37 @@ void play(Board *const b, const Vertex & v, const player_t & p)
 	purgeChains(&chainsWhite);
 }
 
+void scoreFloodFill(const Board & b, const int dim, bool *const reachable, const int x, const int y, const board_t lookFor)
+{
+	auto piece = b.getAt(x, y);
+
+	int v = y * dim + x;
+
+	if (piece != lookFor || reachable[v])
+		return;
+
+	reachable[v] = true;
+
+	const int dimm1 = dim - 1;
+
+	if (x > 0)
+		scoreFloodFill(b, dim, reachable, x - 1, y, lookFor);
+	if (y > 0)
+		scoreFloodFill(b, dim, reachable, x, y - 1, lookFor);
+
+	if (x < dimm1)
+		scoreFloodFill(b, dim, reachable, x + 1, y, lookFor);
+	if (y < dimm1)
+		scoreFloodFill(b, dim, reachable, x, y + 1, lookFor);
+}
+
 // black, white
-std::pair<int, int> score(const Board & b, const double komi)
+std::pair<double, double> score(const Board & b, const double komi)
 {
 	const int dim = b.getDim();
+
+	char debug[dim * dim];
+	memset(debug, ' ', sizeof debug);
 
 	// find chains of stones
 	ChainMap cm(dim);
@@ -610,105 +637,72 @@ std::pair<int, int> score(const Board & b, const double komi)
 
 	// number of stones for each
 	int blackStones = 0;
-	for(auto chain : chainsBlack)
-		blackStones += chain->chain.size();
+	bool *reachableBlack = new bool[dim * dim]();
+	bool *reachableWhite = new bool[dim * dim]();
 
-	int whiteStones = 0;
-	for(auto chain : chainsWhite)
-		whiteStones += chain->chain.size();
+	for(auto chain : chainsBlack) {
+//		blackStones += chain->chain.size();
 
-	int blackEmpty = 0, whiteEmpty = 0;
-	for(int y=0; y<dim; y++) {
-		for(int x=0; x<dim; x++) {
-			if (b.getAt(x, y) != B_EMPTY)
-				continue;
+		for(auto stone : chain->chain) {
+			scoreFloodFill(b, dim, reachableBlack, stone.getX(), stone.getY(), B_BLACK);
 
-			bool has_b[B_LAST] { false };
-
-			{
-				int xc = x, yc = y;
-				for(;;) {
-					if (--xc < 0)
-						break;
-
-					auto piece = b.getAt(xc, yc);
-					if (piece != B_EMPTY) {
-						has_b[piece] = true;
-						break;
-					}
-				}
-			}
-
-			{
-				int xc = x, yc = y;
-				for(;;) {
-					if (--yc < 0)
-						break;
-
-					auto piece = b.getAt(xc, yc);
-					if (piece != B_EMPTY) {
-						has_b[piece] = true;
-						break;
-					}
-				}
-			}
-
-			{
-				int xc = x, yc = y;
-				for(;;) {
-					if (++xc == dim)
-						break;
-
-					auto piece = b.getAt(xc, yc);
-					if (piece != B_EMPTY) {
-						has_b[piece] = true;
-						break;
-					}
-				}
-			}
-
-			{
-				int xc = x, yc = y;
-				for(;;) {
-					if (++yc == dim)
-						break;
-
-					auto piece = b.getAt(xc, yc);
-					if (piece != B_EMPTY) {
-						has_b[piece] = true;
-						break;
-					}
-				}
-			}
-
-			int count_set = has_b[B_WHITE] + has_b[B_BLACK];
-			if (count_set == 1) {
-				if (has_b[B_WHITE])
-					whiteEmpty++;
-				else // if (has_b[B_BLACK])
-					blackEmpty++;
-			}
+			debug[stone.getV()] = 'X';
 		}
 	}
+
+	int whiteStones = 0;
+	for(auto chain : chainsWhite) {
+//		whiteStones += chain->chain.size();
+
+		for(auto stone : chain->chain) {
+			scoreFloodFill(b, dim, reachableWhite, stone.getX(), stone.getY(), B_WHITE);
+
+			debug[stone.getV()] = 'O';
+		}
+	}
+
+	int blackEmpty = 0;
+	int whiteEmpty = 0;
+
+	for(int i=0; i<dim * dim; i++) {
+		if (reachableBlack[i] == true && reachableWhite[i] == false)
+			blackEmpty++, debug[i] = 'x';
+		else if (reachableWhite[i] == true && reachableBlack[i] == false)
+			whiteEmpty++, debug[i] = 'o';
+	}
+
+	delete [] reachableBlack;
+	delete [] reachableWhite;
+
+	// stones that reach only one color
 
 	purgeChains(&chainsBlack);
 	purgeChains(&chainsWhite);
 
-	int blackScore = blackStones + blackEmpty;
-	int whiteScore = whiteStones + whiteEmpty + komi;
+	double blackScore = blackStones + blackEmpty;
+	double whiteScore = whiteStones + whiteEmpty + komi;
+
+	printf("%g %g\n", blackScore, whiteScore);
+
+	for(int y=dim-1; y>=0; y--) {
+		for(int x=0; x<dim; x++)
+			printf("%c", debug[y * dim + x]);
+		printf("|\n");
+	}
+	printf("\n");
 
 	return { blackScore, whiteScore };
 }
 
 std::string scoreStr(auto scores)
 {
-	if (scores.first == scores.second)
-		return "0";
-
 	if (scores.first > scores.second)
 		return myformat("B+%g", scores.first - scores.second);
 
-	return myformat("W+%g", scores.second - scores.first);
+	if (scores.first < scores.second)
+		return myformat("W+%g", scores.second - scores.first);
+
+	return "0";
 }
 
 typedef struct {
