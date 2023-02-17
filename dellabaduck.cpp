@@ -1,3 +1,4 @@
+#include <algorithm>
 #include <assert.h>
 #include <ctype.h>
 #include <fstream>
@@ -83,12 +84,15 @@ private:
 
 public:
 	Vertex(const int v, const int dim) : v(v), dim(dim) {
+		assert(dim & 1);
 	}
 
 	Vertex(const int x, const int y, const int dim) : v(y * dim + x), dim(dim) {
+		assert(dim & 1);
 	}
 
 	Vertex(const Vertex & v) : v(v.getV()), dim(v.getDim()) {
+		assert(dim & 1);
 	}
 
 	int getDim() const {
@@ -557,12 +561,12 @@ void purgeChains(std::vector<chain_t *> *const chains)
 {
 	for(auto chain : *chains)
 		delete chain;
+
+	chains->clear();
 }
 
 void purgeFreedoms(std::vector<chain_t *> *const chainsPurge, const ChainMap & cm, const board_t me)
 {
-	const int dim = cm.getDim();
-
 	// go through all chains from chainsPurge
 	for(auto it = chainsPurge->begin(); it != chainsPurge->end();) {
 		bool mustPurge = (*it)->chain.size() == 1;
@@ -573,6 +577,161 @@ void purgeFreedoms(std::vector<chain_t *> *const chainsPurge, const ChainMap & c
 		}
 		else {
 			it++;
+		}
+	}
+}
+
+std::vector<Vertex> pickEmptyAround(const ChainMap & cm, const Vertex & v)
+{
+	const int x = v.getX();
+	const int y = v.getY();
+	const int dim = cm.getDim();
+
+	std::vector<Vertex> out;
+
+	if (x > 0 && cm.getAt(x - 1, y) == nullptr)
+		out.push_back({ x - 1, y, dim });
+
+	if (x < dim - 1 && cm.getAt(x + 1, y) == nullptr)
+		out.push_back({ x + 1, y, dim });
+
+	if (y > 0 && cm.getAt(x, y - 1) == nullptr)
+		out.push_back({ x, y - 1, dim });
+
+	if (y < dim - 1 && cm.getAt(x, y + 1) == nullptr)
+		out.push_back({ x, y + 1, dim });
+
+	return out;
+}
+
+int countLiberties(const Board & b, const int x, const int y)
+{
+	const int dim = b.getDim();
+
+	int n = 0;
+
+	n += x >= 0      && b.getAt(x - 1, y) == B_EMPTY;
+	n += x < dim - 1 && b.getAt(x + 1, y) == B_EMPTY;
+	n += y >= 0      && b.getAt(x, y - 1) == B_EMPTY;
+	n += y < dim - 1 && b.getAt(x, y + 1) == B_EMPTY;
+
+	return n;
+}
+
+void connect(Board *const b, ChainMap *const cm, std::vector<chain_t *> *const chainsWhite, std::vector<chain_t *> *const chainsBlack, std::vector<chain_t *> *const chainsEmpty, const board_t what, const int x, const int y)
+{
+	const int dim = b->getDim();
+
+	assert(x >= 0 && x < dim);
+	assert(y >= 0 && y < dim);
+
+	// update board
+	assert(b->getAt(x, y) == B_EMPTY);
+	b->setAt(x, y, what);
+
+	// find chains to merge
+	std::set<chain_t *> toMergeTemp;
+
+	if (y > 0 && cm->getAt(x, y - 1) && cm->getAt(x, y - 1)->type == what)
+		toMergeTemp.insert(cm->getAt(x, y - 1));
+
+	if (y < dim - 1 && cm->getAt(x, y + 1) && cm->getAt(x, y + 1)->type == what)
+		toMergeTemp.insert(cm->getAt(x, y + 1));
+
+	if (x > 0 && cm->getAt(x - 1, y) && cm->getAt(x - 1, y)->type == what)
+		toMergeTemp.insert(cm->getAt(x - 1, y));
+
+	if (x < dim - 1 && cm->getAt(x + 1, y) && cm->getAt(x + 1, y)->type == what)
+		toMergeTemp.insert(cm->getAt(x + 1, y));
+
+	std::vector<chain_t *> toMerge;
+	for(auto & chain : toMergeTemp)
+		toMerge.push_back(chain);
+
+	// add new piece to (existing) first chain (of the set of chains found to be merged)
+	if (toMerge.empty() == false) {
+		Vertex v(x, y, dim);
+
+		// add to chain
+		toMerge.at(0)->chain.insert(v);
+		// update board->chain map
+		cm->setAt(x, y, toMerge.at(0));
+
+		// first remove this freedom
+		for(auto & chain : toMerge)
+			chain->freedoms.erase(v);
+
+		// merge
+		auto cleanChainSet = what == B_WHITE ? chainsWhite : chainsBlack;
+
+		for(size_t i=1; i<toMerge.size(); i++) {
+			toMerge.at(0)->chain.merge(toMerge.at(i)->chain);  // add stones
+
+			toMerge.at(0)->freedoms.merge(toMerge.at(i)->freedoms);  // add empty crosses surrounding the chain
+
+			// remove chain from chainset
+			auto it = std::find(cleanChainSet->begin(), cleanChainSet->end(), toMerge.at(i));
+			cleanChainSet->erase(it);
+		}
+
+		// update cm
+		if (toMerge.size() > 1) {
+			auto workOn = toMerge.at(0);  // at this point, entry 1... have been merged in 0
+
+			for(auto & stone : workOn->chain)
+				cm->setAt(stone, workOn);
+		}
+
+		// add any new liberties
+		std::vector<Vertex> newFreedoms = pickEmptyAround(*cm, v);
+
+		for(auto & cross : newFreedoms)
+			toMerge.at(0)->freedoms.insert(cross);
+	}
+	else {
+		// this is a new chain
+		chain_t *curChain = new chain_t;
+		curChain->type = what;
+		curChain->chain.insert({ x, y, dim });
+
+		if (what == B_WHITE)
+			chainsWhite->push_back(curChain);
+		else if (what == B_BLACK)
+			chainsBlack->push_back(curChain);
+		else
+			assert(0);
+
+		cm->setAt(x, y, curChain);
+	}
+
+	// erase liberties from opponent chains
+	std::vector<chain_t *> *const scan = what == B_BLACK ? chainsWhite : chainsBlack;
+
+	// find surrounding opponent chains
+	std::set<chain_t *> toClean;
+
+	if (y > 0 && cm->getAt(x, y - 1) && cm->getAt(x, y - 1)->type != what)
+		toClean.insert(cm->getAt(x, y - 1));
+
+	if (y < dim - 1 && cm->getAt(x, y + 1) && cm->getAt(x, y + 1)->type != what)
+		toClean.insert(cm->getAt(x, y + 1));
+
+	if (x > 0 && cm->getAt(x - 1, y) && cm->getAt(x - 1, y)->type != what)
+		toClean.insert(cm->getAt(x - 1, y));
+
+	if (x < dim - 1 && cm->getAt(x + 1, y) && cm->getAt(x + 1, y)->type != what)
+		toClean.insert(cm->getAt(x + 1, y));
+
+	// remove chains without liberties
+	for(auto chain=toClean.begin(); chain!=toClean.end();) {
+		if ((*chain)->freedoms.empty()) {
+			for(auto ve : (*chain)->chain)
+				b->setAt(ve, B_EMPTY);
+
+			chain = toClean.erase(chain);
+		}
+		else {
+			chain++;
 		}
 	}
 }
@@ -711,40 +870,17 @@ void selectRandom(const Board & b, const ChainMap & cm, const std::vector<chain_
 	evals->at(v).valid = true;
 }
 
-std::vector<Vertex> pickEmptyAround(const ChainMap & cm, const Vertex & v)
-{
-	const int x = v.getX();
-	const int y = v.getY();
-	const int dim = cm.getDim();
-
-	std::vector<Vertex> out;
-
-	if (x > 0 && cm.getAt(x - 1, y) == nullptr)
-		out.push_back({ x - 1, y });
-
-	if (x < dim - 1 && cm.getAt(x + 1, y) == nullptr)
-		out.push_back({ x + 1, y });
-
-	if (y > 0 && cm.getAt(x, y - 1) == nullptr)
-		out.push_back({ x, y - 1 });
-
-	if (y < dim - 1 && cm.getAt(x, y + 1) == nullptr)
-		out.push_back({ x, y + 1 });
-
-	return out;
-}
-
 void selectExtendChains(const Board & b, const ChainMap & cm, const std::vector<chain_t *> & chainsWhite, const std::vector<chain_t *> & chainsBlack, const std::vector<chain_t *> & chainsEmpty, const player_t & p, std::vector<eval_t> *const evals)
 {
 	const std::vector<chain_t *> & scan = p == P_BLACK ? chainsWhite : chainsBlack;
 
 	for(auto chain : scan) {
-		for(auto stone : chain->chain) {
-			auto empties = pickEmptyAround(cm, stone);
+		for(auto chainStone : chain->chain) {
+			auto empties = pickEmptyAround(cm, chainStone);
 
-			for(auto stone : empties) {
-				if (isUsable(cm, chainsEmpty, stone)) {
-					int v = stone.getV();
+			for(auto cross : empties) {
+				if (isUsable(cm, chainsEmpty, cross)) {
+					int v = cross.getV();
 					evals->at(v).score += 2;
 					evals->at(v).valid = true;
 				}
@@ -1019,21 +1155,21 @@ double benchmark(const Board & in, const int ms, const double komi)
 
 		player_t p = P_BLACK;
 
+		// find chains of stones
+		ChainMap cm(b.getDim());
+		std::vector<chain_t *> chainsWhite, chainsBlack;
+		findChains(b, &chainsWhite, &chainsBlack, &cm);
+
+		// find chains of freedoms
+		std::vector<chain_t *> chainsEmpty;
+		findChainsOfFreedoms(b, &chainsEmpty);
+		purgeFreedoms(&chainsEmpty, cm, playerToStone(p));
+
 		int mc = 0;
 
 		bool pass[2] { false };
 
 		for(;;) {
-			// find chains of stones
-			ChainMap cm(in.getDim());
-			std::vector<chain_t *> chainsWhite, chainsBlack;
-			findChains(b, &chainsWhite, &chainsBlack, &cm);
-
-			// find chains of freedoms
-			std::vector<chain_t *> chainsEmpty;
-			findChainsOfFreedoms(b, &chainsEmpty);
-			purgeFreedoms(&chainsEmpty, cm, playerToStone(p));
-
 			// no valid freedoms? return "pass".
 			if (chainsEmpty.empty()) {
 				purgeChains(&chainsBlack);
@@ -1059,40 +1195,26 @@ double benchmark(const Board & in, const int ms, const double komi)
 			for(int i=0; i<r; i++)
 				it++;
 
-			b.setAt(*it, playerToStone(p));
-
 			const int x = it->getX();
 			const int y = it->getY();
-			const board_t oppType = playerToStone(getOpponent(p));
 
-			std::set<chain_t *> toPurge;
-
-			if (y)
-				toPurge.insert(cm.getAt(x, y - 1));
-			if (y < dim - 1)
-				toPurge.insert(cm.getAt(x, y + 1));
-			if (x)
-				toPurge.insert(cm.getAt(x - 1, y));
-			if (x < dim - 1)
-				toPurge.insert(cm.getAt(x + 1, y));
-
-			for(auto chain : toPurge) {
-				if (chain == nullptr || chain->type != oppType || chain->freedoms.size() > 1)
-					continue;
-
-				for(auto ve : chain->chain)
-					b.setAt(ve, B_EMPTY);
-			}
-
-			purgeChains(&chainsEmpty);
-			purgeChains(&chainsBlack);
-			purgeChains(&chainsWhite);
+			connect(&b, &cm, &chainsWhite, &chainsBlack, &chainsEmpty, playerToStone(p), x, y);
 
 			p = getOpponent(p);
 
 			if (++mc == 250)
 				break;
+
+			// TODO: move this to connect() as well
+			purgeChains(&chainsEmpty);
+
+			findChainsOfFreedoms(b, &chainsEmpty);
+			purgeFreedoms(&chainsEmpty, cm, playerToStone(p));
 		}
+
+		purgeChains(&chainsEmpty);
+		purgeChains(&chainsBlack);
+		purgeChains(&chainsWhite);
 
 		total_puts += mc;
 
