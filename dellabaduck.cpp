@@ -624,29 +624,38 @@ std::pair<int, int> score(const Board & b)
 				continue;
 
 			bool has_b[B_LAST] { false };
-			int xc = x, yc = y;
-			while(xc >= 0 && b.getAt(xc, yc) == B_EMPTY)
-				xc--;
-			if (xc >= 0)
-				has_b[b.getAt(xc, yc)] = true;
 
-			xc = x, yc = y;
-			while(xc < dim && b.getAt(xc, yc) == B_EMPTY)
-				xc++;
-			if (xc < dim)
-				has_b[b.getAt(xc, yc)] = true;
+			{
+				int xc = x, yc = y;
+				while(xc >= 0 && b.getAt(xc, yc) == B_EMPTY)
+					xc--;
+				if (xc >= 0)
+					has_b[b.getAt(xc, yc)] = true;
+			}
 
-			xc = x, yc = y;
-			while(yc >= 0 && b.getAt(xc, yc) == B_EMPTY)
-				yc--;
-			if (yc >= 0)
-				has_b[b.getAt(xc, yc)] = true;
+			{
+				int xc = x, yc = y;
+				while(xc < dim && b.getAt(xc, yc) == B_EMPTY)
+					xc++;
+				if (xc < dim)
+					has_b[b.getAt(xc, yc)] = true;
+			}
 
-			xc = x, yc = y;
-			while(yc < dim && b.getAt(xc, yc) == B_EMPTY)
-				yc++;
-			if (yc < dim)
-				has_b[b.getAt(xc, yc)] = true;
+			{
+				int xc = x, yc = y;
+				while(yc >= 0 && b.getAt(xc, yc) == B_EMPTY)
+					yc--;
+				if (yc >= 0)
+					has_b[b.getAt(xc, yc)] = true;
+			}
+
+			{
+				int xc = x, yc = y;
+				while(yc < dim && b.getAt(xc, yc) == B_EMPTY)
+					yc++;
+				if (yc < dim)
+					has_b[b.getAt(xc, yc)] = true;
+			}
 
 			int count_set = has_b[B_EMPTY] + has_b[B_WHITE] + has_b[B_BLACK];
 			if (count_set < 3) {
