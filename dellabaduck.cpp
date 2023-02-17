@@ -129,13 +129,15 @@ auto vertexCmp = [](const Vertex & a, const Vertex & b)
 
 typedef struct {
 	board_t type;
+	bool enclosed;
 	std::set<Vertex, decltype(vertexCmp)> chain;
 	std::set<Vertex, decltype(vertexCmp)> freedoms;
 } chain_t;
 
 void dump(const chain_t & chain)
 {
-	send(true, "# Chain for %s:", board_t_names[chain.type]);
+	send(true, "# Chain for %s", board_t_names[chain.type]);
+	send(true, "# Enclosed: %d", chain.enclosed);
 
 	std::string line = "# ";
 	for(auto v : chain.chain) 
@@ -309,6 +311,10 @@ public:
 		return dim;
 	}
 
+	chain_t * getAt(const int v) const {
+		return cm[v];
+	}
+
 	chain_t * getAt(const int x, const int y) const {
 		assert(x < dim && x >= 0);
 		assert(y < dim && y >= 0);
@@ -375,6 +381,7 @@ void findChains(const Board & b, std::vector<chain_t *> *const chainsWhite, std:
 				continue;
 
 			chain_t *curChain = new chain_t;
+			curChain->enclosed = false;
 			curChain->type = bv;
 
 			scanChains(b, scanned, curChain, x, y, bv, cm);
@@ -431,6 +438,7 @@ void findChainsOfFreedoms(const Board & b, std::vector<chain_t *> *const chainsE
 				continue;
 
 			chain_t *curChain = new chain_t;
+			curChain->enclosed = false;
 			curChain->type = B_EMPTY;
 
 			scanChainsOfFreedoms(b, scanned, curChain, x, y);
@@ -440,6 +448,76 @@ void findChainsOfFreedoms(const Board & b, std::vector<chain_t *> *const chainsE
 	}
 
 	delete [] scanned;
+}
+
+void scanBoundaries(const Board & b, const ChainMap & cm, bool *const scanned, const board_t myStone, const int x, const int y, std::set<chain_t *> *const enclosedBy, bool *const undecided)
+{
+	const int dim = b.getDim();
+
+	const int v = y * dim + x;
+
+	board_t stone = b.getAt(x, y);
+
+	if (scanned[v] == false) {
+		scanned[v] = true;
+
+		if (stone == B_EMPTY || stone == myStone) {
+			if (y > 0 && *undecided == false)
+				scanBoundaries(b, cm, scanned, myStone, x, y - 1, enclosedBy, undecided);
+			else
+				*undecided = true;
+			if (y < dim - 1 && *undecided == false)
+				scanBoundaries(b, cm, scanned, myStone, x, y + 1, enclosedBy, undecided);
+			else
+				*undecided = true;
+			if (x > 0 && *undecided == false)
+				scanBoundaries(b, cm, scanned, myStone, x - 1, y, enclosedBy, undecided);
+			else
+				*undecided = true;
+			if (x < dim - 1 && *undecided == false)
+				scanBoundaries(b, cm, scanned, myStone, x + 1, y, enclosedBy, undecided);
+			else
+				*undecided = true;
+		}
+		else {
+			auto chain = cm.getAt(v);
+
+			if (chain->type != myStone)
+				enclosedBy->insert(chain);
+		}
+	}
+}
+
+void scanEnclosed(const Board & b, const ChainMap & cm, std::vector<chain_t *> *const chainsStone)
+{
+	const int dim = cm.getDim();
+
+	for(auto chain : *chainsStone) {
+		bool *scanned = new bool[dim * dim]();
+
+		bool notEnclosed = false;
+
+		std::set<chain_t *> enclosedBy;
+
+		bool undecided = false;
+
+		for(auto & cross : chain->chain) {
+			scanBoundaries(b, cm, scanned, chain->type, cross.getX(), cross.getY(), &enclosedBy, &undecided);
+
+			if (undecided)
+				break;
+
+			if (enclosedBy.size() > 1)
+				break;
+		}
+
+		send(false, "# %zu enclosers", enclosedBy.size());
+
+		if (!undecided && enclosedBy.size() == 1)
+			chain->enclosed = true;
+
+		delete [] scanned;
+	}
 }
 
 void purgeChains(std::vector<chain_t *> *const chains)
@@ -579,6 +657,12 @@ bool isValidMove(const std::vector<chain_t *> & chainsEmpty, const Vertex & v)
 	return false;
 }
 
+// valid & not enclosed
+bool isUsable(const ChainMap & cm, const std::vector<chain_t *> & chainsEmpty, const Vertex & v)
+{
+	return isValidMove(chainsEmpty, v) && cm.getAt(v.getV())->enclosed == false;
+}
+
 void selectRandom(const Board & b, const ChainMap & cm, const std::vector<chain_t *> & chainsWhite, const std::vector<chain_t *> & chainsBlack, const std::vector<chain_t *> & chainsEmpty, const player_t & p, std::vector<eval_t> *const evals)
 {
 	auto chain = chainsEmpty.at(rand() % chainsEmpty.size());
@@ -627,7 +711,7 @@ void selectExtendChains(const Board & b, const ChainMap & cm, const std::vector<
 			auto empties = pickEmptyAround(cm, stone);
 
 			for(auto stone : empties) {
-				if (isValidMove(chainsEmpty, stone)) {
+				if (isUsable(cm, chainsEmpty, stone)) {
 					int v = stone.getV();
 					evals->at(v).score += 2;
 					evals->at(v).valid = true;
@@ -645,7 +729,7 @@ void selectKillChains(const Board & b, const ChainMap & cm, const std::vector<ch
 		const int add = chain->chain.size() - chain->freedoms.size();
 
 		for(auto stone : chain->freedoms) {
-			if (isValidMove(chainsEmpty, stone)) {
+			if (isUsable(cm, chainsEmpty, stone)) {
 				int v = stone.getV();
 				evals->at(v).score += add;
 				evals->at(v).valid = true;
@@ -698,6 +782,8 @@ int search(const Board & b, const player_t & p, int alpha, const int beta, const
 
 	for(auto chain : chainsEmpty) {
 		for(auto stone : chain->chain) {
+			// TODO: isUsable()
+
 			Board work(b);
 
 			play(&work, stone, p, false);
@@ -731,7 +817,7 @@ void selectAlphaBeta(const Board & b, const ChainMap & cm, const std::vector<cha
 	bool *valid = new bool[dim * dim]();
 
 	for(int i=0; i<dim * dim; i++)
-		valid[i] = isValidMove(chainsEmpty, { i, dim });
+		valid[i] = isUsable(cm, chainsEmpty, { i, dim });
 
 	uint64_t start_t = get_ts_ms();  // TODO: start of genMove()
 	uint64_t hend_t  = start_t + useTime * 1000 / 2;
@@ -1025,26 +1111,36 @@ Board loadSgf(const std::string & filename)
 
 int main(int argc, char *argv[])
 {
-#if 1
+#if 0
         Board b5 = stringToBoard(
                         ".....\n"
-                        "xx...\n"
-                        "ox...\n"
-                        ".x...\n"
-                        ".x...\n"
+                        ".....\n"
+                        ".....\n"
+                        ".....\n"
+                        ".....\n"
                         );
 
-        Board b7 = stringToBoard(
-                        "oox.ox.\n"
-                        "o.x.ox.\n"
-                        "xxxoox.\n"
-                        "x.o.ox.\n"
-                        "ooooox.\n"
-                        "xxxxxx.\n"
-                        ".......\n"
+        Board b7_1 = stringToBoard(
+                        "xxxxxxx\n"
+                        "x.....x\n"
+                        "x.o...x\n"
+                        "x...xxx\n"
+                        "xxxx...\n"
+                        ".....xx\n"
+                        ".....x.\n"
                         );
 
-	Board & b = b5;
+        Board b7_2 = stringToBoard(
+                        "xxxxxxx\n"
+                        "x.....x\n"
+                        "x.....x\n"
+                        "x...xxx\n"
+                        "xxxx...\n"
+                        ".....xx\n"
+                        ".o...x.\n"
+                        );
+
+	Board & b = b7_2;
 
 #if 0
 	auto scores = score(b);
@@ -1065,6 +1161,12 @@ int main(int argc, char *argv[])
 	ChainMap cm(b.getDim());
         std::vector<chain_t *> chainsWhite, chainsBlack;
         findChains(b, &chainsWhite, &chainsBlack, &cm);
+
+	scanEnclosed(b, cm, &chainsWhite);
+
+	dump(chainsWhite);
+
+	return 0;
 
 	send(false, "#");
 	send(false, "# white:");
@@ -1100,7 +1202,7 @@ int main(int argc, char *argv[])
 	fclose(fh);
 
 	return 0;
-#elif 0
+#elif 1
 	Board *b = new Board(9);
 
 	setbuf(stdout, nullptr);
