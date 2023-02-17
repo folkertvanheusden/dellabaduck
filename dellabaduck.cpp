@@ -599,7 +599,7 @@ void play(Board *const b, const Vertex & v, const player_t & p)
 }
 
 // black, white
-std::pair<int, int> score(const Board & b)
+std::pair<int, int> score(const Board & b, const double komi)
 {
 	const int dim = b.getDim();
 
@@ -627,44 +627,66 @@ std::pair<int, int> score(const Board & b)
 
 			{
 				int xc = x, yc = y;
-				while(xc >= 0 && b.getAt(xc, yc) == B_EMPTY)
-					xc--;
-				if (xc >= 0)
-					has_b[b.getAt(xc, yc)] = true;
-			}
+				for(;;) {
+					if (--xc < 0)
+						break;
 
-			{
-				int xc = x, yc = y;
-				while(xc < dim && b.getAt(xc, yc) == B_EMPTY)
-					xc++;
-				if (xc < dim)
-					has_b[b.getAt(xc, yc)] = true;
-			}
-
-			{
-				int xc = x, yc = y;
-				while(yc >= 0 && b.getAt(xc, yc) == B_EMPTY)
-					yc--;
-				if (yc >= 0)
-					has_b[b.getAt(xc, yc)] = true;
-			}
-
-			{
-				int xc = x, yc = y;
-				while(yc < dim && b.getAt(xc, yc) == B_EMPTY)
-					yc++;
-				if (yc < dim)
-					has_b[b.getAt(xc, yc)] = true;
-			}
-
-			int count_set = has_b[B_EMPTY] + has_b[B_WHITE] + has_b[B_BLACK];
-			if (count_set < 3) {
-				if (has_b[B_EMPTY] || count_set == 1) {
-					if (has_b[B_WHITE])
-						whiteEmpty++;
-					else if (has_b[B_BLACK])
-						blackEmpty++;
+					auto piece = b.getAt(xc, yc);
+					if (piece != B_EMPTY) {
+						has_b[piece] = true;
+						break;
+					}
 				}
+			}
+
+			{
+				int xc = x, yc = y;
+				for(;;) {
+					if (--yc < 0)
+						break;
+
+					auto piece = b.getAt(xc, yc);
+					if (piece != B_EMPTY) {
+						has_b[piece] = true;
+						break;
+					}
+				}
+			}
+
+			{
+				int xc = x, yc = y;
+				for(;;) {
+					if (++xc == dim)
+						break;
+
+					auto piece = b.getAt(xc, yc);
+					if (piece != B_EMPTY) {
+						has_b[piece] = true;
+						break;
+					}
+				}
+			}
+
+			{
+				int xc = x, yc = y;
+				for(;;) {
+					if (++yc == dim)
+						break;
+
+					auto piece = b.getAt(xc, yc);
+					if (piece != B_EMPTY) {
+						has_b[piece] = true;
+						break;
+					}
+				}
+			}
+
+			int count_set = has_b[B_WHITE] + has_b[B_BLACK];
+			if (count_set == 1) {
+				if (has_b[B_WHITE])
+					whiteEmpty++;
+				else // if (has_b[B_BLACK])
+					blackEmpty++;
 			}
 		}
 	}
@@ -673,9 +695,20 @@ std::pair<int, int> score(const Board & b)
 	purgeChains(&chainsWhite);
 
 	int blackScore = blackStones + blackEmpty;
-	int whiteScore = whiteStones + whiteEmpty;
+	int whiteScore = whiteStones + whiteEmpty + komi;
 
 	return { blackScore, whiteScore };
+}
+
+std::string scoreStr(auto scores)
+{
+	if (scores.first == scores.second)
+		return "0";
+
+	if (scores.first > scores.second)
+		return myformat("B+%g", scores.first - scores.second);
+
+	return myformat("W+%g", scores.second - scores.first);
 }
 
 typedef struct {
@@ -785,7 +818,7 @@ void selectAtLeastOne(const Board & b, const ChainMap & cm, const std::vector<ch
 	evals->at(v).valid = true;
 }
 
-int search(const Board & b, const player_t & p, int alpha, const int beta, const int depth)
+int search(const Board & b, const player_t & p, int alpha, const int beta, const int depth, const int komi)
 {
 	const int dim = b.getDim();
 
@@ -807,7 +840,7 @@ int search(const Board & b, const player_t & p, int alpha, const int beta, const
 
 	// no valid freedoms? return score (eval)
 	if (chainsEmpty.empty()) {
-		auto s = score(b);
+		auto s = score(b, komi);
 		return p == P_BLACK ? s.first - s.second : s.second - s.first;
 	}
 
@@ -824,7 +857,7 @@ int search(const Board & b, const player_t & p, int alpha, const int beta, const
 
 			play(&work, stone, p);
 
-			int score = -search(work, opponent, -beta, -alpha, depth - 1);
+			int score = -search(work, opponent, -beta, -alpha, depth - 1, komi);
 
 			if (score > bestScore) {
 				bestScore = score;
@@ -846,7 +879,7 @@ finished:
 	return bestScore;
 }
 
-void selectAlphaBeta(const Board & b, const ChainMap & cm, const std::vector<chain_t *> & chainsWhite, const std::vector<chain_t *> & chainsBlack, const std::vector<chain_t *> & chainsEmpty, const player_t & p, std::vector<eval_t> *const evals, const double useTime)
+void selectAlphaBeta(const Board & b, const ChainMap & cm, const std::vector<chain_t *> & chainsWhite, const std::vector<chain_t *> & chainsBlack, const std::vector<chain_t *> & chainsEmpty, const player_t & p, std::vector<eval_t> *const evals, const double useTime, const double komi)
 {
 	const int dim = b.getDim();
 
@@ -881,7 +914,7 @@ void selectAlphaBeta(const Board & b, const ChainMap & cm, const std::vector<cha
 
 			play(&work, { i, dim }, p);
 
-			scores[i] = search(work, p == P_BLACK ? P_WHITE : P_BLACK, -32768, 32768, depth);
+			scores[i] = search(work, p == P_BLACK ? P_WHITE : P_BLACK, -32768, 32768, depth, komi);
 		}
 
 		if (!to) {
@@ -907,7 +940,7 @@ int calcN(const std::vector<chain_t *> & chains)
 	return n;
 }
 
-std::optional<Vertex> genMove(Board *const b, const player_t & p, const bool doPlay, const double timeLeft)
+std::optional<Vertex> genMove(Board *const b, const player_t & p, const bool doPlay, const double timeLeft, const double komi)
 {
 	const int dim = b->getDim();
 	const int p2dim = dim * dim;
@@ -952,7 +985,7 @@ std::optional<Vertex> genMove(Board *const b, const player_t & p, const bool doP
 
 	selectAtLeastOne(*b, cm, chainsWhite, chainsBlack, chainsEmpty, p, &evals);
 
-	selectAlphaBeta(*b, cm, chainsWhite, chainsBlack, chainsEmpty, p, &evals, useTime);
+	selectAlphaBeta(*b, cm, chainsWhite, chainsBlack, chainsEmpty, p, &evals, useTime, komi);
 
 	// find best
 	std::optional<Vertex> v;
@@ -1233,7 +1266,7 @@ int main(int argc, char *argv[])
 #endif
 #if 0
 	dump(b);
-	auto v = genMove(b, P_BLACK, true);
+	auto v = genMove(b, P_BLACK, true, 0);
 	if (v.has_value())
 		fprintf(fh, "= %s\n\n", v2t(v.value()).c_str());
 	else
@@ -1251,6 +1284,8 @@ int main(int argc, char *argv[])
 	srand(time(nullptr));
 
 	double timeLeft = -1;
+
+	double komi = 0.;
 
 	for(;;) {
 		char buffer[4096] { 0 };
@@ -1319,6 +1354,8 @@ int main(int argc, char *argv[])
 			send(true, "=%s %f", id.c_str(), pops);
 		}
 		else if (parts.at(0) == "komi") {
+			komi = atof(parts.at(1).c_str());
+
 			send(true, "=%s", id.c_str());  // TODO
 		}
 		else if (parts.at(0) == "time_settings") {
@@ -1344,14 +1381,7 @@ int main(int argc, char *argv[])
 			send(true, "=%s time_left", id.c_str());
 		}
 		else if (parts.at(0) == "final_score") {
-			auto scores = score(*b);
-
-			if (scores.first == scores.second)
-				send(true, "=%s 0", id.c_str());
-			else if (scores.first > scores.second)
-				send(true, "=%s B+%d", id.c_str(), scores.first - scores.second);
-			else
-				send(true, "=%s W+%d", id.c_str(), scores.second - scores.first);
+			send(true, "=%s %s", id.c_str(), scoreStr(score(*b, komi)).c_str());
 		}
 		else if (parts.at(0) == "loadsgf") {
 			delete b;
@@ -1370,7 +1400,7 @@ int main(int argc, char *argv[])
 
 				n_moves++;
 
-				auto v = genMove(b, p, true, 1.0);
+				auto v = genMove(b, p, true, timeLeft, komi);
 				if (v.has_value() == false)
 					break;
 
@@ -1392,7 +1422,7 @@ int main(int argc, char *argv[])
 				timeLeft = 5.0;
 
 			uint64_t start_ts = get_ts_ms();
-			auto v = genMove(b, player, parts.at(0) == "genmove", timeLeft);
+			auto v = genMove(b, player, parts.at(0) == "genmove", timeLeft, komi);
 			uint64_t end_ts = get_ts_ms();
 
 			timeLeft = -1.0;
