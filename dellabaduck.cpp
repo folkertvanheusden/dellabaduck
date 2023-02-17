@@ -722,11 +722,11 @@ std::vector<Vertex> pickEmptyAround(const ChainMap & cm, const Vertex & v)
 	if (x > 0 && cm.getAt(x - 1, y) == nullptr)
 		out.push_back({ x - 1, y });
 
-	if (y > 0 && cm.getAt(x, y - 1) == nullptr)
-		out.push_back({ x, y - 1 });
-
 	if (x < dim - 1 && cm.getAt(x + 1, y) == nullptr)
 		out.push_back({ x + 1, y });
+
+	if (y > 0 && cm.getAt(x, y - 1) == nullptr)
+		out.push_back({ x, y - 1 });
 
 	if (y < dim - 1 && cm.getAt(x, y + 1) == nullptr)
 		out.push_back({ x, y + 1 });
