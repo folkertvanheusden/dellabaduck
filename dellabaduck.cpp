@@ -627,9 +627,6 @@ std::pair<double, double> score(const Board & b, const double komi)
 {
 	const int dim = b.getDim();
 
-	char debug[dim * dim];
-	memset(debug, ' ', sizeof debug);
-
 	// find chains of stones
 	ChainMap cm(dim);
 	std::vector<chain_t *> chainsWhite, chainsBlack;
@@ -641,24 +638,14 @@ std::pair<double, double> score(const Board & b, const double komi)
 	bool *reachableWhite = new bool[dim * dim]();
 
 	for(auto chain : chainsBlack) {
-//		blackStones += chain->chain.size();
-
-		for(auto stone : chain->chain) {
+		for(auto stone : chain->chain)
 			scoreFloodFill(b, dim, reachableBlack, stone.getX(), stone.getY(), B_BLACK);
-
-			debug[stone.getV()] = 'X';
-		}
 	}
 
 	int whiteStones = 0;
 	for(auto chain : chainsWhite) {
-//		whiteStones += chain->chain.size();
-
-		for(auto stone : chain->chain) {
+		for(auto stone : chain->chain)
 			scoreFloodFill(b, dim, reachableWhite, stone.getX(), stone.getY(), B_WHITE);
-
-			debug[stone.getV()] = 'O';
-		}
 	}
 
 	int blackEmpty = 0;
@@ -666,9 +653,9 @@ std::pair<double, double> score(const Board & b, const double komi)
 
 	for(int i=0; i<dim * dim; i++) {
 		if (reachableBlack[i] == true && reachableWhite[i] == false)
-			blackEmpty++, debug[i] = 'x';
+			blackEmpty++;
 		else if (reachableWhite[i] == true && reachableBlack[i] == false)
-			whiteEmpty++, debug[i] = 'o';
+			whiteEmpty++;
 	}
 
 	delete [] reachableBlack;
@@ -681,15 +668,6 @@ std::pair<double, double> score(const Board & b, const double komi)
 
 	double blackScore = blackStones + blackEmpty;
 	double whiteScore = whiteStones + whiteEmpty + komi;
-
-	printf("%g %g\n", blackScore, whiteScore);
-
-	for(int y=dim-1; y>=0; y--) {
-		for(int x=0; x<dim; x++)
-			printf("%c", debug[y * dim + x]);
-		printf("|\n");
-	}
-	printf("\n");
 
 	return { blackScore, whiteScore };
 }
