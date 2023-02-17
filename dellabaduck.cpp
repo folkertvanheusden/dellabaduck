@@ -135,20 +135,20 @@ typedef struct {
 
 void dump(const chain_t & chain)
 {
-	send(true, "# Chain for %s", board_t_names[chain.type]);
+	send(false, "# Chain for %s", board_t_names[chain.type]);
 
 	std::string line = "# ";
 	for(auto v : chain.chain) 
 		line += myformat("%s ", v2t(v).c_str());
-	send(true, line.c_str());
+	send(false, line.c_str());
 
 	if (chain.freedoms.empty() == false) {
-		send(true, "# Freedoms of that chain:");
+		send(false, "# Freedoms of that chain:");
 
 		line = "# ";
 		for(auto v : chain.freedoms) 
 			line += myformat("%s ", v2t(v).c_str());
-		send(true, line.c_str());
+		send(false, line.c_str());
 	}
 }
 
@@ -274,7 +274,7 @@ void dump(const Board & b)
 				line += "!";
 		}
 
-		send(true, line.c_str());
+		send(false, line.c_str());
 	}
 
 	line = "#      ";
@@ -288,7 +288,7 @@ void dump(const Board & b)
 		line += myformat("%c", xc);
 	}
 
-	send(true, line.c_str());
+	send(false, line.c_str());
 }
 
 class ChainMap {
@@ -353,7 +353,7 @@ void dump(const ChainMap & cm)
 		for(int x=0; x<dim; x++)
 			line += cm.getEnclosed(y * dim + x) ? '1' : '0';
 
-		send(true, line.c_str());
+		send(false, line.c_str());
 	}
 
 	line = "#      ";
@@ -367,7 +367,7 @@ void dump(const ChainMap & cm)
 		line += myformat("%c", xc);
 	}
 
-	send(true, line.c_str());
+	send(false, line.c_str());
 }
 
 void scanChains(const Board & b, bool *const scanned, chain_t *const curChain, const int x, const int y, const board_t & startType, ChainMap *const cm)
@@ -570,11 +570,8 @@ void purgeFreedoms(std::vector<chain_t *> *const chainsPurge, const ChainMap & c
 	}
 }
 
-void play(Board *const b, const Vertex & v, const player_t & p, bool debug)
+void play(Board *const b, const Vertex & v, const player_t & p)
 {
-	if (debug)
-	send(false, "# set at %s", v2t(v).c_str());
-
 	b->setAt(v, playerToStone(p));
 
 	ChainMap cm(b->getDim());
@@ -585,11 +582,8 @@ void play(Board *const b, const Vertex & v, const player_t & p, bool debug)
 
 	for(auto chain : scan) {
 		if (chain->freedoms.empty()) {
-			for(auto ve : chain->chain) {
-				if (debug)
-				send(false, "# purge %s (no freedoms)", v2t(ve).c_str());
+			for(auto ve : chain->chain)
 				b->setAt(ve, B_EMPTY);
-			}
 		}
 	}
 
@@ -812,7 +806,7 @@ int search(const Board & b, const player_t & p, int alpha, const int beta, const
 
 			Board work(b);
 
-			play(&work, stone, p, false);
+			play(&work, stone, p);
 
 			int score = -search(work, opponent, -beta, -alpha, depth - 1);
 
@@ -869,7 +863,7 @@ void selectAlphaBeta(const Board & b, const ChainMap & cm, const std::vector<cha
 
 			Board work(b);
 
-			play(&work, { i, dim }, p, false);
+			play(&work, { i, dim }, p);
 
 			scores[i] = search(work, p == P_BLACK ? P_WHITE : P_BLACK, -32768, 32768, depth);
 		}
@@ -972,7 +966,7 @@ std::optional<Vertex> genMove(Board *const b, const player_t & p, const bool doP
 				line += myformat("  %s ", board_t_names[b->getAt(x, y)]);
 		}
 
-		send(true, line.c_str());
+		send(false, line.c_str());
 	}
 
 	std::string line = "#      ";
@@ -984,12 +978,12 @@ std::optional<Vertex> genMove(Board *const b, const player_t & p, const bool doP
 		line += myformat(" %c  ", c);
 	}
 
-	send(true, line.c_str());
+	send(false, line.c_str());
 
 	// remove any chains that no longer have freedoms after this move
 	// also play the move
 	if (doPlay && v.has_value())
-		play(b, v.value(), p, true);
+		play(b, v.value(), p);
 
 	purgeChains(&chainsBlack);
 	purgeChains(&chainsWhite);
@@ -1284,7 +1278,7 @@ int main(int argc, char *argv[])
 		else if (parts.at(0) == "play") {
 			if (str_tolower(parts.at(2)) != "pass") {
 				Vertex v = t2v(parts.at(2), b->getDim());
-				play(b, v, (parts.at(1) == "b" || parts.at(1) == "black") ? P_BLACK : P_WHITE, false);
+				play(b, v, (parts.at(1) == "b" || parts.at(1) == "black") ? P_BLACK : P_WHITE);
 			}
 
 			send(true, "=%s", id.c_str());
@@ -1392,7 +1386,7 @@ int main(int argc, char *argv[])
 			else
 				send(true, "=%s pass", id.c_str());
 
-			send(true, "# took %.3fs", (end_ts - start_ts) / 1000.0);
+			send(false, "# took %.3fs", (end_ts - start_ts) / 1000.0);
 		}
 		else if (parts.at(0) == "cputime") {
 			struct rusage ru { 0 };
