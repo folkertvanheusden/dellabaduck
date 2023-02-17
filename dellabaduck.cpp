@@ -311,6 +311,7 @@ public:
 	}
 
 	~ChainMap() {
+		delete [] enclosed;
 		delete [] cm;
 	}
 
