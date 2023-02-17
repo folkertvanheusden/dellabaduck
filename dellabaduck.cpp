@@ -17,7 +17,7 @@
 #include "str.h"
 #include "time.h"
 
-typedef enum { P_BLACK, P_WHITE } player_t;
+typedef enum { P_BLACK = 0, P_WHITE } player_t;
 typedef enum { B_EMPTY, B_WHITE, B_BLACK, B_LAST } board_t;
 const char *const board_t_names[] = { ".", "o", "x" };
 
@@ -1021,6 +1021,8 @@ double benchmark(const Board & in, const int ms, const double komi)
 
 		int mc = 0;
 
+		bool pass[2] { false };
+
 		for(;;) {
 			// find chains of stones
 			ChainMap cm(in.getDim());
@@ -1036,8 +1038,18 @@ double benchmark(const Board & in, const int ms, const double komi)
 			if (chainsEmpty.empty()) {
 				purgeChains(&chainsBlack);
 				purgeChains(&chainsWhite);
-				break;
+
+				pass[p] = true;
+
+				if (pass[0] && pass[1])
+					break;
+
+				p = getOpponent(p);
+
+				continue;
 			}
+
+			pass[p] = false;
 
 			auto chain = chainsEmpty.at(rand() % chainsEmpty.size());
 			size_t chainSize = chain->chain.size();
