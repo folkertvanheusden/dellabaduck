@@ -626,11 +626,12 @@ void scoreFloodFill(const Board & b, const int dim, bool *const reachable, const
 std::pair<double, double> score(const Board & b, const double komi)
 {
 	const int dim = b.getDim();
+	const int dimsq = dim * dim;
 
 	int blackStones = 0;
 	int whiteStones = 0;
-	bool *reachableBlack = new bool[dim * dim]();
-	bool *reachableWhite = new bool[dim * dim]();
+	bool *reachableBlack = new bool[dimsq]();
+	bool *reachableWhite = new bool[dimsq]();
 
 	for(int y=0; y<dim; y++) {
 		for(int x=0; x<dim; x++) {
@@ -646,7 +647,7 @@ std::pair<double, double> score(const Board & b, const double komi)
 	int blackEmpty = 0;
 	int whiteEmpty = 0;
 
-	for(int i=0; i<dim * dim; i++) {
+	for(int i=0; i<dimsq; i++) {
 		if (reachableBlack[i] == true && reachableWhite[i] == false)
 			blackEmpty++;
 		else if (reachableWhite[i] == true && reachableBlack[i] == false)
@@ -1076,9 +1077,8 @@ double benchmark(const Board & in, const int ms, const double komi)
 			purgeChains(&chainsWhite);
 
 			p = getOpponent(p);
-			mc++;
 
-			if (mc == 250)
+			if (++mc == 250)
 				break;
 		}
 
