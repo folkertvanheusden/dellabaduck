@@ -1003,9 +1003,9 @@ std::optional<Vertex> genMove(Board *const b, const player_t & p, const bool doP
 	return v;
 }
 
-double benchmark(const Board & in, const int ms)
+double benchmark(const Board & in, const int ms, const double komi)
 {
-	send(true, "# starting benchmark: duration: %.3fs, board dimensions: %d", ms / 1000.0, in.getDim());
+	send(true, "# starting benchmark: duration: %.3fs, board dimensions: %d, komi: %g", ms / 1000.0, in.getDim(), komi);
 
 	const int dim = in.getDim();
 
@@ -1078,11 +1078,13 @@ double benchmark(const Board & in, const int ms)
 			p = getOpponent(p);
 			mc++;
 
-			if (mc == 150)
+			if (mc == 250)
 				break;
 		}
 
 		total_puts += mc;
+
+		score(b, komi);
 
 		n++;
 
@@ -1315,7 +1317,7 @@ int main(int argc, char *argv[])
 		}
 		else if (parts.at(0) == "benchmark") {
 			// play outs per second
-			double pops = benchmark(*b, parts.size() == 2 ? atoi(parts.at(1).c_str()) : 1000);
+			double pops = benchmark(*b, parts.size() == 2 ? atoi(parts.at(1).c_str()) : 1000, komi);
 
 			send(true, "=%s %f", id.c_str(), pops);
 		}
