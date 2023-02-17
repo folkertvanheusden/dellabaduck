@@ -530,15 +530,13 @@ void scanBoundaries(const Board & b, const ChainMap & cm, bool *const scanned, c
 	}
 }
 
-void scanEnclosed(const Board & b, ChainMap *const cm, std::vector<chain_t *> *const chainsStone, const board_t myType)
+void scanEnclosed(const Board & b, ChainMap *const cm, const board_t myType)
 {
 	const int dim = cm->getDim();
 
 	for(int y=0; y<dim; y++) {
 		for(int x=0; x<dim; x++) {
 			bool *scanned = new bool[dim * dim]();
-
-			bool notEnclosed = false;
 
 			std::set<chain_t *> enclosedBy;
 
@@ -923,7 +921,7 @@ std::optional<Vertex> genMove(Board *const b, const player_t & p, const bool doP
 		return { };
 	}
 
-	scanEnclosed(*b, &cm, p == P_BLACK ? &chainsBlack : &chainsWhite, playerToStone(p));
+	scanEnclosed(*b, &cm, playerToStone(p));
 	dump(cm);
 
 	size_t totalNChains = chainsWhite.size() + chainsBlack.size();
@@ -1193,7 +1191,7 @@ int main(int argc, char *argv[])
         std::vector<chain_t *> chainsWhite, chainsBlack;
         findChains(b, &chainsWhite, &chainsBlack, &cm);
 
-	scanEnclosed(b, &cm, &chainsWhite, playerToStone(P_WHITE));
+	scanEnclosed(b, &cm, playerToStone(P_WHITE));
 	dump(cm);
 
 	dump(chainsWhite);
