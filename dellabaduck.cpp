@@ -9,6 +9,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+#include <unistd.h>
 #include <vector>
 #include <sys/resource.h>
 #include <sys/time.h>
@@ -34,8 +35,8 @@ void send(const bool tx, const char *fmt, ...)
 		fprintf(stderr, "localtime_r: %s\n", strerror(errno));
 
 	char *ts_str = nullptr;
-	asprintf(&ts_str, "%04d-%02d-%02d %02d:%02d:%02d.%03d ",
-			tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday, tm.tm_hour, tm.tm_min, tm.tm_sec, int(now % 1000));
+	asprintf(&ts_str, "%04d-%02d-%02d %02d:%02d:%02d.%03d [%d] ",
+			tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday, tm.tm_hour, tm.tm_min, tm.tm_sec, int(now % 1000), getpid());
 
 	char *str = nullptr;
 
@@ -43,16 +44,23 @@ void send(const bool tx, const char *fmt, ...)
 	va_start(ap, fmt);
 	(void)vasprintf(&str, fmt, ap);
 	va_end(ap);
-
-	fprintf(fh, "%s%s\n", ts_str, str);
 	fflush(fh);
 
 	if (tx) {
-		if (cgos && fmt[0] == '#')
+		if (cgos && fmt[0] == '#') {
+			fprintf(fh, "%s%s\n", ts_str, str);
 			return;
+		}
+
+		fprintf(fh, "%s|%s|\n", ts_str, str);
 
 		printf("%s\n", str);
 	}
+	else {
+		fprintf(fh, "%s%s\n", ts_str, str);
+	}
+
+	fflush(fh);
 
 	free(str);
 	free(ts_str);
