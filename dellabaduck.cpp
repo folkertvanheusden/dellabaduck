@@ -627,25 +627,20 @@ std::pair<double, double> score(const Board & b, const double komi)
 {
 	const int dim = b.getDim();
 
-	// find chains of stones
-	ChainMap cm(dim);
-	std::vector<chain_t *> chainsWhite, chainsBlack;
-	findChains(b, &chainsWhite, &chainsBlack, &cm);
-
-	// number of stones for each
 	int blackStones = 0;
+	int whiteStones = 0;
 	bool *reachableBlack = new bool[dim * dim]();
 	bool *reachableWhite = new bool[dim * dim]();
 
-	for(auto chain : chainsBlack) {
-		for(auto stone : chain->chain)
-			scoreFloodFill(b, dim, reachableBlack, stone.getX(), stone.getY(), B_BLACK);
-	}
+	for(int y=0; y<dim; y++) {
+		for(int x=0; x<dim; x++) {
+			auto piece = b.getAt(x, y);
 
-	int whiteStones = 0;
-	for(auto chain : chainsWhite) {
-		for(auto stone : chain->chain)
-			scoreFloodFill(b, dim, reachableWhite, stone.getX(), stone.getY(), B_WHITE);
+			if (piece == B_BLACK)
+				scoreFloodFill(b, dim, reachableBlack, x, y, B_BLACK);
+			else if (piece == B_WHITE)
+				scoreFloodFill(b, dim, reachableWhite, x, y, B_WHITE);
+		}
 	}
 
 	int blackEmpty = 0;
@@ -660,11 +655,6 @@ std::pair<double, double> score(const Board & b, const double komi)
 
 	delete [] reachableBlack;
 	delete [] reachableWhite;
-
-	// stones that reach only one color
-
-	purgeChains(&chainsBlack);
-	purgeChains(&chainsWhite);
 
 	double blackScore = blackStones + blackEmpty;
 	double whiteScore = whiteStones + whiteEmpty + komi;
