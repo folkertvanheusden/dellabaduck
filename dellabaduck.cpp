@@ -10,6 +10,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+#include <tuple>
 #include <unistd.h>
 #include <vector>
 #include <sys/resource.h>
@@ -1140,85 +1141,89 @@ std::optional<Vertex> genMove(Board *const b, const player_t & p, const bool doP
 	return v;
 }
 
+std::tuple<double, double, int> playout(const Board & in, const double komi, player_t p)
+{
+	Board b(in);
+
+	// find chains of stones
+	ChainMap cm(b.getDim());
+	std::vector<chain_t *> chainsWhite, chainsBlack;
+	findChains(b, &chainsWhite, &chainsBlack, &cm);
+
+	// find chains of freedoms
+	std::vector<chain_t *> chainsEmpty;
+	findChainsOfFreedoms(b, &chainsEmpty);
+	purgeFreedoms(&chainsEmpty, cm, playerToStone(p));
+
+	int mc = 0;
+
+	bool pass[2] { false };
+
+	for(;;) {
+		// no valid freedoms? return "pass".
+		if (chainsEmpty.empty()) {
+			purgeChains(&chainsBlack);
+			purgeChains(&chainsWhite);
+
+			pass[p] = true;
+
+			if (pass[0] && pass[1])
+				break;
+
+			p = getOpponent(p);
+
+			continue;
+		}
+
+		pass[p] = false;
+
+		auto chain = chainsEmpty.at(rand() % chainsEmpty.size());
+		size_t chainSize = chain->chain.size();
+		int r = rand() % (chainSize - 1);
+
+		auto it = chain->chain.begin();
+		for(int i=0; i<r; i++)
+			it++;
+
+		const int x = it->getX();
+		const int y = it->getY();
+
+		connect(&b, &cm, &chainsWhite, &chainsBlack, &chainsEmpty, playerToStone(p), x, y);
+
+		p = getOpponent(p);
+
+		if (++mc == 250)
+			break;
+
+		// TODO: move this to connect() as well
+		purgeChains(&chainsEmpty);
+
+		findChainsOfFreedoms(b, &chainsEmpty);
+		purgeFreedoms(&chainsEmpty, cm, playerToStone(p));
+	}
+
+	purgeChains(&chainsEmpty);
+	purgeChains(&chainsBlack);
+	purgeChains(&chainsWhite);
+
+	auto s = score(b, komi);
+
+	return std::tuple<double, double, int>(s.first, s.second, mc);
+}
+
 double benchmark(const Board & in, const int ms, const double komi)
 {
 	send(true, "# starting benchmark: duration: %.3fs, board dimensions: %d, komi: %g", ms / 1000.0, in.getDim(), komi);
 
-	const int dim = in.getDim();
-
-	// benchmark
-	uint64_t start = get_ts_ms(), end = 0;
-	uint64_t n = 0, total_puts = 0;
+	uint64_t start = get_ts_ms();
+	uint64_t end = 0;
+	uint64_t n = 0;
+	uint64_t total_puts = 0;
 
 	do {
-		Board b(in);
+		auto result = playout(in, komi, P_BLACK);
 
-		player_t p = P_BLACK;
-
-		// find chains of stones
-		ChainMap cm(b.getDim());
-		std::vector<chain_t *> chainsWhite, chainsBlack;
-		findChains(b, &chainsWhite, &chainsBlack, &cm);
-
-		// find chains of freedoms
-		std::vector<chain_t *> chainsEmpty;
-		findChainsOfFreedoms(b, &chainsEmpty);
-		purgeFreedoms(&chainsEmpty, cm, playerToStone(p));
-
-		int mc = 0;
-
-		bool pass[2] { false };
-
-		for(;;) {
-			// no valid freedoms? return "pass".
-			if (chainsEmpty.empty()) {
-				purgeChains(&chainsBlack);
-				purgeChains(&chainsWhite);
-
-				pass[p] = true;
-
-				if (pass[0] && pass[1])
-					break;
-
-				p = getOpponent(p);
-
-				continue;
-			}
-
-			pass[p] = false;
-
-			auto chain = chainsEmpty.at(rand() % chainsEmpty.size());
-			size_t chainSize = chain->chain.size();
-			int r = rand() % (chainSize - 1);
-
-			auto it = chain->chain.begin();
-			for(int i=0; i<r; i++)
-				it++;
-
-			const int x = it->getX();
-			const int y = it->getY();
-
-			connect(&b, &cm, &chainsWhite, &chainsBlack, &chainsEmpty, playerToStone(p), x, y);
-
-			p = getOpponent(p);
-
-			if (++mc == 250)
-				break;
-
-			// TODO: move this to connect() as well
-			purgeChains(&chainsEmpty);
-
-			findChainsOfFreedoms(b, &chainsEmpty);
-			purgeFreedoms(&chainsEmpty, cm, playerToStone(p));
-		}
-
-		purgeChains(&chainsEmpty);
-		purgeChains(&chainsBlack);
-		purgeChains(&chainsWhite);
-
-		total_puts += mc;
-
-		score(b, komi);
+		total_puts += std::get<2>(result);
 
 		n++;
 
@@ -1226,7 +1231,7 @@ double benchmark(const Board & in, const int ms, const double komi)
 	}
 	while(end - start < ms);
 
-	double pops = n * double(1000.0) / (end - start);
+	double pops = n * 1000. / (end - start);
 	send(true, "# playouts (%d) per second: %f (%.1f stones on average)", n, pops, total_puts / double(n));
 
 	return pops;
