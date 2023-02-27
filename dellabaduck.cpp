@@ -1,5 +1,6 @@
 #include <algorithm>
 #include <assert.h>
+#include <climits>
 #include <ctype.h>
 #include <fstream>
 #include <optional>
@@ -994,8 +995,12 @@ void selectAlphaBeta(const Board & b, const ChainMap & cm, const std::vector<cha
 
 	int depth = 1;
 
+	size_t n_bytes  = sizeof(int) * dim * dim;
+
+	int *selected_scores = reinterpret_cast<int *>(calloc(1, n_bytes));
+
 	while(get_ts_ms() < hend_t) {
-		int *scores = new int[dim * dim]();
+		int *scores = reinterpret_cast<int *>(calloc(1, n_bytes));
 
 		send(false, "# a/b depth: %d", depth);
 
@@ -1017,14 +1022,35 @@ void selectAlphaBeta(const Board & b, const ChainMap & cm, const std::vector<cha
 			scores[i] = search(work, p == P_BLACK ? P_WHITE : P_BLACK, -32768, 32768, depth, komi);
 		}
 
-		if (!to) {
-			for(int i=0; i<dim * dim; i++)
-				evals->at(i).score += scores[i];
-		}
+		if (!to)
+			memcpy(selected_scores, scores, n_bytes);
 
-		delete [] scores;
+		free(scores);
 
 		depth++;
+	}
+
+	int best  = -INT_MAX;
+	int besti = -1;
+
+	for(int i=0; i<dim * dim; i++) {
+		evals->at(i).score += selected_scores[i];
+		evals->at(i).valid = true;
+
+		if (selected_scores[i] > best) {
+			best  = selected_scores[i];
+			besti = i;
+		}
+	}
+
+	free(selected_scores);
+
+	if (besti != -1) {
+		Vertex v(besti, dim);
+
+		send(false, "# Move selected by A/B: %s (%d)", v2t(v).c_str(), best);
+
+		evals->at(besti).score += 5;
 	}
 
 	delete [] valid;
