@@ -921,7 +921,7 @@ void selectAtLeastOne(const Board & b, const ChainMap & cm, const std::vector<ch
 	evals->at(v).valid = true;
 }
 
-int search(const Board & b, const player_t & p, int alpha, const int beta, const int depth, const int komi)
+int search(const Board & b, const player_t & p, int alpha, const int beta, const int depth, const int komi, const uint64_t end_t)
 {
 	const int dim = b.getDim();
 
@@ -947,6 +947,9 @@ int search(const Board & b, const player_t & p, int alpha, const int beta, const
 		return p == P_BLACK ? s.first - s.second : s.second - s.first;
 	}
 
+	if (get_ts_ms() >= end_t)
+		return -INT_MAX;
+
 	int bestScore = -32768;
 	std::optional<Vertex> bestMove;
 
@@ -960,7 +963,7 @@ int search(const Board & b, const player_t & p, int alpha, const int beta, const
 
 			play(&work, stone, p);
 
-			int score = -search(work, opponent, -beta, -alpha, depth - 1, komi);
+			int score = -search(work, opponent, -beta, -alpha, depth - 1, komi, end_t);
 
 			if (score > bestScore) {
 				bestScore = score;
@@ -1016,8 +1019,10 @@ void selectAlphaBeta(const Board & b, const ChainMap & cm, const std::vector<cha
 
 		int *scores = reinterpret_cast<int *>(calloc(1, n_bytes));
 
+		bool to = false;
+
 		for(int i=0; i<nThreads; i++) {
-			threads.push_back(new std::thread([hend_t, &places, dim, scores, b, p, depth, komi] {
+			threads.push_back(new std::thread([hend_t, end_t, &places, dim, scores, b, p, depth, komi, &to] {
 				for(;;) {
 					int time_left = hend_t - get_ts_ms();
 					if (time_left <= 0)
@@ -1032,7 +1037,12 @@ void selectAlphaBeta(const Board & b, const ChainMap & cm, const std::vector<cha
 
 					play(&work, { v.value(), dim }, p);
 
-					scores[v.value()] = search(work, p == P_BLACK ? P_WHITE : P_BLACK, -32768, 32768, depth, komi);
+					scores[v.value()] = search(work, p == P_BLACK ? P_WHITE : P_BLACK, -32768, 32768, depth, komi, end_t);
+
+					if (scores[v.value()] == -INT_MAX) {
+						to = true;
+						break;
+					}
 				}
 			}));
 		}
@@ -1049,8 +1059,10 @@ void selectAlphaBeta(const Board & b, const ChainMap & cm, const std::vector<cha
 			threads.erase(threads.begin());
 		}
 
-		if (places.is_empty() == true)
+		if (places.is_empty() == true && to == false)
 			memcpy(selected_scores, scores, n_bytes);
+		else
+			send(false, "# not enough time\n");
 
 		free(scores);
 
