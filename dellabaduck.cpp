@@ -10,6 +10,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <thread>
 #include <time.h>
 #include <tuple>
 #include <unistd.h>
@@ -17,6 +18,7 @@
 #include <sys/resource.h>
 #include <sys/time.h>
 
+#include "fifo.h"
 #include "str.h"
 #include "time.h"
 
@@ -980,7 +982,7 @@ finished:
 	return bestScore;
 }
 
-void selectAlphaBeta(const Board & b, const ChainMap & cm, const std::vector<chain_t *> & chainsWhite, const std::vector<chain_t *> & chainsBlack, const std::vector<chain_t *> & chainsEmpty, const player_t & p, std::vector<eval_t> *const evals, const double useTime, const double komi)
+void selectAlphaBeta(const Board & b, const ChainMap & cm, const std::vector<chain_t *> & chainsWhite, const std::vector<chain_t *> & chainsBlack, const std::vector<chain_t *> & chainsEmpty, const player_t & p, std::vector<eval_t> *const evals, const double useTime, const double komi, const int nThreads)
 {
 	const int dim = b.getDim();
 
@@ -1000,29 +1002,54 @@ void selectAlphaBeta(const Board & b, const ChainMap & cm, const std::vector<cha
 	int *selected_scores = reinterpret_cast<int *>(calloc(1, n_bytes));
 
 	while(get_ts_ms() < hend_t) {
-		int *scores = reinterpret_cast<int *>(calloc(1, n_bytes));
-
 		send(false, "# a/b depth: %d", depth);
 
-		bool to = false;
+		fifo<int> places(dim * dim + 1);
 
+		// queue "work" for threads
 		for(int i=0; i<dim * dim; i++) {
-			if (valid[i] == false)
-				continue;
-
-			if (get_ts_ms() >= end_t) {
-				to = true;
-				break;
-			}
-
-			Board work(b);
-
-			play(&work, { i, dim }, p);
-
-			scores[i] = search(work, p == P_BLACK ? P_WHITE : P_BLACK, -32768, 32768, depth, komi);
+			if (valid[i])
+				places.put(i);
 		}
 
-		if (!to)
+		std::vector<std::thread *> threads;
+
+		int *scores = reinterpret_cast<int *>(calloc(1, n_bytes));
+
+		for(int i=0; i<nThreads; i++) {
+			threads.push_back(new std::thread([hend_t, &places, dim, scores, b, p, depth, komi] {
+				for(;;) {
+					int time_left = hend_t - get_ts_ms();
+					if (time_left <= 0)
+						break;
+
+					auto v = places.try_get();
+
+					if (v.has_value() == false)
+						break;
+
+					Board work(b);
+
+					play(&work, { v.value(), dim }, p);
+
+					scores[v.value()] = search(work, p == P_BLACK ? P_WHITE : P_BLACK, -32768, 32768, depth, komi);
+				}
+			}));
+		}
+
+		send(false, "# %zu threads\n", threads.size());
+
+		while(threads.empty() == false) {
+			(*threads.begin())->join();
+
+			send(false, "# thread terminated, %zu left\n", threads.size());
+
+			delete *threads.begin();
+
+			threads.erase(threads.begin());
+		}
+
+		if (places.is_empty() == true)
 			memcpy(selected_scores, scores, n_bytes);
 
 		free(scores);
@@ -1111,7 +1138,7 @@ std::optional<Vertex> genMove(Board *const b, const player_t & p, const bool doP
 
 	selectAtLeastOne(*b, cm, chainsWhite, chainsBlack, chainsEmpty, p, &evals);
 
-	selectAlphaBeta(*b, cm, chainsWhite, chainsBlack, chainsEmpty, p, &evals, useTime, komi);
+	selectAlphaBeta(*b, cm, chainsWhite, chainsBlack, chainsEmpty, p, &evals, useTime, komi, std::thread::hardware_concurrency());
 
 	// find best
 	std::optional<Vertex> v;
