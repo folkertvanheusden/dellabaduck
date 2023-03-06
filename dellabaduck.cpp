@@ -1063,6 +1063,8 @@ void selectAlphaBeta(const Board & b, const ChainMap & cm, const std::vector<cha
 				places.put(i);
 		}
 
+		send(false, "# work: %zu", places.size());
+
 		std::vector<std::thread *> threads;
 
 		int *scores = reinterpret_cast<int *>(calloc(1, n_bytes));
@@ -1093,12 +1095,12 @@ void selectAlphaBeta(const Board & b, const ChainMap & cm, const std::vector<cha
 			}));
 		}
 
-		send(false, "# %zu threads\n", threads.size());
+		send(false, "# %zu threads", threads.size());
 
 		while(threads.empty() == false) {
 			(*threads.begin())->join();
 
-			send(false, "# thread terminated, %zu left\n", threads.size());
+			send(false, "# thread terminated, %zu left", threads.size());
 
 			delete *threads.begin();
 
@@ -1108,7 +1110,7 @@ void selectAlphaBeta(const Board & b, const ChainMap & cm, const std::vector<cha
 		if (places.is_empty() == true && to == false)
 			memcpy(selected_scores, scores, n_bytes);
 		else
-			send(false, "# not enough time\n");
+			send(false, "# not enough time");
 
 		free(scores);
 
@@ -1378,7 +1380,7 @@ Board loadSgf(const std::string & filename)
 {
 	FILE *sfh = fopen(filename.c_str(), "r");
 	if (!sfh) {
-		send(true, "Cannot open %s\n", filename.c_str());
+		send(true, "Cannot open %s", filename.c_str());
 		return Board(9);
 	}
 
