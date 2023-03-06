@@ -1,6 +1,8 @@
 #include <algorithm>
 #include <assert.h>
+#include <atomic>
 #include <climits>
+#include <condition_variable>
 #include <ctype.h>
 #include <fstream>
 #include <optional>
@@ -921,8 +923,18 @@ void selectAtLeastOne(const Board & b, const ChainMap & cm, const std::vector<ch
 	evals->at(v).valid = true;
 }
 
-int search(const Board & b, const player_t & p, int alpha, const int beta, const int depth, const int komi, const uint64_t end_t)
+typedef struct
 {
+        std::atomic_bool        flag;
+        std::condition_variable cv;
+}
+end_indicator_t;
+
+int search(const Board & b, const player_t & p, int alpha, const int beta, const int depth, const int komi, const uint64_t end_t, end_indicator_t *const ei)
+{
+	if (ei->flag)
+		return -32767;
+
 	const int dim = b.getDim();
 
 	std::vector<chain_t *> chainsEmpty;
@@ -963,7 +975,7 @@ int search(const Board & b, const player_t & p, int alpha, const int beta, const
 
 			play(&work, stone, p);
 
-			int score = -search(work, opponent, -beta, -alpha, depth - 1, komi, end_t);
+			int score = -search(work, opponent, -beta, -alpha, depth - 1, komi, end_t, ei);
 
 			if (score > bestScore) {
 				bestScore = score;
@@ -985,6 +997,27 @@ finished:
 	return bestScore;
 }
 
+void timer(int think_time, end_indicator_t *const ei)
+{
+	if (think_time > 0) {
+		std::mutex m;
+		std::unique_lock<std::mutex> lk(m);
+
+		for(;;) {
+			if (ei->cv.wait_for(lk, std::chrono::milliseconds(think_time)) == std::cv_status::timeout) {
+				ei->flag = true;
+				break;
+			}
+
+			if (ei->flag)
+				break;
+		}
+	}
+	else {
+		ei->flag = true;
+	}
+}
+
 void selectAlphaBeta(const Board & b, const ChainMap & cm, const std::vector<chain_t *> & chainsWhite, const std::vector<chain_t *> & chainsBlack, const std::vector<chain_t *> & chainsEmpty, const player_t & p, std::vector<eval_t> *const evals, const double useTime, const double komi, const int nThreads)
 {
 	const int dim = b.getDim();
@@ -997,6 +1030,9 @@ void selectAlphaBeta(const Board & b, const ChainMap & cm, const std::vector<cha
 	uint64_t start_t = get_ts_ms();  // TODO: start of genMove()
 	uint64_t hend_t  = start_t + useTime * 1000 / 2;
 	uint64_t end_t   = start_t + useTime * 1000;
+
+	end_indicator_t ei { false };
+	std::thread *to_timer = new std::thread(timer, end_t, &ei);
 
 	int depth = 1;
 
@@ -1022,7 +1058,7 @@ void selectAlphaBeta(const Board & b, const ChainMap & cm, const std::vector<cha
 		bool to = false;
 
 		for(int i=0; i<nThreads; i++) {
-			threads.push_back(new std::thread([hend_t, end_t, &places, dim, scores, b, p, depth, komi, &to] {
+			threads.push_back(new std::thread([hend_t, end_t, &places, dim, scores, b, p, depth, komi, &to, &ei] {
 				for(;;) {
 					int time_left = hend_t - get_ts_ms();
 					if (time_left <= 0)
@@ -1030,19 +1066,17 @@ void selectAlphaBeta(const Board & b, const ChainMap & cm, const std::vector<cha
 
 					auto v = places.try_get();
 
-					if (v.has_value() == false)
+					if (v.has_value() == false || ei.flag)
 						break;
 
 					Board work(b);
 
 					play(&work, { v.value(), dim }, p);
 
-					scores[v.value()] = search(work, p == P_BLACK ? P_WHITE : P_BLACK, -32768, 32768, depth, komi, end_t);
+					int score = search(work, p == P_BLACK ? P_WHITE : P_BLACK, -32768, 32768, depth, komi, end_t, &ei);
 
-					if (scores[v.value()] == -INT_MAX) {
-						to = true;
-						break;
-					}
+					if (ei.flag == false)
+						scores[v.value()] = score;
 				}
 			}));
 		}
@@ -1083,6 +1117,15 @@ void selectAlphaBeta(const Board & b, const ChainMap & cm, const std::vector<cha
 	}
 
 	free(selected_scores);
+	
+	if (to_timer) {
+		ei.flag = true;
+		ei.cv.notify_one();
+
+		to_timer->join();
+
+		delete to_timer;
+	}
 
 	if (besti != -1) {
 		Vertex v(besti, dim);
