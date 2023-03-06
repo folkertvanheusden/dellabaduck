@@ -1052,7 +1052,7 @@ void selectAlphaBeta(const Board & b, const ChainMap & cm, const std::vector<cha
 
 	int *selected_scores = reinterpret_cast<int *>(calloc(1, n_bytes));
 
-	while(get_ts_ms() < hend_t) {
+	while(get_ts_ms() < hend_t && depth <= dim * dim) {
 		send(false, "# a/b depth: %d", depth);
 
 		fifo<int> places(dim * dim + 1);
