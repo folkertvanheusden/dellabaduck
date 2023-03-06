@@ -1036,8 +1036,12 @@ void selectAlphaBeta(const Board & b, const ChainMap & cm, const std::vector<cha
 
 	bool *valid = new bool[dim * dim]();
 
+	int n_work = 0;
+
 	for(int i=0; i<dim * dim; i++)
-		valid[i] = isUsable(cm, chainsEmpty, { i, dim });
+		n_work += valid[i] = isUsable(cm, chainsEmpty, { i, dim });
+
+	send(false, "# work: %d", n_work);
 
 	uint64_t start_t = get_ts_ms();  // TODO: start of genMove()
 	uint64_t hend_t  = start_t + useTime * 1000 / 2;
@@ -1062,8 +1066,6 @@ void selectAlphaBeta(const Board & b, const ChainMap & cm, const std::vector<cha
 			if (valid[i])
 				places.put(i);
 		}
-
-		send(false, "# work: %zu", places.size());
 
 		std::vector<std::thread *> threads;
 
