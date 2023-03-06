@@ -927,6 +927,8 @@ int search(const Board & b, const player_t & p, int alpha, const int beta, const
 
 	std::vector<chain_t *> chainsEmpty;
 
+        std::vector<eval_t> evals;
+
 	// do not calculate chains when at depth 0 as they're not used then
 	if (depth > 0) {
 		ChainMap cm(dim);
@@ -936,6 +938,13 @@ int search(const Board & b, const player_t & p, int alpha, const int beta, const
 		// find chains of freedoms
 		findChainsOfFreedoms(b, &chainsEmpty);
 		purgeFreedoms(&chainsEmpty, cm, playerToStone(p));
+
+		if (depth == 1) {
+			evals.resize(dim * dim);
+
+			selectExtendChains(b, cm, chainsWhite, chainsBlack, chainsEmpty, p, &evals);
+			selectKillChains(b, cm, chainsWhite, chainsBlack, chainsEmpty, p, &evals);
+		}
 
 		purgeChains(&chainsBlack);
 		purgeChains(&chainsWhite);
@@ -964,6 +973,9 @@ int search(const Board & b, const player_t & p, int alpha, const int beta, const
 			play(&work, stone, p);
 
 			int score = -search(work, opponent, -beta, -alpha, depth - 1, komi, end_t);
+
+			if (depth == 1)
+				score += evals.at(stone.getV()).score;
 
 			if (score > bestScore) {
 				bestScore = score;
