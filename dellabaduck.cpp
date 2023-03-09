@@ -1191,6 +1191,14 @@ std::optional<Vertex> genMove(Board *const b, const player_t & p, const bool doP
 
 	double useTime = (timeLeft / 2.) * totalNChains / p2dim * 0.95;
 
+	// not enough time
+	if (useTime < 0.1) {
+		purgeChains(&chainsBlack);
+		purgeChains(&chainsWhite);
+
+		return { };
+	}
+
 	send(false, "# timeLeft: %f, useTime: %f, total chain-count: %zu, board dimension: %d", timeLeft, useTime, totalNChains, dim);
 
         std::vector<eval_t> evals;
