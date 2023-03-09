@@ -1248,15 +1248,6 @@ std::optional<Vertex> genMove(Board *const b, const player_t & p, const bool doP
 
 	double useTime = (timeLeft / 2.) * totalNChains / p2dim * 0.95;
 
-	// not enough time
-	if (useTime < 0.1) {
-		purgeChains(&chainsEmpty);
-		purgeChains(&chainsBlack);
-		purgeChains(&chainsWhite);
-
-		return { };
-	}
-
 	send(false, "# timeLeft: %f, useTime: %f, total chain-count: %zu, board dimension: %d", timeLeft, useTime, totalNChains, dim);
 
         std::vector<eval_t> evals;
@@ -1271,7 +1262,8 @@ std::optional<Vertex> genMove(Board *const b, const player_t & p, const bool doP
 
 	selectAtLeastOne(*b, cm, chainsWhite, chainsBlack, chainsEmpty, p, &evals);
 
-	selectAlphaBeta(*b, cm, chainsWhite, chainsBlack, chainsEmpty, p, &evals, useTime, komi, std::thread::hardware_concurrency());
+	if (useTime > 0.1)
+		selectAlphaBeta(*b, cm, chainsWhite, chainsBlack, chainsEmpty, p, &evals, useTime, komi, std::thread::hardware_concurrency());
 
 	// find best
 	std::optional<Vertex> v;
