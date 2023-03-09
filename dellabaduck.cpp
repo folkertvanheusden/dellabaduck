@@ -974,12 +974,12 @@ int search(const Board & b, const player_t & p, int alpha, const int beta, const
 		findChainsOfFreedoms(b, &chainsEmpty);
 		purgeFreedoms(&chainsEmpty, cm, playerToStone(p));
 
-		if (depth == 1) {
-			evals.resize(dim * dim);
+	//	if (depth == 1) {
+	//		evals.resize(dim * dim);
 
-			selectExtendChains(b, cm, chainsWhite, chainsBlack, chainsEmpty, p, &evals);
-			selectKillChains(b, cm, chainsWhite, chainsBlack, chainsEmpty, p, &evals);
-		}
+	//		selectExtendChains(b, cm, chainsWhite, chainsBlack, chainsEmpty, p, &evals);
+	//		selectKillChains(b, cm, chainsWhite, chainsBlack, chainsEmpty, p, &evals);
+	//	}
 
 		purgeChains(&chainsBlack);
 		purgeChains(&chainsWhite);
