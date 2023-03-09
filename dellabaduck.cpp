@@ -1228,7 +1228,7 @@ void selectAlphaBeta(const Board & b, const ChainMap & cm, const std::vector<cha
 	delete [] valid;
 }
 
-std::optional<Vertex> genMove(Board *const b, const player_t & p, const bool doPlay, const double timeLeft, const double komi)
+std::optional<Vertex> genMove(Board *const b, const player_t & p, const bool doPlay, const double useTime, const double komi)
 {
 	const int dim = b->getDim();
 	const int p2dim = dim * dim;
@@ -1255,11 +1255,7 @@ std::optional<Vertex> genMove(Board *const b, const player_t & p, const bool doP
 	scanEnclosed(*b, &cm, playerToStone(p));
 	dump(cm);
 
-	size_t totalNChains = chainsWhite.size() + chainsBlack.size();
-
-	double useTime = (timeLeft / 2.) * totalNChains / p2dim * 0.95;
-
-	send(false, "# timeLeft: %f, useTime: %f, total chain-count: %zu, board dimension: %d", timeLeft, useTime, totalNChains, dim);
+	send(false, "# useTime: %f", useTime);
 
         std::vector<eval_t> evals;
 	evals.resize(p2dim);
@@ -1602,6 +1598,9 @@ int main(int argc, char *argv[])
 
 	double komi = 0.;
 
+	int moves_executed = 0;
+	int moves_total    = 9 * 9;
+
 	for(;;) {
 		char buffer[4096] { 0 };
 		if (!fgets(buffer, sizeof buffer, stdin))
@@ -1640,6 +1639,9 @@ int main(int argc, char *argv[])
 			delete b;
 			b = new Board(dim);
 			send(true, "=%s", id.c_str());
+
+			moves_executed = 0;
+			moves_total    = dim * dim;
 		}
 		else if (parts.at(0) == "play") {
 			if (str_tolower(parts.at(2)) != "pass") {
@@ -1719,7 +1721,12 @@ int main(int argc, char *argv[])
 
 				uint64_t start_ts = get_ts_ms();
 
-				auto v = genMove(b, p, true, time_left[p], komi);
+				double time_use = time_left[p] / (moves_total - moves_executed);
+
+				if (++moves_executed >= moves_total)
+					moves_total = (moves_total * 4) / 3;
+
+				auto v = genMove(b, p, true, time_use, komi);
 
 				uint64_t end_ts = get_ts_ms();
 
@@ -1733,7 +1740,9 @@ int main(int argc, char *argv[])
 				if (v.has_value() == false)
 					break;
 
-				send(true, "# %s (%s), took %.3fs/%d, time left: %.3f", v2t(v.value()).c_str(), color, (end_ts - start_ts) / 1000.0, n_moves, time_left[p]);
+				double took = (end_ts - start_ts) / 1000.;
+
+				send(true, "# %s (%s), time allocated: %.3f, took %.3fs (%.2f%%), move-nr: %d, time left: %.3f", v2t(v.value()).c_str(), color, time_use, took, took * 100 / time_use, n_moves, time_left[p]);
 
 				p = getOpponent(p);
 			}
@@ -1748,8 +1757,13 @@ int main(int argc, char *argv[])
 			if (timeLeft < 0)
 				timeLeft = 5.0;
 
+			double time_use = timeLeft / (moves_total - moves_executed);
+
+			if (++moves_executed >= moves_total)
+				moves_total = (moves_total * 4) / 3;
+
 			uint64_t start_ts = get_ts_ms();
-			auto v = genMove(b, player, parts.at(0) == "genmove", timeLeft, komi);
+			auto v = genMove(b, player, parts.at(0) == "genmove", time_use, komi);
 			uint64_t end_ts = get_ts_ms();
 
 			timeLeft = -1.0;
