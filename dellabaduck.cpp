@@ -1703,9 +1703,9 @@ int main(int argc, char *argv[])
 
 			// play outs per second
 			if (parts.at(2) == "1")
-				pops = benchmark_1(*b, parts.size() == 2 ? atoi(parts.at(1).c_str()) : 1000, komi);
+				pops = benchmark_1(*b, atoi(parts.at(1).c_str()), komi);
 			else if (parts.at(2) == "2")
-				pops = benchmark_2(*b, parts.size() == 2 ? atoi(parts.at(1).c_str()) : 1000);
+				pops = benchmark_2(*b, atoi(parts.at(1).c_str()));
 
 			send(true, "=%s %f", id.c_str(), pops);
 		}
