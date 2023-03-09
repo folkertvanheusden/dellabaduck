@@ -1396,9 +1396,9 @@ std::tuple<double, double, int> playout(const Board & in, const double komi, pla
 	return std::tuple<double, double, int>(s.first, s.second, mc);
 }
 
-double benchmark(const Board & in, const int ms, const double komi)
+double benchmark_1(const Board & in, const int ms, const double komi)
 {
-	send(true, "# starting benchmark: duration: %.3fs, board dimensions: %d, komi: %g", ms / 1000.0, in.getDim(), komi);
+	send(true, "# starting benchmark 1: duration: %.3fs, board dimensions: %d, komi: %g", ms / 1000.0, in.getDim(), komi);
 
 	uint64_t start = get_ts_ms();
 	uint64_t end = 0;
@@ -1420,6 +1420,35 @@ double benchmark(const Board & in, const int ms, const double komi)
 	send(true, "# playouts (%d) per second: %f (%.1f stones on average)", n, pops, total_puts / double(n));
 
 	return pops;
+}
+
+double benchmark_2(const Board & in, const int ms)
+{
+        send(true, "# starting benchmark 2: duration: %.3fs, board dimensions: %d", ms / 1000.0, in.getDim());
+
+        uint64_t start = get_ts_ms();
+        uint64_t end = 0;
+        uint64_t n = 0;
+
+        ChainMap cm(in.getDim());
+
+        do {
+                std::vector<chain_t *> chainsWhite, chainsBlack;
+                findChains(in, &chainsWhite, &chainsBlack, &cm);
+
+                purgeChains(&chainsBlack);
+                purgeChains(&chainsWhite);
+
+                n++;
+
+                end = get_ts_ms();
+        }
+        while(end - start < ms);
+
+        double pops = n * 1000. / (end - start);
+        send(true, "# playouts (%d) per second: %f", n, pops);
+
+        return pops;
 }
 
 void load_stones(Board *const b, const char *in, const board_t & bv)
@@ -1664,12 +1693,17 @@ int main(int argc, char *argv[])
 			else
 				send(true, "=%s false", id.c_str());
 		}
-		else if (parts.at(0) == "benchmark") {
-			// play outs per second
-			double pops = benchmark(*b, parts.size() == 2 ? atoi(parts.at(1).c_str()) : 1000, komi);
+                else if (parts.at(0) == "benchmark" && parts.size() == 3) {
+                        double pops = -1.;
 
-			send(true, "=%s %f", id.c_str(), pops);
-		}
+                        // play outs per second
+                        if (parts.at(2) == "1")
+                                pops = benchmark_1(*b, atoi(parts.at(1).c_str()), komi);
+                        else if (parts.at(2) == "2")
+                                pops = benchmark_2(*b, atoi(parts.at(1).c_str()));
+
+                        send(true, "=%s %f", id.c_str(), pops);
+                }
 		else if (parts.at(0) == "komi") {
 			komi = atof(parts.at(1).c_str());
 
