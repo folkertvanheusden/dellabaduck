@@ -1077,7 +1077,7 @@ struct CompareCrossesSortHelper {
 	}
 
 	bool operator()(int i, int j) {
-		return getScore(i) - getScore(j);
+		return getScore(i) > getScore(j);
 	}
 };
 
@@ -1099,6 +1099,17 @@ void selectAlphaBeta(const Board & b, const ChainMap & cm, const std::vector<cha
 	}
 
 	std::sort(places_for_sort.begin(), places_for_sort.end(), CompareCrossesSortHelper(b, p));
+
+#if 0
+	int c = 0;
+	CompareCrossesSortHelper bla(b, p);
+	for(auto v : places_for_sort) {
+		printf("%d: %d\t", v, bla.getScore(v));
+		if (++c > 8)
+			printf("\n"), c = 0;
+	}
+	printf("\n\n");
+#endif
 
 	send(false, "# work: %d, time: %f", n_work, useTime);
 
@@ -1562,6 +1573,19 @@ int main(int argc, char *argv[])
 	return 0;
 #elif 1
 	Board *b = new Board(9);
+#if 0
+        Board *b = new Board(stringToBoard(
+                        "xxxxxxx..\n"
+                        "x.....x..\n"
+                        "x.....x..\n"
+                        "x...xxx..\n"
+                        "xxxx.....\n"
+                        ".....xx..\n"
+                        ".o...x...\n"
+                        ".........\n"
+                        ".........\n"
+                        ));
+#endif
 
 	setbuf(stdout, nullptr);
 	setbuf(stderr, nullptr);
@@ -1674,8 +1698,10 @@ int main(int argc, char *argv[])
 
 			send(true, "=%s", id.c_str());
 		}
-		else if (parts.at(0) == "autoplay") {
+		else if (parts.at(0) == "autoplay" && parts.size() == 2) {
 			player_t p = P_BLACK;
+
+			double think_time = atof(parts.at(1).c_str());
 
 			uint64_t g_start_ts = get_ts_ms();
 			int n_moves = 0;
@@ -1685,7 +1711,7 @@ int main(int argc, char *argv[])
 
 				n_moves++;
 
-				auto v = genMove(b, p, true, timeLeft, komi);
+				auto v = genMove(b, p, true, think_time, komi);
 				if (v.has_value() == false)
 					break;
 
