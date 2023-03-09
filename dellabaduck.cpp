@@ -6,6 +6,7 @@
 #include <ctype.h>
 #include <fstream>
 #include <optional>
+#include <queue>
 #include <set>
 #include <stdarg.h>
 #include <stdint.h>
@@ -391,35 +392,6 @@ void dump(const ChainMap & cm)
 	send(false, line.c_str());
 }
 
-void scanChains(const Board & b, bool *const scanned, chain_t *const curChain, const int x, const int y, const board_t & startType, ChainMap *const cm)
-{
-	board_t bv = b.getAt(x, y);
-
-	const int dim = b.getDim();
-
-	const int v = y * dim + x;
-
-	if (bv == startType && scanned[v] == false) {
-		scanned[v] = true;
-
-		cm->setAt(x, y, curChain);
-
-		curChain->chain.insert({ x, y, dim });
-
-		if (y > 0)
-			scanChains(b, scanned, curChain, x, y - 1, startType, cm);
-		if (y < dim - 1)
-			scanChains(b, scanned, curChain, x, y + 1, startType, cm);
-		if (x > 0)
-			scanChains(b, scanned, curChain, x - 1, y, startType, cm);
-		if (x < dim - 1)
-			scanChains(b, scanned, curChain, x + 1, y, startType, cm);
-	}
-	else if (bv == B_EMPTY) {
-		curChain->freedoms.insert({ x, y, dim });  // only for counting the total number of freedoms
-	}
-}
-
 void findChains(const Board & b, std::vector<chain_t *> *const chainsWhite, std::vector<chain_t *> *const chainsBlack, ChainMap *const cm)
 {
 	const int dim = b.getDim();
@@ -440,7 +412,40 @@ void findChains(const Board & b, std::vector<chain_t *> *const chainsWhite, std:
 			chain_t *curChain = new chain_t;
 			curChain->type = bv;
 
-			scanChains(b, scanned, curChain, x, y, bv, cm);
+			std::queue<std::pair<int, int> > work_queue;
+			work_queue.push({ x, y });
+
+			do {
+				auto pair = work_queue.front();
+				work_queue.pop();
+
+				const int x = pair.first;
+				const int y = pair.second;
+
+				if (x < 0 || x >= dim || y < 0 || y >= dim)
+					continue;
+
+				const int v = y * dim + x;
+
+				board_t cur_bv = b.getAt(v);
+
+				if (cur_bv == bv && scanned[v] == false) {
+					scanned[v] = true;
+
+					cm->setAt(x, y, curChain);
+
+					curChain->chain.insert({ x, y, dim });
+
+					work_queue.push({ x, y - 1 });
+					work_queue.push({ x, y + 1 });
+					work_queue.push({ x - 1, y });
+					work_queue.push({ x + 1, y });
+				}
+				else if (cur_bv == B_EMPTY) {
+					curChain->freedoms.insert({ x, y, dim });  // only for counting the total number of freedoms
+				}
+			}
+			while(work_queue.empty() == false);
 
 			if (curChain->type == B_WHITE)
 				chainsWhite->push_back(curChain);
