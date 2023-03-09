@@ -1058,6 +1058,29 @@ void timer(int think_time, end_indicator_t *const ei)
 	}
 }
 
+struct CompareCrossesSortHelper {
+	const Board & b;
+	const int dim;
+	const player_t p;
+
+	CompareCrossesSortHelper(const Board & b, const player_t & p) : b(b), dim(b.getDim()), p(p) {
+	}
+
+	int getScore(const int move) {
+		Board work(b);
+
+		play(&work, { move, dim }, p);
+
+		auto s = score(work, 0.);
+
+		return p == P_BLACK ? s.first - s.second : s.second - s.first;
+	}
+
+	bool operator()(int i, int j) {
+		return getScore(i) - getScore(j);
+	}
+};
+
 void selectAlphaBeta(const Board & b, const ChainMap & cm, const std::vector<chain_t *> & chainsWhite, const std::vector<chain_t *> & chainsBlack, const std::vector<chain_t *> & chainsEmpty, const player_t & p, std::vector<eval_t> *const evals, const double useTime, const double komi, const int nThreads)
 {
 	const int dim = b.getDim();
@@ -1066,8 +1089,16 @@ void selectAlphaBeta(const Board & b, const ChainMap & cm, const std::vector<cha
 
 	int n_work = 0;
 
-	for(int i=0; i<dim * dim; i++)
-		n_work += valid[i] = isUsable(cm, chainsEmpty, { i, dim });
+	std::vector<int> places_for_sort;
+
+	for(int i=0; i<dim * dim; i++) {
+		if (isUsable(cm, chainsEmpty, { i, dim })) {
+			n_work++;
+			places_for_sort.push_back(i);
+		}
+	}
+
+	std::sort(places_for_sort.begin(), places_for_sort.end(), CompareCrossesSortHelper(b, p));
 
 	send(false, "# work: %d, time: %f", n_work, useTime);
 
@@ -1079,6 +1110,7 @@ void selectAlphaBeta(const Board & b, const ChainMap & cm, const std::vector<cha
 	std::thread *to_timer = new std::thread(timer, end_t - start_t, &ei);
 
 	int depth = 1;
+	bool ok = false;
 
 	size_t n_bytes  = sizeof(int) * dim * dim;
 
@@ -1093,16 +1125,14 @@ void selectAlphaBeta(const Board & b, const ChainMap & cm, const std::vector<cha
 		int beta  =  32767;
 
 		// queue "work" for threads
-		for(int i=0; i<dim * dim; i++) {
-			if (valid[i])
-				places.put(i);
-		}
+		for(auto & v: places_for_sort)
+			places.put(v);
 
 		std::atomic_bool quick_stop { false };
 
 		std::optional<int> local_best;
 
-		bool ok = false;
+		ok = false;
 
 		std::vector<std::thread *> threads;
 
@@ -1173,7 +1203,7 @@ void selectAlphaBeta(const Board & b, const ChainMap & cm, const std::vector<cha
 	}
 
 	if (best.has_value()) {
-		send(false, "# Move selected by A/B: %s (%d)", v2t(Vertex(best.value(), dim)).c_str(), best);
+		send(false, "# Move selected by A/B: %s (reached depth: %d, completed: %d)", v2t(Vertex(best.value(), dim)).c_str(), depth, ok);
 
 		evals->at(best.value()).score += 10;
 		evals->at(best.value()).valid = true;
