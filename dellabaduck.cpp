@@ -1244,11 +1244,9 @@ std::optional<Vertex> genMove(Board *const b, const player_t & p, const bool doP
 	scanEnclosed(*b, &cm, playerToStone(p));
 	dump(cm);
 
-	//size_t totalNChains = chainsWhite.size() + chainsBlack.size();
-	size_t targetNStones = calcN(chainsEmpty) + calcN(p == P_BLACK ? chainsWhite : chainsBlack);
+	size_t totalNChains = chainsWhite.size() + chainsBlack.size();
 
-	//double useTime = (timeLeft / 2.) * totalNChains / p2dim * 0.95;
-	double useTime = (timeLeft / 2.) * targetNStones / p2dim * 0.95;
+	double useTime = (timeLeft / 2.) * totalNChains / p2dim * 0.95;
 
 	// not enough time
 	if (useTime < 0.1) {
@@ -1258,7 +1256,7 @@ std::optional<Vertex> genMove(Board *const b, const player_t & p, const bool doP
 		return { };
 	}
 
-	send(false, "# timeLeft: %f, useTime: %f, target-count: %zu, board dimension: %d", timeLeft, useTime, targetNStones, dim);
+	send(false, "# timeLeft: %f, useTime: %f, total chain-count: %zu, board dimension: %d", timeLeft, useTime, totalNChains, dim);
 
         std::vector<eval_t> evals;
 	evals.resize(p2dim);
