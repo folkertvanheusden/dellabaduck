@@ -28,7 +28,7 @@ typedef enum { P_BLACK = 0, P_WHITE } player_t;
 typedef enum { B_EMPTY, B_WHITE, B_BLACK, B_LAST } board_t;
 const char *const board_t_names[] = { ".", "o", "x" };
 
-FILE *fh = fopen("/tmp/input.dat", "a+");
+FILE *fh = fopen("input.dat", "a+");
 
 bool cgos = true;
 
@@ -923,12 +923,25 @@ void selectAtLeastOne(const Board & b, const ChainMap & cm, const std::vector<ch
 	evals->at(v).valid = true;
 }
 
+int calcN(const std::vector<chain_t *> & chains)
+{
+	int n = 0;
+
+	for(auto chain : chains)
+		n += chain->chain.size();
+
+	return n;
+}
+
 typedef struct
 {
         std::atomic_bool        flag;
         std::condition_variable cv;
 }
 end_indicator_t;
+
+double bco_total = 0;
+uint64_t bco_n = 0;
 
 int search(const Board & b, const player_t & p, int alpha, const int beta, const int depth, const int komi, const uint64_t end_t, end_indicator_t *const ei, std::atomic_bool *const quick_stop)
 {
@@ -974,8 +987,12 @@ int search(const Board & b, const player_t & p, int alpha, const int beta, const
 
 	player_t opponent = getOpponent(p);
 
+	int bco = 0;
+
 	for(auto chain : chainsEmpty) {
 		for(auto stone : chain->chain) {
+			bco++;
+
 			Board work(b);
 
 			play(&work, stone, p);
@@ -1000,6 +1017,11 @@ int search(const Board & b, const player_t & p, int alpha, const int beta, const
 	}
 
 finished:
+	int empty = calcN(chainsEmpty);
+
+	bco_total += double(bco) / empty;
+	bco_n++;
+
 	purgeChains(&chainsEmpty);
 
 	return bestScore;
@@ -1147,17 +1169,10 @@ void selectAlphaBeta(const Board & b, const ChainMap & cm, const std::vector<cha
 		evals->at(best.value()).valid = true;
 	}
 
+	double factor = bco_total / bco_n;
+	send(false, "# BCO at %.3f%%; move %d, n: %lu", factor * 100, int(factor * dim * dim), bco_n);
+
 	delete [] valid;
-}
-
-int calcN(const std::vector<chain_t *> & chains)
-{
-	int n = 0;
-
-	for(auto chain : chains)
-		n += chain->chain.size();
-
-	return n;
 }
 
 std::optional<Vertex> genMove(Board *const b, const player_t & p, const bool doPlay, const double timeLeft, const double komi)
