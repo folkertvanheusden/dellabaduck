@@ -1641,7 +1641,7 @@ int main(int argc, char *argv[])
 			send(true, "=%s", id.c_str());
 
 			moves_executed = 0;
-			moves_total    = dim * dim;
+			moves_total    = dim * dim / 2;
 		}
 		else if (parts.at(0) == "play") {
 			if (str_tolower(parts.at(2)) != "pass") {
