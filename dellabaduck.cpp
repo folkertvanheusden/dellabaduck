@@ -1653,7 +1653,7 @@ int main(int argc, char *argv[])
 		else if (parts.at(0) == "time_settings") {
 			send(true, "=%s", id.c_str());  // TODO
 		}
-		else if (parts.at(0) == "time_left") {
+		else if (parts.at(0) == "time_left" && parts.size() == 3) {
 			timeLeft = atof(parts.at(2).c_str());
 
 			send(true, "=%s", id.c_str());  // TODO
