@@ -6,6 +6,7 @@
 #include <ctype.h>
 #include <fstream>
 #include <optional>
+#include <queue>
 #include <set>
 #include <stdarg.h>
 #include <stdint.h>
@@ -391,35 +392,6 @@ void dump(const ChainMap & cm)
 	send(false, line.c_str());
 }
 
-void scanChains(const Board & b, bool *const scanned, chain_t *const curChain, const int x, const int y, const board_t & startType, ChainMap *const cm)
-{
-	board_t bv = b.getAt(x, y);
-
-	const int dim = b.getDim();
-
-	const int v = y * dim + x;
-
-	if (bv == startType && scanned[v] == false) {
-		scanned[v] = true;
-
-		cm->setAt(x, y, curChain);
-
-		curChain->chain.insert({ x, y, dim });
-
-		if (y > 0)
-			scanChains(b, scanned, curChain, x, y - 1, startType, cm);
-		if (y < dim - 1)
-			scanChains(b, scanned, curChain, x, y + 1, startType, cm);
-		if (x > 0)
-			scanChains(b, scanned, curChain, x - 1, y, startType, cm);
-		if (x < dim - 1)
-			scanChains(b, scanned, curChain, x + 1, y, startType, cm);
-	}
-	else if (bv == B_EMPTY) {
-		curChain->freedoms.insert({ x, y, dim });  // only for counting the total number of freedoms
-	}
-}
-
 void findChains(const Board & b, std::vector<chain_t *> *const chainsWhite, std::vector<chain_t *> *const chainsBlack, ChainMap *const cm)
 {
 	const int dim = b.getDim();
@@ -440,7 +412,40 @@ void findChains(const Board & b, std::vector<chain_t *> *const chainsWhite, std:
 			chain_t *curChain = new chain_t;
 			curChain->type = bv;
 
-			scanChains(b, scanned, curChain, x, y, bv, cm);
+			std::queue<std::pair<int, int> > work_queue;
+			work_queue.push({ x, y });
+
+			do {
+				auto pair = work_queue.front();
+				work_queue.pop();
+
+				const int x = pair.first;
+				const int y = pair.second;
+
+				if (x < 0 || x >= dim || y < 0 || y >= dim)
+					continue;
+
+				board_t cur_bv = b.getAt(x, y);
+
+				const int v = y * dim + x;
+
+				if (cur_bv == bv && scanned[v] == false) {
+					scanned[v] = true;
+
+					cm->setAt(x, y, curChain);
+
+					curChain->chain.insert({ x, y, dim });
+
+					work_queue.push({ x, y - 1 });
+					work_queue.push({ x, y + 1 });
+					work_queue.push({ x - 1, y });
+					work_queue.push({ x + 1, y });
+				}
+				else if (cur_bv == B_EMPTY) {
+					curChain->freedoms.insert({ x, y, dim });  // only for counting the total number of freedoms
+				}
+			}
+			while(work_queue.empty() == false);
 
 			if (curChain->type == B_WHITE)
 				chainsWhite->push_back(curChain);
@@ -1396,9 +1401,9 @@ std::tuple<double, double, int> playout(const Board & in, const double komi, pla
 	return std::tuple<double, double, int>(s.first, s.second, mc);
 }
 
-double benchmark(const Board & in, const int ms, const double komi)
+double benchmark_1(const Board & in, const int ms, const double komi)
 {
-	send(true, "# starting benchmark: duration: %.3fs, board dimensions: %d, komi: %g", ms / 1000.0, in.getDim(), komi);
+	send(true, "# starting benchmark 1: duration: %.3fs, board dimensions: %d, komi: %g", ms / 1000.0, in.getDim(), komi);
 
 	uint64_t start = get_ts_ms();
 	uint64_t end = 0;
@@ -1418,6 +1423,35 @@ double benchmark(const Board & in, const int ms, const double komi)
 
 	double pops = n * 1000. / (end - start);
 	send(true, "# playouts (%d) per second: %f (%.1f stones on average)", n, pops, total_puts / double(n));
+
+	return pops;
+}
+
+double benchmark_2(const Board & in, const int ms)
+{
+	send(true, "# starting benchmark 2: duration: %.3fs, board dimensions: %d", ms / 1000.0, in.getDim());
+
+	uint64_t start = get_ts_ms();
+	uint64_t end = 0;
+	uint64_t n = 0;
+
+	ChainMap cm(in.getDim());
+
+	do {
+		std::vector<chain_t *> chainsWhite, chainsBlack;
+		findChains(in, &chainsWhite, &chainsBlack, &cm);
+
+		purgeChains(&chainsBlack);
+		purgeChains(&chainsWhite);
+
+		n++;
+
+		end = get_ts_ms();
+	}
+	while(end - start < ms);
+
+	double pops = n * 1000. / (end - start);
+	send(true, "# playouts (%d) per second: %f", n, pops);
 
 	return pops;
 }
@@ -1664,9 +1698,14 @@ int main(int argc, char *argv[])
 			else
 				send(true, "=%s false", id.c_str());
 		}
-		else if (parts.at(0) == "benchmark") {
+		else if (parts.at(0) == "benchmark" && parts.size() == 3) {
+			double pops = -1.;
+
 			// play outs per second
-			double pops = benchmark(*b, parts.size() == 2 ? atoi(parts.at(1).c_str()) : 1000, komi);
+			if (parts.at(2) == "1")
+				pops = benchmark_1(*b, parts.size() == 2 ? atoi(parts.at(1).c_str()) : 1000, komi);
+			else if (parts.at(2) == "2")
+				pops = benchmark_2(*b, parts.size() == 2 ? atoi(parts.at(1).c_str()) : 1000);
 
 			send(true, "=%s %f", id.c_str(), pops);
 		}
