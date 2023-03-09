@@ -930,9 +930,9 @@ typedef struct
 }
 end_indicator_t;
 
-int search(const Board & b, const player_t & p, int alpha, const int beta, const int depth, const int komi, const uint64_t end_t, end_indicator_t *const ei)
+int search(const Board & b, const player_t & p, int alpha, const int beta, const int depth, const int komi, const uint64_t end_t, end_indicator_t *const ei, std::atomic_bool *const quick_stop)
 {
-	if (ei->flag)
+	if (ei->flag || *quick_stop)
 		return -32767;
 
 	const int dim = b.getDim();
@@ -944,6 +944,7 @@ int search(const Board & b, const player_t & p, int alpha, const int beta, const
 	// do not calculate chains when at depth 0 as they're not used then
 	if (depth > 0) {
 		ChainMap cm(dim);
+
 		std::vector<chain_t *> chainsWhite, chainsBlack;
 		findChains(b, &chainsWhite, &chainsBlack, &cm);
 
@@ -968,9 +969,6 @@ int search(const Board & b, const player_t & p, int alpha, const int beta, const
 		return p == P_BLACK ? s.first - s.second : s.second - s.first;
 	}
 
-	if (get_ts_ms() >= end_t)
-		return -INT_MAX;
-
 	int bestScore = -32768;
 	std::optional<Vertex> bestMove;
 
@@ -978,13 +976,11 @@ int search(const Board & b, const player_t & p, int alpha, const int beta, const
 
 	for(auto chain : chainsEmpty) {
 		for(auto stone : chain->chain) {
-			// TODO: isUsable()
-
 			Board work(b);
 
 			play(&work, stone, p);
 
-			int score = -search(work, opponent, -beta, -alpha, depth - 1, komi, end_t, ei);
+			int score = -search(work, opponent, -beta, -alpha, depth - 1, komi, end_t, ei, quick_stop);
 
 			if (depth == 1)
 				score += evals.at(stone.getV()).score;
@@ -1041,25 +1037,28 @@ void selectAlphaBeta(const Board & b, const ChainMap & cm, const std::vector<cha
 	for(int i=0; i<dim * dim; i++)
 		n_work += valid[i] = isUsable(cm, chainsEmpty, { i, dim });
 
-	send(false, "# work: %d", n_work);
+	send(false, "# work: %d, time: %f", n_work, useTime);
 
 	uint64_t start_t = get_ts_ms();  // TODO: start of genMove()
 	uint64_t hend_t  = start_t + useTime * 1000 / 2;
 	uint64_t end_t   = start_t + useTime * 1000;
 
 	end_indicator_t ei { false };
-	std::thread *to_timer = new std::thread(timer, end_t, &ei);
+	std::thread *to_timer = new std::thread(timer, end_t - start_t, &ei);
 
 	int depth = 1;
 
 	size_t n_bytes  = sizeof(int) * dim * dim;
 
-	int *selected_scores = reinterpret_cast<int *>(calloc(1, n_bytes));
+	std::optional<int> best;
 
 	while(get_ts_ms() < hend_t && depth <= dim * dim) {
 		send(false, "# a/b depth: %d", depth);
 
 		fifo<int> places(dim * dim + 1);
+
+		int alpha = -32767;
+		int beta  =  32767;
 
 		// queue "work" for threads
 		for(int i=0; i<dim * dim; i++) {
@@ -1067,32 +1066,46 @@ void selectAlphaBeta(const Board & b, const ChainMap & cm, const std::vector<cha
 				places.put(i);
 		}
 
+		std::atomic_bool quick_stop { false };
+
+		std::optional<int> local_best;
+
+		bool ok = false;
+
 		std::vector<std::thread *> threads;
 
-		int *scores = reinterpret_cast<int *>(calloc(1, n_bytes));
-
-		bool to = false;
-
 		for(int i=0; i<nThreads; i++) {
-			threads.push_back(new std::thread([hend_t, end_t, &places, dim, scores, b, p, depth, komi, &to, &ei] {
+			threads.push_back(new std::thread([hend_t, end_t, &places, dim, b, p, depth, komi, &ei, &alpha, &beta, &best, &quick_stop, &local_best, &ok] {
 				for(;;) {
 					int time_left = hend_t - get_ts_ms();
-					if (time_left <= 0)
+					if (time_left <= 0 || ei.flag)
 						break;
 
 					auto v = places.try_get();
 
-					if (v.has_value() == false || ei.flag)
+					if (v.has_value() == false) {
+						ok = true;
 						break;
+					}
 
 					Board work(b);
 
 					play(&work, { v.value(), dim }, p);
 
-					int score = search(work, p == P_BLACK ? P_WHITE : P_BLACK, -32768, 32768, depth, komi, end_t, &ei);
+					int score = search(work, p == P_BLACK ? P_WHITE : P_BLACK, alpha, beta, depth, komi, end_t, &ei, &quick_stop);
 
-					if (ei.flag == false)
-						scores[v.value()] = score;
+					if (ei.flag == false && score > alpha) {
+						alpha = score;
+
+						local_best = v.value();
+
+						if (score >= beta) {
+							send(false, "BCO: %d %d %d\n", alpha, score, beta);
+							quick_stop = true;
+							ok = true;
+							break;
+						}
+					}
 				}
 			}));
 		}
@@ -1102,38 +1115,22 @@ void selectAlphaBeta(const Board & b, const ChainMap & cm, const std::vector<cha
 		while(threads.empty() == false) {
 			(*threads.begin())->join();
 
-			send(false, "# thread terminated, %zu left", threads.size());
+			//send(false, "# thread terminated, %zu left", threads.size());
 
 			delete *threads.begin();
 
 			threads.erase(threads.begin());
 		}
 
-		if (places.is_empty() == true && to == false)
-			memcpy(selected_scores, scores, n_bytes);
-		else
-			send(false, "# not enough time");
+		if (ok && ei.flag == false && local_best.has_value()) {
+			best = local_best;
 
-		free(scores);
+			send(false, "# Move selected for this depth: %s (%d)", v2t(Vertex(best.value(), dim)).c_str(), best);
+		}
 
 		depth++;
 	}
 
-	int best  = -INT_MAX;
-	int besti = -1;
-
-	for(int i=0; i<dim * dim; i++) {
-		evals->at(i).score += selected_scores[i];
-		evals->at(i).valid = true;
-
-		if (selected_scores[i] > best) {
-			best  = selected_scores[i];
-			besti = i;
-		}
-	}
-
-	free(selected_scores);
-	
 	if (to_timer) {
 		ei.flag = true;
 		ei.cv.notify_one();
@@ -1143,12 +1140,11 @@ void selectAlphaBeta(const Board & b, const ChainMap & cm, const std::vector<cha
 		delete to_timer;
 	}
 
-	if (besti != -1) {
-		Vertex v(besti, dim);
+	if (best.has_value()) {
+		send(false, "# Move selected by A/B: %s (%d)", v2t(Vertex(best.value(), dim)).c_str(), best);
 
-		send(false, "# Move selected by A/B: %s (%d)", v2t(v).c_str(), best);
-
-		evals->at(besti).score += 5;
+		evals->at(best.value()).score += 10;
+		evals->at(best.value()).valid = true;
 	}
 
 	delete [] valid;
