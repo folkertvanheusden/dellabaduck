@@ -88,37 +88,37 @@ player_t getOpponent(const player_t & p)
 
 class Vertex
 {
-private:
-	const int v, dim;
+	private:
+		const int v, dim;
 
-public:
-	Vertex(const int v, const int dim) : v(v), dim(dim) {
-		assert(dim & 1);
-	}
+	public:
+		Vertex(const int v, const int dim) : v(v), dim(dim) {
+			assert(dim & 1);
+		}
 
-	Vertex(const int x, const int y, const int dim) : v(y * dim + x), dim(dim) {
-		assert(dim & 1);
-	}
+		Vertex(const int x, const int y, const int dim) : v(y * dim + x), dim(dim) {
+			assert(dim & 1);
+		}
 
-	Vertex(const Vertex & v) : v(v.getV()), dim(v.getDim()) {
-		assert(dim & 1);
-	}
+		Vertex(const Vertex & v) : v(v.getV()), dim(v.getDim()) {
+			assert(dim & 1);
+		}
 
-	int getDim() const {
-		return dim;
-	}
+		int getDim() const {
+			return dim;
+		}
 
-	int getV() const {
-		return v;
-	}
+		int getV() const {
+			return v;
+		}
 
-	int getX() const {
-		return v % dim;
-	}
+		int getX() const {
+			return v % dim;
+		}
 
-	int getY() const {
-		return v / dim;
-	}
+		int getY() const {
+			return v / dim;
+		}
 };
 
 std::string v2t(const Vertex & v)
@@ -180,62 +180,62 @@ void dump(const std::vector<chain_t *> & chains)
 }
 
 class Board {
-private:
-	const int dim;
-	board_t *const b;
+	private:
+		const int dim;
+		board_t *const b;
 
-public:
-	Board(const int dim) : dim(dim), b(new board_t[dim * dim]()) {
-		assert(dim & 1);
-	}
+	public:
+		Board(const int dim) : dim(dim), b(new board_t[dim * dim]()) {
+			assert(dim & 1);
+		}
 
-	~Board() {
-		delete [] b;
-	}
+		~Board() {
+			delete [] b;
+		}
 
-	Board(const Board & bIn) : dim(bIn.getDim()), b(new board_t[dim * dim]) {
-		assert(dim & 1);
+		Board(const Board & bIn) : dim(bIn.getDim()), b(new board_t[dim * dim]) {
+			assert(dim & 1);
 
-		bIn.getTo(b);
-	}
+			bIn.getTo(b);
+		}
 
-	int getDim() const {
-		return dim;
-	}
+		int getDim() const {
+			return dim;
+		}
 
-	void getTo(board_t *const bto) const {
-		memcpy(bto, b, dim * dim * sizeof(*b));
-	}
+		void getTo(board_t *const bto) const {
+			memcpy(bto, b, dim * dim * sizeof(*b));
+		}
 
-	board_t getAt(const int v) const {
-		assert(v < dim * dim);
-		assert(v >= 0);
-		return b[v];
-	}
+		board_t getAt(const int v) const {
+			assert(v < dim * dim);
+			assert(v >= 0);
+			return b[v];
+		}
 
-	board_t getAt(const int x, const int y) const {
-		assert(x < dim && x >= 0);
-		assert(y < dim && y >= 0);
-		int v = y * dim + x;
-		return b[v];
-	}
+		board_t getAt(const int x, const int y) const {
+			assert(x < dim && x >= 0);
+			assert(y < dim && y >= 0);
+			int v = y * dim + x;
+			return b[v];
+		}
 
-	void setAt(const int v, const board_t bv) {
-		assert(v < dim * dim);
-		assert(v >= 0);
-		b[v] = bv;
-	}
+		void setAt(const int v, const board_t bv) {
+			assert(v < dim * dim);
+			assert(v >= 0);
+			b[v] = bv;
+		}
 
-	void setAt(const Vertex & v, const board_t bv) {
-		b[v.getV()] = bv;
-	}
+		void setAt(const Vertex & v, const board_t bv) {
+			b[v.getV()] = bv;
+		}
 
-	void setAt(const int x, const int y, const board_t bv) {
-		assert(x < dim && x >= 0);
-		assert(y < dim && y >= 0);
-		int v = y * dim + x;
-		b[v] = bv;
-	}
+		void setAt(const int x, const int y, const board_t bv) {
+			assert(x < dim && x >= 0);
+			assert(y < dim && y >= 0);
+			int v = y * dim + x;
+			b[v] = bv;
+		}
 };
 
 Board stringToBoard(const std::string & in)
@@ -313,54 +313,54 @@ void dump(const Board & b)
 }
 
 class ChainMap {
-private:
-	const int dim;
-	chain_t **const cm;
-	bool *const enclosed;
+	private:
+		const int dim;
+		chain_t **const cm;
+		bool *const enclosed;
 
-public:
-	ChainMap(const int dim) : dim(dim), cm(new chain_t *[dim * dim]()), enclosed(new bool[dim * dim]()) {
-		assert(dim & 1);
-	}
+	public:
+		ChainMap(const int dim) : dim(dim), cm(new chain_t *[dim * dim]()), enclosed(new bool[dim * dim]()) {
+			assert(dim & 1);
+		}
 
-	~ChainMap() {
-		delete [] enclosed;
-		delete [] cm;
-	}
+		~ChainMap() {
+			delete [] enclosed;
+			delete [] cm;
+		}
 
-	bool getEnclosed(const int v) const {
-		return enclosed[v];
-	}
+		bool getEnclosed(const int v) const {
+			return enclosed[v];
+		}
 
-	int getDim() const {
-		return dim;
-	}
+		int getDim() const {
+			return dim;
+		}
 
-	chain_t * getAt(const int v) const {
-		return cm[v];
-	}
+		chain_t * getAt(const int v) const {
+			return cm[v];
+		}
 
-	chain_t * getAt(const int x, const int y) const {
-		assert(x < dim && x >= 0);
-		assert(y < dim && y >= 0);
-		int v = y * dim + x;
-		return cm[v];
-	}
+		chain_t * getAt(const int x, const int y) const {
+			assert(x < dim && x >= 0);
+			assert(y < dim && y >= 0);
+			int v = y * dim + x;
+			return cm[v];
+		}
 
-	void setEnclosed(const int v) {
-		enclosed[v] = true;
-	}
+		void setEnclosed(const int v) {
+			enclosed[v] = true;
+		}
 
-	void setAt(const Vertex & v, chain_t *const chain) {
-		setAt(v.getX(), v.getY(), chain);
-	}
+		void setAt(const Vertex & v, chain_t *const chain) {
+			setAt(v.getX(), v.getY(), chain);
+		}
 
-	void setAt(const int x, const int y, chain_t *const chain) {
-		assert(x < dim && x >= 0);
-		assert(y < dim && y >= 0);
-		int v = y * dim + x;
-		cm[v] = chain;
-	}
+		void setAt(const int x, const int y, chain_t *const chain) {
+			assert(x < dim && x >= 0);
+			assert(y < dim && y >= 0);
+			int v = y * dim + x;
+			cm[v] = chain;
+		}
 };
 
 void dump(const ChainMap & cm)
@@ -457,30 +457,6 @@ void findChains(const Board & b, std::vector<chain_t *> *const chainsWhite, std:
 	delete [] scanned;
 }
 
-void scanChainsOfFreedoms(const Board & b, bool *const scanned, chain_t *const curChain, const int x, const int y)
-{
-	board_t bv = b.getAt(x, y);
-
-	const int dim = b.getDim();
-
-	const int v = y * dim + x;
-
-	if (bv == B_EMPTY && scanned[v] == false) {
-		scanned[v] = true;
-
-		curChain->chain.insert({ x, y, dim });
-
-		if (y > 0)
-			scanChainsOfFreedoms(b, scanned, curChain, x, y - 1);
-		if (y < dim - 1)
-			scanChainsOfFreedoms(b, scanned, curChain, x, y + 1);
-		if (x > 0)
-			scanChainsOfFreedoms(b, scanned, curChain, x - 1, y);
-		if (x < dim - 1)
-			scanChainsOfFreedoms(b, scanned, curChain, x + 1, y);
-	}
-}
-
 void findChainsOfFreedoms(const Board & b, std::vector<chain_t *> *const chainsEmpty)
 {
 	const int dim = b.getDim();
@@ -501,7 +477,35 @@ void findChainsOfFreedoms(const Board & b, std::vector<chain_t *> *const chainsE
 			chain_t *curChain = new chain_t;
 			curChain->type = B_EMPTY;
 
-			scanChainsOfFreedoms(b, scanned, curChain, x, y);
+			std::queue<std::pair<int, int> > work_queue;
+			work_queue.push({ x, y });
+
+			do {
+				auto pair = work_queue.front();
+				work_queue.pop();
+
+				const int x = pair.first;
+				const int y = pair.second;
+
+				if (x < 0 || x >= dim || y < 0 || y >= dim)
+					continue;
+
+				const int v = y * dim + x;
+
+				board_t cur_bv = b.getAt(v);
+
+				if (cur_bv == B_EMPTY && scanned[v] == false) {
+					scanned[v] = true;
+
+					curChain->chain.insert({ x, y, dim });
+
+					work_queue.push({ x, y - 1 });
+					work_queue.push({ x, y + 1 });
+					work_queue.push({ x - 1, y });
+					work_queue.push({ x + 1, y });
+				}
+			}
+			while(work_queue.empty() == false);
 
 			chainsEmpty->push_back(curChain);
 		}
@@ -847,8 +851,8 @@ std::string scoreStr(auto scores)
 }
 
 typedef struct {
-        int score;
-        bool valid;
+	int score;
+	bool valid;
 } eval_t;
 
 bool isValidMove(const std::vector<chain_t *> & chainsEmpty, const Vertex & v)
@@ -942,8 +946,8 @@ int calcN(const std::vector<chain_t *> & chains)
 
 typedef struct
 {
-        std::atomic_bool        flag;
-        std::condition_variable cv;
+	std::atomic_bool        flag;
+	std::condition_variable cv;
 }
 end_indicator_t;
 
@@ -961,7 +965,7 @@ int search(const Board & b, const player_t & p, int alpha, const int beta, const
 
 	std::vector<chain_t *> chainsEmpty;
 
-        std::vector<eval_t> evals;
+	std::vector<eval_t> evals;
 
 	// do not calculate chains when at depth 0 as they're not used then
 	if (depth > 0) {
@@ -1012,8 +1016,8 @@ int search(const Board & b, const player_t & p, int alpha, const int beta, const
 
 			int score = -search(work, opponent, -beta, -alpha, depth - 1, komi, end_t, ei, quick_stop);
 
-//			if (depth == 1)
-//				score += evals.at(stone.getV()).score;
+			//			if (depth == 1)
+			//				score += evals.at(stone.getV()).score;
 
 			if (score > bestScore) {
 				bestScore = score;
@@ -1154,25 +1158,25 @@ void selectAlphaBeta(const Board & b, const ChainMap & cm, const std::vector<cha
 
 		for(int i=0; i<nThreads; i++) {
 			threads.push_back(new std::thread([hend_t, end_t, &places, dim, b, p, depth, komi, &ei, &alpha, &beta, &best, &quick_stop, &local_best, &ok] {
-				for(;;) {
-					int time_left = hend_t - get_ts_ms();
-					if (time_left <= 0 || ei.flag)
+						for(;;) {
+						int time_left = hend_t - get_ts_ms();
+						if (time_left <= 0 || ei.flag)
 						break;
 
-					auto v = places.try_get();
+						auto v = places.try_get();
 
-					if (v.has_value() == false) {
+						if (v.has_value() == false) {
 						ok = true;
 						break;
-					}
+						}
 
-					Board work(b);
+						Board work(b);
 
-					play(&work, { v.value(), dim }, p);
+						play(&work, { v.value(), dim }, p);
 
-					int score = search(work, p == P_BLACK ? P_WHITE : P_BLACK, alpha, beta, depth, komi, end_t, &ei, &quick_stop);
+						int score = search(work, p == P_BLACK ? P_WHITE : P_BLACK, alpha, beta, depth, komi, end_t, &ei, &quick_stop);
 
-					if (ei.flag == false && score > alpha) {
+						if (ei.flag == false && score > alpha) {
 						alpha = score;
 
 						local_best = v.value();
@@ -1183,8 +1187,8 @@ void selectAlphaBeta(const Board & b, const ChainMap & cm, const std::vector<cha
 							ok = true;
 							break;
 						}
-					}
-				}
+						}
+						}
 			}));
 		}
 
@@ -1262,11 +1266,11 @@ std::optional<Vertex> genMove(Board *const b, const player_t & p, const bool doP
 
 	send(false, "# useTime: %f", useTime);
 
-        std::vector<eval_t> evals;
+	std::vector<eval_t> evals;
 	evals.resize(p2dim);
 
 	// algorithms
-// FIXME	selectRandom(*b, cm, chainsWhite, chainsBlack, chainsEmpty, p, &evals);
+	// FIXME	selectRandom(*b, cm, chainsWhite, chainsBlack, chainsEmpty, p, &evals);
 
 	selectExtendChains(*b, cm, chainsWhite, chainsBlack, chainsEmpty, p, &evals);
 
@@ -1280,17 +1284,17 @@ std::optional<Vertex> genMove(Board *const b, const player_t & p, const bool doP
 	// find best
 	std::optional<Vertex> v;
 
-        int bestScore = -32767;
-        for(int i=0; i<p2dim; i++) {
-                if (evals.at(i).score > bestScore && evals.at(i).valid) {
-                        Vertex temp { i, dim };
+	int bestScore = -32767;
+	for(int i=0; i<p2dim; i++) {
+		if (evals.at(i).score > bestScore && evals.at(i).valid) {
+			Vertex temp { i, dim };
 
 			if (isValidMove(chainsEmpty, temp)) {
-                                v.emplace(temp);
-                                bestScore = evals.at(i).score;
-                        }
-                }
-        }
+				v.emplace(temp);
+				bestScore = evals.at(i).score;
+			}
+		}
+	}
 
 	// dump debug
 	for(int y=dim-1; y>=0; y--) {
@@ -1429,31 +1433,31 @@ double benchmark_1(const Board & in, const int ms, const double komi)
 
 double benchmark_2(const Board & in, const int ms)
 {
-        send(true, "# starting benchmark 2: duration: %.3fs, board dimensions: %d", ms / 1000.0, in.getDim());
+	send(true, "# starting benchmark 2: duration: %.3fs, board dimensions: %d", ms / 1000.0, in.getDim());
 
-        uint64_t start = get_ts_ms();
-        uint64_t end = 0;
-        uint64_t n = 0;
+	uint64_t start = get_ts_ms();
+	uint64_t end = 0;
+	uint64_t n = 0;
 
-        ChainMap cm(in.getDim());
+	ChainMap cm(in.getDim());
 
-        do {
-                std::vector<chain_t *> chainsWhite, chainsBlack;
-                findChains(in, &chainsWhite, &chainsBlack, &cm);
+	do {
+		std::vector<chain_t *> chainsWhite, chainsBlack;
+		findChains(in, &chainsWhite, &chainsBlack, &cm);
 
-                purgeChains(&chainsBlack);
-                purgeChains(&chainsWhite);
+		purgeChains(&chainsBlack);
+		purgeChains(&chainsWhite);
 
-                n++;
+		n++;
 
-                end = get_ts_ms();
-        }
-        while(end - start < ms);
+		end = get_ts_ms();
+	}
+	while(end - start < ms);
 
-        double pops = n * 1000. / (end - start);
-        send(true, "# playouts (%d) per second: %f", n, pops);
+	double pops = n * 1000. / (end - start);
+	send(true, "# playouts (%d) per second: %f", n, pops);
 
-        return pops;
+	return pops;
 }
 
 void load_stones(Board *const b, const char *in, const board_t & bv)
@@ -1510,33 +1514,33 @@ Board loadSgf(const std::string & filename)
 int main(int argc, char *argv[])
 {
 #if 0
-        Board b5 = stringToBoard(
-                        ".....\n"
-                        ".....\n"
-                        ".....\n"
-                        ".....\n"
-                        ".....\n"
-                        );
+	Board b5 = stringToBoard(
+			".....\n"
+			".....\n"
+			".....\n"
+			".....\n"
+			".....\n"
+			);
 
-        Board b7_1 = stringToBoard(
-                        "xxxxxxx\n"
-                        "x.....x\n"
-                        "x.o...x\n"
-                        "x...xxx\n"
-                        "xxxx...\n"
-                        ".....xx\n"
-                        ".....x.\n"
-                        );
+	Board b7_1 = stringToBoard(
+			"xxxxxxx\n"
+			"x.....x\n"
+			"x.o...x\n"
+			"x...xxx\n"
+			"xxxx...\n"
+			".....xx\n"
+			".....x.\n"
+			);
 
-        Board b7_2 = stringToBoard(
-                        "xxxxxxx\n"
-                        "x.....x\n"
-                        "x.....x\n"
-                        "x...xxx\n"
-                        "xxxx...\n"
-                        ".....xx\n"
-                        ".o...x.\n"
-                        );
+	Board b7_2 = stringToBoard(
+			"xxxxxxx\n"
+			"x.....x\n"
+			"x.....x\n"
+			"x...xxx\n"
+			"xxxx...\n"
+			".....xx\n"
+			".o...x.\n"
+			);
 
 	Board & b = b7_2;
 
@@ -1554,11 +1558,11 @@ int main(int argc, char *argv[])
 	return 0;
 
 #endif
-        dump(b);
+	dump(b);
 
 	ChainMap cm(b.getDim());
-        std::vector<chain_t *> chainsWhite, chainsBlack;
-        findChains(b, &chainsWhite, &chainsBlack, &cm);
+	std::vector<chain_t *> chainsWhite, chainsBlack;
+	findChains(b, &chainsWhite, &chainsBlack, &cm);
 
 	scanEnclosed(b, &cm, playerToStone(P_WHITE));
 	dump(cm);
@@ -1569,11 +1573,11 @@ int main(int argc, char *argv[])
 
 	send(false, "#");
 	send(false, "# white:");
-        dump(chainsWhite);
+	dump(chainsWhite);
 
 	send(false, "#");
 	send(false, "# black:");
-        dump(chainsBlack);
+	dump(chainsBlack);
 
 	std::vector<chain_t *> chainsEmpty;
 	findChainsOfFreedoms(b, &chainsEmpty);
@@ -1604,17 +1608,17 @@ int main(int argc, char *argv[])
 #elif 1
 	Board *b = new Board(9);
 #if 0
-        Board *b = new Board(stringToBoard(
-                        "xxxxxxx..\n"
-                        "x.....x..\n"
-                        "x.....x..\n"
-                        "x...xxx..\n"
-                        "xxxx.....\n"
-                        ".....xx..\n"
-                        ".o...x...\n"
-                        ".........\n"
-                        ".........\n"
-                        ));
+	Board *b = new Board(stringToBoard(
+				"xxxxxxx..\n"
+				"x.....x..\n"
+				"x.....x..\n"
+				"x...xxx..\n"
+				"xxxx.....\n"
+				".....xx..\n"
+				".o...x...\n"
+				".........\n"
+				".........\n"
+				));
 #endif
 
 	int c = -1;
@@ -1698,17 +1702,17 @@ int main(int argc, char *argv[])
 			else
 				send(true, "=%s false", id.c_str());
 		}
-                else if (parts.at(0) == "benchmark" && parts.size() == 3) {
-                        double pops = -1.;
+		else if (parts.at(0) == "benchmark" && parts.size() == 3) {
+			double pops = -1.;
 
-                        // play outs per second
-                        if (parts.at(2) == "1")
-                                pops = benchmark_1(*b, atoi(parts.at(1).c_str()), komi);
-                        else if (parts.at(2) == "2")
-                                pops = benchmark_2(*b, atoi(parts.at(1).c_str()));
+			// play outs per second
+			if (parts.at(2) == "1")
+				pops = benchmark_1(*b, atoi(parts.at(1).c_str()), komi);
+			else if (parts.at(2) == "2")
+				pops = benchmark_2(*b, atoi(parts.at(1).c_str()));
 
-                        send(true, "=%s %f", id.c_str(), pops);
-                }
+			send(true, "=%s %f", id.c_str(), pops);
+		}
 		else if (parts.at(0) == "komi") {
 			komi = atof(parts.at(1).c_str());
 
@@ -1831,7 +1835,7 @@ int main(int argc, char *argv[])
 
 		send(true, "");
 
-//		dump(*b);
+		//		dump(*b);
 
 		fflush(nullptr);
 	}
