@@ -982,8 +982,8 @@ int search(const Board & b, const player_t & p, int alpha, const int beta, const
 
 			int score = -search(work, opponent, -beta, -alpha, depth - 1, komi, end_t, ei, quick_stop);
 
-			if (depth == 1)
-				score += evals.at(stone.getV()).score;
+//			if (depth == 1)
+//				score += evals.at(stone.getV()).score;
 
 			if (score > bestScore) {
 				bestScore = score;
