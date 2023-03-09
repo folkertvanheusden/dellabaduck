@@ -1250,6 +1250,7 @@ std::optional<Vertex> genMove(Board *const b, const player_t & p, const bool doP
 
 	// not enough time
 	if (useTime < 0.1) {
+		purgeChains(&chainsEmpty);
 		purgeChains(&chainsBlack);
 		purgeChains(&chainsWhite);
 
