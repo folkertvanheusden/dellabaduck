@@ -1587,6 +1587,12 @@ int main(int argc, char *argv[])
                         ));
 #endif
 
+	int c = -1;
+	while((c = getopt(argc, argv, "c")) != -1) {
+		if (c == 'c')  // console
+			cgos = false;
+	}
+
 	setbuf(stdout, nullptr);
 	setbuf(stderr, nullptr);
 
@@ -1703,23 +1709,33 @@ int main(int argc, char *argv[])
 
 			double think_time = atof(parts.at(1).c_str());
 
+			double time_left[] = { think_time, think_time };
+
 			uint64_t g_start_ts = get_ts_ms();
 			int n_moves = 0;
 
 			for(;;) {
-				uint64_t start_ts = get_ts_ms();
-
 				n_moves++;
 
-				auto v = genMove(b, p, true, think_time, komi);
-				if (v.has_value() == false)
-					break;
+				uint64_t start_ts = get_ts_ms();
+
+				auto v = genMove(b, p, true, time_left[p], komi);
 
 				uint64_t end_ts = get_ts_ms();
 
-				send(true, "# %s, took %.3fs/%d", v2t(v.value()).c_str(), (end_ts - start_ts) / 1000.0, n_moves);
+				time_left[p] -= (end_ts - start_ts) / 1000.;
 
-				p = p == P_BLACK ? P_WHITE : P_BLACK;
+				const char *color = p == P_BLACK ? "black" : "white";
+
+				if (time_left[p] < 0)
+					send(true, "# %s is out of time (%f)", color, time_left[p]);
+
+				if (v.has_value() == false)
+					break;
+
+				send(true, "# %s (%s), took %.3fs/%d, time left: %.3f", v2t(v.value()).c_str(), color, (end_ts - start_ts) / 1000.0, n_moves, time_left[p]);
+
+				p = getOpponent(p);
 			}
 
 			uint64_t g_end_ts = get_ts_ms();
