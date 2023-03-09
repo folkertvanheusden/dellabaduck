@@ -425,9 +425,9 @@ void findChains(const Board & b, std::vector<chain_t *> *const chainsWhite, std:
 				if (x < 0 || x >= dim || y < 0 || y >= dim)
 					continue;
 
-				board_t cur_bv = b.getAt(x, y);
-
 				const int v = y * dim + x;
+
+				board_t cur_bv = b.getAt(v);
 
 				if (cur_bv == bv && scanned[v] == false) {
 					scanned[v] = true;
