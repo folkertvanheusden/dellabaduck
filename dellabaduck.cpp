@@ -6,6 +6,7 @@
 #include <ctype.h>
 #include <fstream>
 #include <optional>
+#include <queue>
 #include <set>
 #include <stdarg.h>
 #include <stdint.h>
@@ -24,11 +25,13 @@
 #include "str.h"
 #include "time.h"
 
+#define CALC_BCO
+
 typedef enum { P_BLACK = 0, P_WHITE } player_t;
 typedef enum { B_EMPTY, B_WHITE, B_BLACK, B_LAST } board_t;
 const char *const board_t_names[] = { ".", "o", "x" };
 
-FILE *fh = fopen("/tmp/input.dat", "a+");
+FILE *fh = fopen("input.dat", "a+");
 
 bool cgos = true;
 
@@ -389,35 +392,6 @@ void dump(const ChainMap & cm)
 	send(false, line.c_str());
 }
 
-void scanChains(const Board & b, bool *const scanned, chain_t *const curChain, const int x, const int y, const board_t & startType, ChainMap *const cm)
-{
-	board_t bv = b.getAt(x, y);
-
-	const int dim = b.getDim();
-
-	const int v = y * dim + x;
-
-	if (bv == startType && scanned[v] == false) {
-		scanned[v] = true;
-
-		cm->setAt(x, y, curChain);
-
-		curChain->chain.insert({ x, y, dim });
-
-		if (y > 0)
-			scanChains(b, scanned, curChain, x, y - 1, startType, cm);
-		if (y < dim - 1)
-			scanChains(b, scanned, curChain, x, y + 1, startType, cm);
-		if (x > 0)
-			scanChains(b, scanned, curChain, x - 1, y, startType, cm);
-		if (x < dim - 1)
-			scanChains(b, scanned, curChain, x + 1, y, startType, cm);
-	}
-	else if (bv == B_EMPTY) {
-		curChain->freedoms.insert({ x, y, dim });  // only for counting the total number of freedoms
-	}
-}
-
 void findChains(const Board & b, std::vector<chain_t *> *const chainsWhite, std::vector<chain_t *> *const chainsBlack, ChainMap *const cm)
 {
 	const int dim = b.getDim();
@@ -438,7 +412,40 @@ void findChains(const Board & b, std::vector<chain_t *> *const chainsWhite, std:
 			chain_t *curChain = new chain_t;
 			curChain->type = bv;
 
-			scanChains(b, scanned, curChain, x, y, bv, cm);
+			std::queue<std::pair<int, int> > work_queue;
+			work_queue.push({ x, y });
+
+			do {
+				auto pair = work_queue.front();
+				work_queue.pop();
+
+				const int x = pair.first;
+				const int y = pair.second;
+
+				if (x < 0 || x >= dim || y < 0 || y >= dim)
+					continue;
+
+				const int v = y * dim + x;
+
+				board_t cur_bv = b.getAt(v);
+
+				if (cur_bv == bv && scanned[v] == false) {
+					scanned[v] = true;
+
+					cm->setAt(x, y, curChain);
+
+					curChain->chain.insert({ x, y, dim });
+
+					work_queue.push({ x, y - 1 });
+					work_queue.push({ x, y + 1 });
+					work_queue.push({ x - 1, y });
+					work_queue.push({ x + 1, y });
+				}
+				else if (cur_bv == B_EMPTY) {
+					curChain->freedoms.insert({ x, y, dim });  // only for counting the total number of freedoms
+				}
+			}
+			while(work_queue.empty() == false);
 
 			if (curChain->type == B_WHITE)
 				chainsWhite->push_back(curChain);
@@ -923,6 +930,16 @@ void selectAtLeastOne(const Board & b, const ChainMap & cm, const std::vector<ch
 	evals->at(v).valid = true;
 }
 
+int calcN(const std::vector<chain_t *> & chains)
+{
+	int n = 0;
+
+	for(auto chain : chains)
+		n += chain->chain.size();
+
+	return n;
+}
+
 typedef struct
 {
         std::atomic_bool        flag;
@@ -930,9 +947,14 @@ typedef struct
 }
 end_indicator_t;
 
-int search(const Board & b, const player_t & p, int alpha, const int beta, const int depth, const int komi, const uint64_t end_t, end_indicator_t *const ei)
+#ifdef CALC_BCO
+double bco_total = 0;
+uint64_t bco_n = 0;
+#endif
+
+int search(const Board & b, const player_t & p, int alpha, const int beta, const int depth, const int komi, const uint64_t end_t, end_indicator_t *const ei, std::atomic_bool *const quick_stop)
 {
-	if (ei->flag)
+	if (ei->flag || *quick_stop)
 		return -32767;
 
 	const int dim = b.getDim();
@@ -944,6 +966,7 @@ int search(const Board & b, const player_t & p, int alpha, const int beta, const
 	// do not calculate chains when at depth 0 as they're not used then
 	if (depth > 0) {
 		ChainMap cm(dim);
+
 		std::vector<chain_t *> chainsWhite, chainsBlack;
 		findChains(b, &chainsWhite, &chainsBlack, &cm);
 
@@ -951,12 +974,12 @@ int search(const Board & b, const player_t & p, int alpha, const int beta, const
 		findChainsOfFreedoms(b, &chainsEmpty);
 		purgeFreedoms(&chainsEmpty, cm, playerToStone(p));
 
-		if (depth == 1) {
-			evals.resize(dim * dim);
+	//	if (depth == 1) {
+	//		evals.resize(dim * dim);
 
-			selectExtendChains(b, cm, chainsWhite, chainsBlack, chainsEmpty, p, &evals);
-			selectKillChains(b, cm, chainsWhite, chainsBlack, chainsEmpty, p, &evals);
-		}
+	//		selectExtendChains(b, cm, chainsWhite, chainsBlack, chainsEmpty, p, &evals);
+	//		selectKillChains(b, cm, chainsWhite, chainsBlack, chainsEmpty, p, &evals);
+	//	}
 
 		purgeChains(&chainsBlack);
 		purgeChains(&chainsWhite);
@@ -968,26 +991,29 @@ int search(const Board & b, const player_t & p, int alpha, const int beta, const
 		return p == P_BLACK ? s.first - s.second : s.second - s.first;
 	}
 
-	if (get_ts_ms() >= end_t)
-		return -INT_MAX;
-
 	int bestScore = -32768;
 	std::optional<Vertex> bestMove;
 
 	player_t opponent = getOpponent(p);
 
+#ifdef CALC_BCO
+	int bco = 0;
+#endif
+
 	for(auto chain : chainsEmpty) {
 		for(auto stone : chain->chain) {
-			// TODO: isUsable()
+#ifdef CALC_BCO
+			bco++;
+#endif
 
 			Board work(b);
 
 			play(&work, stone, p);
 
-			int score = -search(work, opponent, -beta, -alpha, depth - 1, komi, end_t, ei);
+			int score = -search(work, opponent, -beta, -alpha, depth - 1, komi, end_t, ei, quick_stop);
 
-			if (depth == 1)
-				score += evals.at(stone.getV()).score;
+//			if (depth == 1)
+//				score += evals.at(stone.getV()).score;
 
 			if (score > bestScore) {
 				bestScore = score;
@@ -1004,6 +1030,13 @@ int search(const Board & b, const player_t & p, int alpha, const int beta, const
 	}
 
 finished:
+#ifdef CALC_BCO
+	int empty = calcN(chainsEmpty);
+
+	bco_total += double(bco) / empty;
+	bco_n++;
+#endif
+
 	purgeChains(&chainsEmpty);
 
 	return bestScore;
@@ -1030,6 +1063,29 @@ void timer(int think_time, end_indicator_t *const ei)
 	}
 }
 
+struct CompareCrossesSortHelper {
+	const Board & b;
+	const int dim;
+	const player_t p;
+
+	CompareCrossesSortHelper(const Board & b, const player_t & p) : b(b), dim(b.getDim()), p(p) {
+	}
+
+	int getScore(const int move) {
+		Board work(b);
+
+		play(&work, { move, dim }, p);
+
+		auto s = score(work, 0.);
+
+		return p == P_BLACK ? s.first - s.second : s.second - s.first;
+	}
+
+	bool operator()(int i, int j) {
+		return getScore(i) > getScore(j);
+	}
+};
+
 void selectAlphaBeta(const Board & b, const ChainMap & cm, const std::vector<chain_t *> & chainsWhite, const std::vector<chain_t *> & chainsBlack, const std::vector<chain_t *> & chainsEmpty, const player_t & p, std::vector<eval_t> *const evals, const double useTime, const double komi, const int nThreads)
 {
 	const int dim = b.getDim();
@@ -1038,61 +1094,96 @@ void selectAlphaBeta(const Board & b, const ChainMap & cm, const std::vector<cha
 
 	int n_work = 0;
 
-	for(int i=0; i<dim * dim; i++)
-		n_work += valid[i] = isUsable(cm, chainsEmpty, { i, dim });
+	std::vector<int> places_for_sort;
 
-	send(false, "# work: %d", n_work);
+	for(int i=0; i<dim * dim; i++) {
+		if (isUsable(cm, chainsEmpty, { i, dim })) {
+			n_work++;
+			places_for_sort.push_back(i);
+		}
+	}
+
+	std::sort(places_for_sort.begin(), places_for_sort.end(), CompareCrossesSortHelper(b, p));
+
+#if 0
+	int c = 0;
+	CompareCrossesSortHelper bla(b, p);
+	for(auto v : places_for_sort) {
+		printf("%d: %d\t", v, bla.getScore(v));
+		if (++c > 8)
+			printf("\n"), c = 0;
+	}
+	printf("\n\n");
+#endif
+
+	send(false, "# work: %d, time: %f", n_work, useTime);
 
 	uint64_t start_t = get_ts_ms();  // TODO: start of genMove()
 	uint64_t hend_t  = start_t + useTime * 1000 / 2;
 	uint64_t end_t   = start_t + useTime * 1000;
 
 	end_indicator_t ei { false };
-	std::thread *to_timer = new std::thread(timer, end_t, &ei);
+	std::thread *to_timer = new std::thread(timer, end_t - start_t, &ei);
 
 	int depth = 1;
+	bool ok = false;
 
 	size_t n_bytes  = sizeof(int) * dim * dim;
 
-	int *selected_scores = reinterpret_cast<int *>(calloc(1, n_bytes));
+	std::optional<int> best;
 
-	while(get_ts_ms() < hend_t) {
+	while(get_ts_ms() < hend_t && depth <= dim * dim) {
 		send(false, "# a/b depth: %d", depth);
 
 		fifo<int> places(dim * dim + 1);
 
+		int alpha = -32767;
+		int beta  =  32767;
+
 		// queue "work" for threads
-		for(int i=0; i<dim * dim; i++) {
-			if (valid[i])
-				places.put(i);
-		}
+		for(auto & v: places_for_sort)
+			places.put(v);
+
+		std::atomic_bool quick_stop { false };
+
+		std::optional<int> local_best;
+
+		ok = false;
 
 		std::vector<std::thread *> threads;
 
-		int *scores = reinterpret_cast<int *>(calloc(1, n_bytes));
-
-		bool to = false;
-
 		for(int i=0; i<nThreads; i++) {
-			threads.push_back(new std::thread([hend_t, end_t, &places, dim, scores, b, p, depth, komi, &to, &ei] {
+			threads.push_back(new std::thread([hend_t, end_t, &places, dim, b, p, depth, komi, &ei, &alpha, &beta, &best, &quick_stop, &local_best, &ok] {
 				for(;;) {
 					int time_left = hend_t - get_ts_ms();
-					if (time_left <= 0)
+					if (time_left <= 0 || ei.flag)
 						break;
 
 					auto v = places.try_get();
 
-					if (v.has_value() == false || ei.flag)
+					if (v.has_value() == false) {
+						ok = true;
 						break;
+					}
 
 					Board work(b);
 
 					play(&work, { v.value(), dim }, p);
 
-					int score = search(work, p == P_BLACK ? P_WHITE : P_BLACK, -32768, 32768, depth, komi, end_t, &ei);
+					int score = search(work, p == P_BLACK ? P_WHITE : P_BLACK, alpha, beta, depth, komi, end_t, &ei, &quick_stop);
 
-					if (ei.flag == false)
-						scores[v.value()] = score;
+					if (ei.flag == false && score > alpha) {
+						alpha = score;
+
+						local_best = v.value();
+
+						if (score >= beta) {
+							send(false, "BCO: %d %d %d\n", alpha, score, beta);
+							quick_stop = true;
+							ok = true;
+							break;
+						}
+					}
 				}
 			}));
 		}
@@ -1102,38 +1193,22 @@ void selectAlphaBeta(const Board & b, const ChainMap & cm, const std::vector<cha
 		while(threads.empty() == false) {
 			(*threads.begin())->join();
 
-			send(false, "# thread terminated, %zu left", threads.size());
+			//send(false, "# thread terminated, %zu left", threads.size());
 
 			delete *threads.begin();
 
 			threads.erase(threads.begin());
 		}
 
-		if (places.is_empty() == true && to == false)
-			memcpy(selected_scores, scores, n_bytes);
-		else
-			send(false, "# not enough time");
+		if (ok && ei.flag == false && local_best.has_value()) {
+			best = local_best;
 
-		free(scores);
+			send(false, "# Move selected for this depth: %s (%d)", v2t(Vertex(best.value(), dim)).c_str(), best);
+		}
 
 		depth++;
 	}
 
-	int best  = -INT_MAX;
-	int besti = -1;
-
-	for(int i=0; i<dim * dim; i++) {
-		evals->at(i).score += selected_scores[i];
-		evals->at(i).valid = true;
-
-		if (selected_scores[i] > best) {
-			best  = selected_scores[i];
-			besti = i;
-		}
-	}
-
-	free(selected_scores);
-	
 	if (to_timer) {
 		ei.flag = true;
 		ei.cv.notify_one();
@@ -1143,28 +1218,22 @@ void selectAlphaBeta(const Board & b, const ChainMap & cm, const std::vector<cha
 		delete to_timer;
 	}
 
-	if (besti != -1) {
-		Vertex v(besti, dim);
+	if (best.has_value()) {
+		send(false, "# Move selected by A/B: %s (reached depth: %d, completed: %d)", v2t(Vertex(best.value(), dim)).c_str(), depth, ok);
 
-		send(false, "# Move selected by A/B: %s (%d)", v2t(v).c_str(), best);
-
-		evals->at(besti).score += 5;
+		evals->at(best.value()).score += 10;
+		evals->at(best.value()).valid = true;
 	}
+
+#ifdef CALC_BCO
+	double factor = bco_total / bco_n;
+	send(false, "# BCO at %.3f%%; move %d, n: %lu", factor * 100, int(factor * dim * dim), bco_n);
+#endif
 
 	delete [] valid;
 }
 
-int calcN(const std::vector<chain_t *> & chains)
-{
-	int n = 0;
-
-	for(auto chain : chains)
-		n += chain->chain.size();
-
-	return n;
-}
-
-std::optional<Vertex> genMove(Board *const b, const player_t & p, const bool doPlay, const double timeLeft, const double komi)
+std::optional<Vertex> genMove(Board *const b, const player_t & p, const bool doPlay, const double useTime, const double komi)
 {
 	const int dim = b->getDim();
 	const int p2dim = dim * dim;
@@ -1191,11 +1260,7 @@ std::optional<Vertex> genMove(Board *const b, const player_t & p, const bool doP
 	scanEnclosed(*b, &cm, playerToStone(p));
 	dump(cm);
 
-	size_t totalNChains = chainsWhite.size() + chainsBlack.size();
-
-	double useTime = (timeLeft / 2.) * totalNChains / p2dim * 0.95;
-
-	send(false, "# timeLeft: %f, useTime: %f, total chain-count: %zu, board dimension: %d", timeLeft, useTime, totalNChains, dim);
+	send(false, "# useTime: %f", useTime);
 
         std::vector<eval_t> evals;
 	evals.resize(p2dim);
@@ -1209,7 +1274,8 @@ std::optional<Vertex> genMove(Board *const b, const player_t & p, const bool doP
 
 	selectAtLeastOne(*b, cm, chainsWhite, chainsBlack, chainsEmpty, p, &evals);
 
-	selectAlphaBeta(*b, cm, chainsWhite, chainsBlack, chainsEmpty, p, &evals, useTime, komi, std::thread::hardware_concurrency());
+	if (useTime > 0.1)
+		selectAlphaBeta(*b, cm, chainsWhite, chainsBlack, chainsEmpty, p, &evals, useTime, komi, std::thread::hardware_concurrency());
 
 	// find best
 	std::optional<Vertex> v;
@@ -1335,9 +1401,9 @@ std::tuple<double, double, int> playout(const Board & in, const double komi, pla
 	return std::tuple<double, double, int>(s.first, s.second, mc);
 }
 
-double benchmark(const Board & in, const int ms, const double komi)
+double benchmark_1(const Board & in, const int ms, const double komi)
 {
-	send(true, "# starting benchmark: duration: %.3fs, board dimensions: %d, komi: %g", ms / 1000.0, in.getDim(), komi);
+	send(true, "# starting benchmark 1: duration: %.3fs, board dimensions: %d, komi: %g", ms / 1000.0, in.getDim(), komi);
 
 	uint64_t start = get_ts_ms();
 	uint64_t end = 0;
@@ -1359,6 +1425,35 @@ double benchmark(const Board & in, const int ms, const double komi)
 	send(true, "# playouts (%d) per second: %f (%.1f stones on average)", n, pops, total_puts / double(n));
 
 	return pops;
+}
+
+double benchmark_2(const Board & in, const int ms)
+{
+        send(true, "# starting benchmark 2: duration: %.3fs, board dimensions: %d", ms / 1000.0, in.getDim());
+
+        uint64_t start = get_ts_ms();
+        uint64_t end = 0;
+        uint64_t n = 0;
+
+        ChainMap cm(in.getDim());
+
+        do {
+                std::vector<chain_t *> chainsWhite, chainsBlack;
+                findChains(in, &chainsWhite, &chainsBlack, &cm);
+
+                purgeChains(&chainsBlack);
+                purgeChains(&chainsWhite);
+
+                n++;
+
+                end = get_ts_ms();
+        }
+        while(end - start < ms);
+
+        double pops = n * 1000. / (end - start);
+        send(true, "# playouts (%d) per second: %f", n, pops);
+
+        return pops;
 }
 
 void load_stones(Board *const b, const char *in, const board_t & bv)
@@ -1508,6 +1603,25 @@ int main(int argc, char *argv[])
 	return 0;
 #elif 1
 	Board *b = new Board(9);
+#if 0
+        Board *b = new Board(stringToBoard(
+                        "xxxxxxx..\n"
+                        "x.....x..\n"
+                        "x.....x..\n"
+                        "x...xxx..\n"
+                        "xxxx.....\n"
+                        ".....xx..\n"
+                        ".o...x...\n"
+                        ".........\n"
+                        ".........\n"
+                        ));
+#endif
+
+	int c = -1;
+	while((c = getopt(argc, argv, "c")) != -1) {
+		if (c == 'c')  // console
+			cgos = false;
+	}
 
 	setbuf(stdout, nullptr);
 	setbuf(stderr, nullptr);
@@ -1517,6 +1631,9 @@ int main(int argc, char *argv[])
 	double timeLeft = -1;
 
 	double komi = 0.;
+
+	int moves_executed = 0;
+	int moves_total    = 9 * 9;
 
 	for(;;) {
 		char buffer[4096] { 0 };
@@ -1556,6 +1673,9 @@ int main(int argc, char *argv[])
 			delete b;
 			b = new Board(dim);
 			send(true, "=%s", id.c_str());
+
+			moves_executed = 0;
+			moves_total    = dim * dim / 2;
 		}
 		else if (parts.at(0) == "play") {
 			if (str_tolower(parts.at(2)) != "pass") {
@@ -1578,12 +1698,17 @@ int main(int argc, char *argv[])
 			else
 				send(true, "=%s false", id.c_str());
 		}
-		else if (parts.at(0) == "benchmark") {
-			// play outs per second
-			double pops = benchmark(*b, parts.size() == 2 ? atoi(parts.at(1).c_str()) : 1000, komi);
+                else if (parts.at(0) == "benchmark" && parts.size() == 3) {
+                        double pops = -1.;
 
-			send(true, "=%s %f", id.c_str(), pops);
-		}
+                        // play outs per second
+                        if (parts.at(2) == "1")
+                                pops = benchmark_1(*b, atoi(parts.at(1).c_str()), komi);
+                        else if (parts.at(2) == "2")
+                                pops = benchmark_2(*b, atoi(parts.at(1).c_str()));
+
+                        send(true, "=%s %f", id.c_str(), pops);
+                }
 		else if (parts.at(0) == "komi") {
 			komi = atof(parts.at(1).c_str());
 
@@ -1592,7 +1717,7 @@ int main(int argc, char *argv[])
 		else if (parts.at(0) == "time_settings") {
 			send(true, "=%s", id.c_str());  // TODO
 		}
-		else if (parts.at(0) == "time_left") {
+		else if (parts.at(0) == "time_left" && parts.size() >= 3) {
 			timeLeft = atof(parts.at(2).c_str());
 
 			send(true, "=%s", id.c_str());  // TODO
@@ -1620,26 +1745,45 @@ int main(int argc, char *argv[])
 
 			send(true, "=%s", id.c_str());
 		}
-		else if (parts.at(0) == "autoplay") {
+		else if (parts.at(0) == "autoplay" && parts.size() == 2) {
 			player_t p = P_BLACK;
+
+			double think_time = atof(parts.at(1).c_str());
+
+			double time_left[] = { think_time, think_time };
 
 			uint64_t g_start_ts = get_ts_ms();
 			int n_moves = 0;
 
 			for(;;) {
-				uint64_t start_ts = get_ts_ms();
-
 				n_moves++;
 
-				auto v = genMove(b, p, true, timeLeft, komi);
-				if (v.has_value() == false)
-					break;
+				uint64_t start_ts = get_ts_ms();
+
+				double time_use = time_left[p] / (moves_total - moves_executed);
+
+				if (++moves_executed >= moves_total)
+					moves_total = (moves_total * 4) / 3;
+
+				auto v = genMove(b, p, true, time_use, komi);
 
 				uint64_t end_ts = get_ts_ms();
 
-				send(true, "# %s, took %.3fs/%d", v2t(v.value()).c_str(), (end_ts - start_ts) / 1000.0, n_moves);
+				time_left[p] -= (end_ts - start_ts) / 1000.;
 
-				p = p == P_BLACK ? P_WHITE : P_BLACK;
+				const char *color = p == P_BLACK ? "black" : "white";
+
+				if (time_left[p] < 0)
+					send(true, "# %s is out of time (%f)", color, time_left[p]);
+
+				if (v.has_value() == false)
+					break;
+
+				double took = (end_ts - start_ts) / 1000.;
+
+				send(true, "# %s (%s), time allocated: %.3f, took %.3fs (%.2f%%), move-nr: %d, time left: %.3f", v2t(v.value()).c_str(), color, time_use, took, took * 100 / time_use, n_moves, time_left[p]);
+
+				p = getOpponent(p);
 			}
 
 			uint64_t g_end_ts = get_ts_ms();
@@ -1652,8 +1796,13 @@ int main(int argc, char *argv[])
 			if (timeLeft < 0)
 				timeLeft = 5.0;
 
+			double time_use = timeLeft / (moves_total - moves_executed);
+
+			if (++moves_executed >= moves_total)
+				moves_total = (moves_total * 4) / 3;
+
 			uint64_t start_ts = get_ts_ms();
-			auto v = genMove(b, player, parts.at(0) == "genmove", timeLeft, komi);
+			auto v = genMove(b, player, parts.at(0) == "genmove", time_use, komi);
 			uint64_t end_ts = get_ts_ms();
 
 			timeLeft = -1.0;

@@ -26,7 +26,7 @@ private:
 	pthread_cond_t cond_push;
 	pthread_cond_t cond_pull;
 
-	uint64_t    n_in { 0       };
+	uint64_t    n_in     { 0       };
 
 public:
 	fifo(const int n_elements) : n_elements(n_elements)
@@ -48,7 +48,7 @@ public:
 	{
 		pthread_mutex_lock(&lock);
 
-		bool empty = read_pointer == write_pointer && !full && !interrupted;
+		bool empty = n_in == 0;
 
 		pthread_mutex_unlock(&lock);
 
