@@ -1187,8 +1187,8 @@ void selectAlphaBeta(const Board & b, const ChainMap & cm, const std::vector<cha
 							ok = true;
 							break;
 						}
-						}
-						}
+					}
+				}
 			}));
 		}
 
@@ -1460,6 +1460,47 @@ double benchmark_2(const Board & in, const int ms)
 	return pops;
 }
 
+double benchmark_3(const Board & in, const int ms)
+{
+	send(true, "# starting benchmark 3: duration: %.3fs, board dimensions: %d", ms / 1000.0, in.getDim());
+
+	int      dim    = in.getDim();
+	int      dimsq  = dim * dim;
+
+	uint64_t start  = get_ts_ms();
+	uint64_t end    = 0;
+	uint64_t n      = 0;
+
+	uint64_t end_ts = start + ms;
+
+	std::atomic_bool quick_stop { false };
+
+	end_indicator_t  ei { false };
+
+	srand(101);
+
+	do {
+		Board work(dim);
+
+		int nstones = (rand() % dimsq) + 1;
+
+		for(int i=0; i<nstones; i++)
+			work.setAt(rand() % dimsq, rand() & 1 ? B_WHITE : B_BLACK);
+
+		search(work, P_BLACK, -32767, 32767, 4, 1.5, end_ts, &ei, &quick_stop);
+
+		n++;
+
+		end = get_ts_ms();
+	}
+	while(end - start < ms);
+
+	double pops = n * 1000. / (end - start);
+	send(true, "# playouts (%d) per second: %f", n, pops);
+
+	return pops;
+}
+
 void load_stones(Board *const b, const char *in, const board_t & bv)
 {
 	while(in[0] == '[') {
@@ -1710,6 +1751,8 @@ int main(int argc, char *argv[])
 				pops = benchmark_1(*b, atoi(parts.at(1).c_str()), komi);
 			else if (parts.at(2) == "2")
 				pops = benchmark_2(*b, atoi(parts.at(1).c_str()));
+			else if (parts.at(2) == "3")
+				pops = benchmark_3(*b, atoi(parts.at(1).c_str()));
 
 			send(true, "=%s %f", id.c_str(), pops);
 		}
