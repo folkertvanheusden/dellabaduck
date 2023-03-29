@@ -582,7 +582,7 @@ void purgeChains(std::vector<chain_t *> *const chains)
 	chains->clear();
 }
 
-void purgeFreedoms(std::vector<chain_t *> *const chainsPurge, const ChainMap & cm, const board_t me)
+void purgeFreedoms(std::vector<chain_t *> *const chainsPurge)
 {
 	// go through all chains from chainsPurge
 	for(auto it = chainsPurge->begin(); it != chainsPurge->end();) {
@@ -969,24 +969,10 @@ int search(const Board & b, const player_t & p, int alpha, const int beta, const
 
 	// do not calculate chains when at depth 0 as they're not used then
 	if (depth > 0) {
-		ChainMap cm(dim);
-
-		std::vector<chain_t *> chainsWhite, chainsBlack;
-		findChains(b, &chainsWhite, &chainsBlack, &cm);
-
 		// find chains of freedoms
 		findChainsOfFreedoms(b, &chainsEmpty);
-		purgeFreedoms(&chainsEmpty, cm, playerToStone(p));
 
-	//	if (depth == 1) {
-	//		evals.resize(dim * dim);
-
-	//		selectExtendChains(b, cm, chainsWhite, chainsBlack, chainsEmpty, p, &evals);
-	//		selectKillChains(b, cm, chainsWhite, chainsBlack, chainsEmpty, p, &evals);
-	//	}
-
-		purgeChains(&chainsBlack);
-		purgeChains(&chainsWhite);
+		purgeFreedoms(&chainsEmpty);
 	}
 
 	// no valid freedoms? return score (eval)
@@ -1251,7 +1237,7 @@ std::optional<Vertex> genMove(Board *const b, const player_t & p, const bool doP
 	std::vector<chain_t *> chainsEmpty;
 	findChainsOfFreedoms(*b, &chainsEmpty);
 
-	purgeFreedoms(&chainsEmpty, cm, playerToStone(p));
+	purgeFreedoms(&chainsEmpty);
 
 	// no valid freedoms? return "pass".
 	if (chainsEmpty.empty()) {
@@ -1347,7 +1333,7 @@ std::tuple<double, double, int> playout(const Board & in, const double komi, pla
 	// find chains of freedoms
 	std::vector<chain_t *> chainsEmpty;
 	findChainsOfFreedoms(b, &chainsEmpty);
-	purgeFreedoms(&chainsEmpty, cm, playerToStone(p));
+	purgeFreedoms(&chainsEmpty);
 
 	int mc = 0;
 
@@ -1393,7 +1379,7 @@ std::tuple<double, double, int> playout(const Board & in, const double komi, pla
 		purgeChains(&chainsEmpty);
 
 		findChainsOfFreedoms(b, &chainsEmpty);
-		purgeFreedoms(&chainsEmpty, cm, playerToStone(p));
+		purgeFreedoms(&chainsEmpty);
 	}
 
 	purgeChains(&chainsEmpty);
