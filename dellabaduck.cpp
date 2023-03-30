@@ -971,8 +971,6 @@ int search(const Board & b, const player_t & p, int alpha, const int beta, const
 	if (depth > 0) {
 		// find chains of freedoms
 		findChainsOfFreedoms(b, &chainsEmpty);
-
-		purgeFreedoms(&chainsEmpty);
 	}
 
 	// no valid freedoms? return score (eval)
