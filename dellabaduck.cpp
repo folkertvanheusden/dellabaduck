@@ -605,7 +605,7 @@ void purgeFreedoms(std::vector<chain_t *> *const chainsPurge)
 {
 	// go through all chains from chainsPurge
 	for(auto it = chainsPurge->begin(); it != chainsPurge->end();) {
-		bool mustPurge = (*it)->chain.size() == 1;
+		bool mustPurge = (*it)->chain.size() == 0;
 
 		if (mustPurge) {
 			delete *it;
