@@ -25,7 +25,7 @@
 #include "str.h"
 #include "time.h"
 
-#define CALC_BCO
+//#define CALC_BCO
 
 typedef enum { P_BLACK = 0, P_WHITE } player_t;
 typedef enum { B_EMPTY, B_WHITE, B_BLACK, B_LAST } board_t;
@@ -961,11 +961,7 @@ int search(const Board & b, const player_t & p, int alpha, const int beta, const
 	if (ei->flag || *quick_stop)
 		return -32767;
 
-	const int dim = b.getDim();
-
 	std::vector<chain_t *> chainsEmpty;
-
-	std::vector<eval_t> evals;
 
 	// do not calculate chains when at depth 0 as they're not used then
 	if (depth > 0) {
@@ -999,9 +995,6 @@ int search(const Board & b, const player_t & p, int alpha, const int beta, const
 			play(&work, stone, p);
 
 			int score = -search(work, opponent, -beta, -alpha, depth - 1, komi, end_t, ei, quick_stop);
-
-			//			if (depth == 1)
-			//				score += evals.at(stone.getV()).score;
 
 			if (score > bestScore) {
 				bestScore = score;
