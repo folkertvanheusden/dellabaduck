@@ -986,6 +986,7 @@ int search(const Board & b, const player_t & p, int alpha, const int beta, const
 	if (depth > 0) {
 		// find chains of freedoms
 		findChainsOfFreedoms(b, &chainsEmpty);
+		purgeFreedoms(&chainsEmpty);
 	}
 
 	// no valid freedoms? return score (eval)
@@ -1246,6 +1247,8 @@ std::optional<Vertex> genMove(Board *const b, const player_t & p, const bool doP
 	// find chains of freedoms
 	std::vector<chain_t *> chainsEmpty;
 	findChainsOfFreedoms(*b, &chainsEmpty);
+
+	purgeFreedoms(&chainsEmpty);
 
 	// no valid freedoms? return "pass".
 	if (chainsEmpty.empty()) {
