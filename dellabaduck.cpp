@@ -1247,8 +1247,6 @@ std::optional<Vertex> genMove(Board *const b, const player_t & p, const bool doP
 	std::vector<chain_t *> chainsEmpty;
 	findChainsOfFreedoms(*b, &chainsEmpty);
 
-	purgeFreedoms(&chainsEmpty);
-
 	// no valid freedoms? return "pass".
 	if (chainsEmpty.empty()) {
 		purgeChains(&chainsBlack);
