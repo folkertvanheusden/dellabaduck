@@ -392,6 +392,25 @@ void dump(const ChainMap & cm)
 	send(false, line.c_str());
 }
 
+void findChainsScan(std::queue<std::pair<int, int> > *const work_queue, const Board & b, int x, int y, const int dx, const int dy, const board_t type, bool *const scanned)
+{
+	const int dim = b.getDim();
+
+	for(;;) {
+		x += dx;
+		y += dy;
+
+		const int v = y * dim + x;
+
+		if (x < 0 || x >= dim || y < 0 || y >= dim || b.getAt(v) != type || scanned[v])
+			break;
+
+		scanned[v] = true;
+
+		work_queue->push({ x, y });
+	}
+}
+
 void findChains(const Board & b, std::vector<chain_t *> *const chainsWhite, std::vector<chain_t *> *const chainsBlack, ChainMap *const cm)
 {
 	const int dim = b.getDim();
@@ -436,10 +455,10 @@ void findChains(const Board & b, std::vector<chain_t *> *const chainsWhite, std:
 
 					curChain->chain.insert({ x, y, dim });
 
-					work_queue.push({ x, y - 1 });
-					work_queue.push({ x, y + 1 });
-					work_queue.push({ x - 1, y });
-					work_queue.push({ x + 1, y });
+					findChainsScan(&work_queue, b, x, y, 0, -1, cur_bv, scanned);
+					findChainsScan(&work_queue, b, x, y, 0, +1, cur_bv, scanned);
+					findChainsScan(&work_queue, b, x, y, -1, 0, cur_bv, scanned);
+					findChainsScan(&work_queue, b, x, y, +1, 0, cur_bv, scanned);
 				}
 				else if (cur_bv == B_EMPTY) {
 					curChain->freedoms.insert({ x, y, dim });  // only for counting the total number of freedoms
@@ -499,10 +518,10 @@ void findChainsOfFreedoms(const Board & b, std::vector<chain_t *> *const chainsE
 
 					curChain->chain.insert({ x, y, dim });
 
-					work_queue.push({ x, y - 1 });
-					work_queue.push({ x, y + 1 });
-					work_queue.push({ x - 1, y });
-					work_queue.push({ x + 1, y });
+					findChainsScan(&work_queue, b, x, y, 0, -1, B_EMPTY, scanned);
+					findChainsScan(&work_queue, b, x, y, 0, +1, B_EMPTY, scanned);
+					findChainsScan(&work_queue, b, x, y, -1, 0, B_EMPTY, scanned);
+					findChainsScan(&work_queue, b, x, y, +1, 0, B_EMPTY, scanned);
 				}
 			}
 			while(work_queue.empty() == false);
