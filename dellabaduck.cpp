@@ -33,7 +33,7 @@ const char *const board_t_names[] = { ".", "o", "x" };
 
 FILE *fh = fopen("input.dat", "a+");
 
-bool cgos = false;
+bool cgos = true;
 
 void send(const bool tx, const char *fmt, ...)
 {
@@ -392,17 +392,17 @@ void dump(const ChainMap & cm)
 	send(false, line.c_str());
 }
 
-void findChainsScan(std::queue<std::pair<unsigned, unsigned> > *const work_queue, const Board & b, unsigned x, unsigned y, const int dx, const int dy, const board_t type, bool *const scanned)
+void findChainsScan(std::queue<std::pair<int, int> > *const work_queue, const Board & b, int x, int y, const int dx, const int dy, const board_t type, bool *const scanned)
 {
-	const unsigned dim = b.getDim();
+	const int dim = b.getDim();
 
 	for(;;) {
 		x += dx;
 		y += dy;
 
-		const unsigned v = y * dim + x;
+		const int v = y * dim + x;
 
-		if (x >= dim || y >= dim || b.getAt(v) != type || scanned[v])
+		if (x < 0 || x >= dim || y < 0 || y >= dim || b.getAt(v) != type || scanned[v])
 			break;
 
 		scanned[v] = true;
@@ -417,9 +417,9 @@ void findChains(const Board & b, std::vector<chain_t *> *const chainsWhite, std:
 
 	bool *scanned = new bool[dim * dim]();
 
-	for(unsigned y=0; y<dim; y++) {
-		for(unsigned x=0; x<dim; x++) {
-			unsigned v = y * dim + x;
+	for(int y=0; y<dim; y++) {
+		for(int x=0; x<dim; x++) {
+			int v = y * dim + x;
 
 			if (scanned[v])
 				continue;
@@ -431,20 +431,20 @@ void findChains(const Board & b, std::vector<chain_t *> *const chainsWhite, std:
 			chain_t *curChain = new chain_t;
 			curChain->type = bv;
 
-			std::queue<std::pair<unsigned, unsigned> > work_queue;
+			std::queue<std::pair<int, int> > work_queue;
 			work_queue.push({ x, y });
 
 			do {
 				auto pair = work_queue.front();
 				work_queue.pop();
 
-				const unsigned x = pair.first;
-				const unsigned y = pair.second;
+				const int x = pair.first;
+				const int y = pair.second;
 
-				if (x >= dim || y >= dim)
+				if (x < 0 || x >= dim || y < 0 || y >= dim)
 					continue;
 
-				const unsigned v = y * dim + x;
+				const int v = y * dim + x;
 
 				board_t cur_bv = b.getAt(v);
 
@@ -476,23 +476,27 @@ void findChains(const Board & b, std::vector<chain_t *> *const chainsWhite, std:
 	delete [] scanned;
 }
 
-void findChainsOfType(const Board & b, std::vector<chain_t *> *const chains, const board_t type)
+void findChainsOfFreedoms(const Board & b, std::vector<chain_t *> *const chainsEmpty)
 {
 	const int dim = b.getDim();
 
 	bool *scanned = new bool[dim * dim]();
 
-	for(unsigned y=0; y<dim; y++) {
-		for(unsigned x=0; x<dim; x++) {
-			unsigned v = y * dim + x;
+	for(int y=0; y<dim; y++) {
+		for(int x=0; x<dim; x++) {
+			int v = y * dim + x;
 
-			if (scanned[v] || b.getAt(v) != type)
+			if (scanned[v])
+				continue;
+
+			board_t bv = b.getAt(v);
+			if (bv != B_EMPTY)
 				continue;
 
 			chain_t *curChain = new chain_t;
-			curChain->type = type;
+			curChain->type = B_EMPTY;
 
-			std::queue<std::pair<unsigned, unsigned> > work_queue;
+			std::queue<std::pair<int, int> > work_queue;
 			work_queue.push({ x, y });
 
 			do {
@@ -502,32 +506,31 @@ void findChainsOfType(const Board & b, std::vector<chain_t *> *const chains, con
 				const int x = pair.first;
 				const int y = pair.second;
 
-				const int v = y * dim + x;
-
-				if (x >= dim || y >= dim || b.getAt(v) != type || scanned[v])
+				if (x < 0 || x >= dim || y < 0 || y >= dim)
 					continue;
 
-				scanned[v] = true;
+				const int v = y * dim + x;
 
-				curChain->chain.insert({ x, y, dim });
+				board_t cur_bv = b.getAt(v);
 
-				findChainsScan(&work_queue, b, x, y, -1, 0, type, scanned);
-				findChainsScan(&work_queue, b, x, y, +1, 0, type, scanned);
-				findChainsScan(&work_queue, b, x, y, 0, -1, type, scanned);
-				findChainsScan(&work_queue, b, x, y, 0, +1, type, scanned);
+				if (cur_bv == B_EMPTY && scanned[v] == false) {
+					scanned[v] = true;
+
+					curChain->chain.insert({ x, y, dim });
+
+					findChainsScan(&work_queue, b, x, y, 0, -1, B_EMPTY, scanned);
+					findChainsScan(&work_queue, b, x, y, 0, +1, B_EMPTY, scanned);
+					findChainsScan(&work_queue, b, x, y, -1, 0, B_EMPTY, scanned);
+					findChainsScan(&work_queue, b, x, y, +1, 0, B_EMPTY, scanned);
+				}
 			}
 			while(work_queue.empty() == false);
 
-			chains->push_back(curChain);
+			chainsEmpty->push_back(curChain);
 		}
 	}
 
 	delete [] scanned;
-}
-
-void findChainsOfFreedoms(const Board & b, std::vector<chain_t *> *const chainsEmpty)
-{
-	findChainsOfType(b, chainsEmpty, B_EMPTY);
 }
 
 void scanBoundaries(const Board & b, const ChainMap & cm, bool *const scanned, const board_t myStone, const int x, const int y, std::set<chain_t *> *const enclosedBy, bool *const undecided)
@@ -771,12 +774,9 @@ void connect(Board *const b, ChainMap *const cm, std::vector<chain_t *> *const c
 
 void play(Board *const b, const Vertex & v, const player_t & p)
 {
-	board_t stone_type = playerToStone(p);
-
-	b->setAt(v, stone_type);
+	b->setAt(v, playerToStone(p));
 
 	ChainMap cm(b->getDim());
-
 	std::vector<chain_t *> chainsWhite, chainsBlack;
 	findChains(*b, &chainsWhite, &chainsBlack, &cm);
 
@@ -1246,6 +1246,8 @@ std::optional<Vertex> genMove(Board *const b, const player_t & p, const bool doP
 	// find chains of freedoms
 	std::vector<chain_t *> chainsEmpty;
 	findChainsOfFreedoms(*b, &chainsEmpty);
+
+	purgeFreedoms(&chainsEmpty);
 
 	// no valid freedoms? return "pass".
 	if (chainsEmpty.empty()) {
