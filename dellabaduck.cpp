@@ -1311,7 +1311,7 @@ std::optional<Vertex> genMove(Board *const b, const player_t & p, const bool doP
 		if (evals.at(i).score > bestScore && evals.at(i).valid) {
 			Vertex temp { i, dim };
 
-			if (isValidMove(chainsEmpty, temp)) {
+			if (isUsable(cm, chainsEmpty, temp)) {
 				v.emplace(temp);
 				bestScore = evals.at(i).score;
 			}
@@ -1509,7 +1509,7 @@ double benchmark_3(const Board & in, const int ms)
 		for(int i=0; i<nstones; i++)
 			work.setAt(rand() % dimsq, rand() & 1 ? B_WHITE : B_BLACK);
 
-		search(work, P_BLACK, -32767, 32767, 4, true, 1.5, end_ts, &ei, &quick_stop);
+		search(work, P_BLACK, -32767, 32767, 5, true, 1.5, end_ts, &ei, &quick_stop);
 
 		n++;
 
