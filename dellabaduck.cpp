@@ -985,7 +985,7 @@ double bco_total = 0;
 uint64_t bco_n = 0;
 #endif
 
-int search(const Board & b, const player_t & p, int alpha, const int beta, const int depth, const int komi, const uint64_t end_t, end_indicator_t *const ei, std::atomic_bool *const quick_stop)
+int search(const Board & b, const player_t & p, int alpha, const int beta, const int depth, const bool is_top, const double komi, const uint64_t end_t, end_indicator_t *const ei, std::atomic_bool *const quick_stop)
 {
 	if (ei->flag || *quick_stop)
 		return -32767;
@@ -1005,6 +1005,18 @@ int search(const Board & b, const player_t & p, int alpha, const int beta, const
 		return p == P_BLACK ? s.first - s.second : s.second - s.first;
 	}
 
+	ChainMap *cm = nullptr;
+
+	if (is_top) {
+		cm = new ChainMap(b.getDim());
+
+		std::vector<chain_t *> chainsWhite, chainsBlack;
+		findChains(b, &chainsWhite, &chainsBlack, cm);
+
+		purgeChains(&chainsBlack);
+		purgeChains(&chainsWhite);
+	}
+
 	int bestScore = -32768;
 	std::optional<Vertex> bestMove;
 
@@ -1019,12 +1031,14 @@ int search(const Board & b, const player_t & p, int alpha, const int beta, const
 #ifdef CALC_BCO
 			bco++;
 #endif
+			if (is_top && cm->getEnclosed(stone.getV()))
+				continue;
 
 			Board work(b);
 
 			play(&work, stone, p);
 
-			int score = -search(work, opponent, -beta, -alpha, depth - 1, komi, end_t, ei, quick_stop);
+			int score = -search(work, opponent, -beta, -alpha, depth - 1, false, komi, end_t, ei, quick_stop);
 
 			if (score > bestScore) {
 				bestScore = score;
@@ -1047,6 +1061,8 @@ finished:
 	bco_total += double(bco) / empty;
 	bco_n++;
 #endif
+
+	delete cm;
 
 	purgeChains(&chainsEmpty);
 
@@ -1181,7 +1197,7 @@ void selectAlphaBeta(const Board & b, const ChainMap & cm, const std::vector<cha
 
 						play(&work, { v.value(), dim }, p);
 
-						int score = search(work, p == P_BLACK ? P_WHITE : P_BLACK, alpha, beta, depth, komi, end_t, &ei, &quick_stop);
+						int score = search(work, p == P_BLACK ? P_WHITE : P_BLACK, alpha, beta, depth, true, komi, end_t, &ei, &quick_stop);
 
 						if (ei.flag == false && score > alpha) {
 						alpha = score;
@@ -1257,6 +1273,7 @@ std::optional<Vertex> genMove(Board *const b, const player_t & p, const bool doP
 	// find chains of freedoms
 	std::vector<chain_t *> chainsEmpty;
 	findChainsOfFreedoms(*b, &chainsEmpty);
+	purgeFreedoms(&chainsEmpty);
 
 	// no valid freedoms? return "pass".
 	if (chainsEmpty.empty()) {
@@ -1492,7 +1509,7 @@ double benchmark_3(const Board & in, const int ms)
 		for(int i=0; i<nstones; i++)
 			work.setAt(rand() % dimsq, rand() & 1 ? B_WHITE : B_BLACK);
 
-		search(work, P_BLACK, -32767, 32767, 4, 1.5, end_ts, &ei, &quick_stop);
+		search(work, P_BLACK, -32767, 32767, 4, true, 1.5, end_ts, &ei, &quick_stop);
 
 		n++;
 
