@@ -1246,6 +1246,8 @@ void selectAlphaBeta(const Board & b, const ChainMap & cm, const std::vector<cha
 
 std::optional<Vertex> genMove(Board *const b, const player_t & p, const bool doPlay, const double useTime, const double komi)
 {
+	dump(*b);
+
 	const int dim = b->getDim();
 	const int p2dim = dim * dim;
 
