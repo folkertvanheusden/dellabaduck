@@ -1667,6 +1667,12 @@ void test()
 
 		scanEnclosed(brd, &cm, playerToStone(P_WHITE));
 
+		if (b.white_chains.size() != chainsWhite.size())
+			printf("white: number of chains mismatch\n"), ok = false;
+
+		if (b.black_chains.size() != chainsBlack.size())
+			printf("black: number of chains mismatch\n"), ok = false;
+
 		for(auto ch : b.white_chains) {
 			auto white_stones = stringToChain(ch.first, brd.getDim());
 
