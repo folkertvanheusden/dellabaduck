@@ -417,8 +417,6 @@ void findChainsScan(std::queue<std::pair<int, int> > *const work_queue, const Bo
 		if (x < 0 || x >= dim || y < 0 || y >= dim || b.getAt(v) != type || scanned[v])
 			break;
 
-		scanned[v] = true;
-
 		work_queue->push({ x, y });
 	}
 }
