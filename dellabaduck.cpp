@@ -156,20 +156,20 @@ typedef struct {
 
 void dump(const chain_t & chain)
 {
-	send(false, "# Chain for %s", board_t_names[chain.type]);
+	send(true, "# Chain for %s", board_t_names[chain.type]);
 
 	std::string line = "# ";
 	for(auto v : chain.chain) 
 		line += myformat("%s ", v2t(v).c_str());
-	send(false, line.c_str());
+	send(true, line.c_str());
 
 	if (chain.freedoms.empty() == false) {
-		send(false, "# Freedoms of that chain:");
+		send(true, "# Freedoms of that chain:");
 
 		line = "# ";
 		for(auto v : chain.freedoms) 
 			line += myformat("%s ", v2t(v).c_str());
-		send(false, line.c_str());
+		send(true, line.c_str());
 	}
 }
 
@@ -271,6 +271,18 @@ Board stringToBoard(const std::string & in)
 	assert(v == dim * dim);
 
 	return b;
+}
+
+std::set<Vertex, decltype(vertexCmp)> stringToChain(const std::string & in, const int dim)
+{
+	auto parts = split(in, " ");
+
+	std::set<Vertex, decltype(vertexCmp)> out;
+
+	for(auto p : parts)
+		out.insert(t2v(p, dim));
+
+	return out;
 }
 
 void dump(const Board & b)
@@ -1549,18 +1561,58 @@ Board loadSgf(const std::string & filename)
 	return b;
 }
 
-int main(int argc, char *argv[])
+bool compareChain(const std::set<Vertex, decltype(vertexCmp)> & a, const std::set<Vertex, decltype(vertexCmp)> & b)
 {
-#if 0
-	Board b5 = stringToBoard(
-			".....\n"
-			".....\n"
-			".....\n"
-			".....\n"
-			".....\n"
-			);
+	for(auto v : a) {
+		if (b.find(v) == b.end())
+			return false;
+	}
 
-	Board b7_1 = stringToBoard(
+	return true;
+}
+
+typedef enum { fc_stones, fc_freedoms } fc_search_t;
+
+bool findChain(const std::vector<chain_t *> & chains, const std::set<Vertex, decltype(vertexCmp)> & search_for, const fc_search_t & type)
+{
+	for(auto c : chains) {
+		if (type == fc_stones) {
+			if (compareChain(c->chain, search_for))
+				return true;
+		}
+		else if (type == fc_freedoms) {
+			if (compareChain(c->freedoms, search_for))
+				return true;
+		}
+	}
+
+	return false;
+}
+
+void test()
+{
+	struct test_data {
+		std::string b;
+		int         dim;
+		double      score;
+		std::vector<std::pair<std::string, std::string> > white_chains;
+		std::vector<std::pair<std::string, std::string> > black_chains;
+	};
+
+	std::vector<test_data> boards;
+
+	boards.push_back({
+			".....\n"
+			".....\n"
+			".....\n"
+			".....\n"
+			".....\n"
+			, 5, -1.5,
+			{ },
+			{ },
+			});
+
+	boards.push_back({
 			"xxxxxxx\n"
 			"x.....x\n"
 			"x.o...x\n"
@@ -1568,9 +1620,12 @@ int main(int argc, char *argv[])
 			"xxxx...\n"
 			".....xx\n"
 			".....x.\n"
-			);
+			, 7, 19.5,
+			{ { "C5", "C6 D5 B5 C4" } },
+			{ { "G2 F2 F1", "G3 F3 E2 G1 E1" }, { "G7 F7 E7 D7 C7 B7 A7 G6 A6 G5 A5 G4 F4 E4 A4 D3 C3 B3 A3", "F6 E6 D6 C6 B6 F5 E5 B5 D4 C4 B4 G3 F3 E3 D2 C2 B2 A2" } }
+			});
 
-	Board b7_2 = stringToBoard(
+	boards.push_back({
 			"xxxxxxx\n"
 			"x.....x\n"
 			"x.....x\n"
@@ -1578,87 +1633,87 @@ int main(int argc, char *argv[])
 			"xxxx...\n"
 			".....xx\n"
 			".o...x.\n"
-			);
+			, 7, 19.5,
+			{ { "B1", "B2 C1 A1" } },
+			{ { "G2 F2 F1", "G3 F3 E2 G1 E1" }, { "G7 F7 E7 D7 C7 B7 A7 G6 A6 G5 A5 G4 F4 E4 A4 D3 C3 B3 A3", "F6 E6 D6 C6 B6 F5 E5 B5 D4 C4 B4 G3 F3 E3 D2 C2 B2 A2" } }
+		       	});
 
-	Board & b = b7_2;
+	boards.push_back({
+			"xxxxxxx..\n"
+			"x.....x.x\n"
+			"x.....x.o\n"
+			"x...xxx..\n"
+			"xxxx.....\n"
+			".....xx..\n"
+			".o...x...\n"
+			"......ooo\n"
+			".....o...\n"
+			, 9, 15.5,
+			{ { "F1", "F2 G1 E1" }, { "J2 H2 G2", "J3 H3 G3 F2 J1 H1 G1" }, { "B3", "B4 C3 A3 B2" }, { "J7", "H7 J6" } },
+			{ { "G4 F4 F3", "G5 F5 H4 E4 G3 E3 F2" }, { "G9 F9 E9 D9 C9 B9 A9 G8 A8 G7 A7 G6 F6 E6 A6 D5 C5 B5 A5", "H9 H8 F8 E8 D8 C8 B8 H7 F7 E7 B7 H6 D6 C6 B6 G5 F5 E5 D4 C4 B4 A4" }, { "J8", "J9 H8" } }
+		       	});
 
-#if 0
-	auto scores = score(b);
+	for(auto b : boards) {
+		bool   ok   = true;
+		Board  brd  = stringToBoard(b.b);
 
-	std::string id;
-	if (scores.first == scores.second)
-		printf("=%s 0\n\n", id.c_str());
-	else if (scores.first > scores.second)
-		printf("=%s B+%d\n\n", id.c_str(), scores.first - scores.second);
-	else
-		printf("=%s W+%d\n\n", id.c_str(), scores.second - scores.first);
+		auto   temp_score = score(brd, 1.5);
+		double test_score = temp_score.first - temp_score.second;
 
-	return 0;
+		if (test_score != b.score)
+			printf("expected score: %f, current: %f\n", b.score, test_score), ok = false;
 
-#endif
-	dump(b);
+		ChainMap cm(brd.getDim());
+		std::vector<chain_t *> chainsWhite, chainsBlack;
+		findChains(brd, &chainsWhite, &chainsBlack, &cm);
 
-	ChainMap cm(b.getDim());
-	std::vector<chain_t *> chainsWhite, chainsBlack;
-	findChains(b, &chainsWhite, &chainsBlack, &cm);
+		scanEnclosed(brd, &cm, playerToStone(P_WHITE));
 
-	scanEnclosed(b, &cm, playerToStone(P_WHITE));
-	dump(cm);
+		for(auto ch : b.white_chains) {
+			auto white_stones = stringToChain(ch.first, brd.getDim());
 
-	dump(chainsWhite);
+			if (findChain(chainsWhite, white_stones, fc_stones) == false)
+				printf("white stones mismatch\n"), ok = false;
+		}
 
-	return 0;
+		for(auto ch : b.white_chains) {
+			auto white_freedoms = stringToChain(ch.second, brd.getDim());
 
-	send(false, "#");
-	send(false, "# white:");
-	dump(chainsWhite);
+			if (findChain(chainsWhite, white_freedoms, fc_freedoms) == false)
+				printf("white freedoms mismatch\n"), ok = false;
+		}
 
-	send(false, "#");
-	send(false, "# black:");
-	dump(chainsBlack);
+		for(auto ch : b.black_chains) {
+			auto black_stones = stringToChain(ch.first, brd.getDim());
 
-	std::vector<chain_t *> chainsEmpty;
-	findChainsOfFreedoms(b, &chainsEmpty);
-	send(false, "#");
-	send(false, "# empty:");
-	dump(chainsEmpty);
+			if (findChain(chainsBlack, black_stones, fc_stones) == false)
+				printf("black stones mismatch\n"), ok = false;
+		}
 
-	purgeFreedoms(&chainsEmpty, cm, B_BLACK);
-	send(false, "#");
-	send(false, "# empty after purge:");
-	dump(chainsEmpty);
+		for(auto ch : b.black_chains) {
+			auto black_freedoms = stringToChain(ch.second, brd.getDim());
 
-	purgeChains(&chainsBlack);
-	purgeChains(&chainsWhite);
-	purgeChains(&chainsEmpty);
-#endif
-#if 0
-	dump(b);
-	auto v = genMove(b, P_BLACK, true, 0);
-	if (v.has_value())
-		fprintf(fh, "= %s\n\n", v2t(v.value()).c_str());
-	else
-		fprintf(fh, "pass\n");
+			if (findChain(chainsBlack, black_freedoms, fc_freedoms) == false)
+				printf("black freedoms mismatch\n"), ok = false;
+		}
 
-	fclose(fh);
+		if (!ok) {
+			dump(brd);
 
-	return 0;
-#elif 1
-	Board *b = new Board(9);
-#if 0
-	Board *b = new Board(stringToBoard(
-				"xxxxxxx..\n"
-				"x.....x..\n"
-				"x.....x..\n"
-				"x...xxx..\n"
-				"xxxx.....\n"
-				".....xx..\n"
-				".o...x...\n"
-				".........\n"
-				".........\n"
-				));
-#endif
+			dump(chainsBlack);
 
+			dump(chainsWhite);
+
+			printf("---\n");
+		}
+
+		purgeChains(&chainsBlack);
+		purgeChains(&chainsWhite);
+	}
+}
+
+int main(int argc, char *argv[])
+{
 	int c = -1;
 	while((c = getopt(argc, argv, "c")) != -1) {
 		if (c == 'c')  // console
@@ -1669,6 +1724,8 @@ int main(int argc, char *argv[])
 	setbuf(stderr, nullptr);
 
 	srand(time(nullptr));
+
+	Board *b = new Board(9);
 
 	double timeLeft = -1;
 
@@ -1783,6 +1840,9 @@ int main(int argc, char *argv[])
 		else if (parts.at(0) == "final_score") {
 			send(true, "=%s %s", id.c_str(), scoreStr(score(*b, komi)).c_str());
 		}
+		else if (parts.at(0) == "unittest") {
+			test();
+		}
 		else if (parts.at(0) == "loadsgf") {
 			delete b;
 			b = new Board(loadSgf(parts.at(1)));
@@ -1881,7 +1941,7 @@ int main(int argc, char *argv[])
 	}
 
 	delete b;
-#endif
+
 	fclose(fh);
 
 	return 0;
