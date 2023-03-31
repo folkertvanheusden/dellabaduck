@@ -1649,6 +1649,21 @@ void test()
 			{ { "G4 F4 F3", "G5 F5 H4 E4 G3 E3 F2" }, { "G9 F9 E9 D9 C9 B9 A9 G8 A8 G7 A7 G6 F6 E6 A6 D5 C5 B5 A5", "H9 H8 F8 E8 D8 C8 B8 H7 F7 E7 B7 H6 D6 C6 B6 G5 F5 E5 D4 C4 B4 A4" }, { "J8", "J9 H8" } }
 		       	});
 
+	boards.push_back({
+			".........\n"
+			"...o.....\n"
+			"xxox.x...\n"
+			"..o...x.x\n"
+			".........\n"
+			"...o.o.o.\n"
+			".........\n"
+			".........\n"
+			".........\n"
+			, 9, -1.5,
+			{ { "D4", "D5 E4 C4 D3" }, { "F4", "F5 G4 E4 F3" }, { "H4", "H5 J4 G4 H3" }, { "C7 C6", "C8 D6 B6 C5" }, { "D8", "D9 E8 C8" } },
+			{ { "G6", "G7 H6 F6 G5" }, { "J6", "J7 H6 J5" }, { "B7 A7", "B8 A8 B6 A6" }, { "D7", "E7 D6" }, { "F7", "F8 G7 E7 F6" } }
+		       	});
+
 	for(auto b : boards) {
 		bool   ok   = true;
 		Board  brd  = stringToBoard(b.b);
