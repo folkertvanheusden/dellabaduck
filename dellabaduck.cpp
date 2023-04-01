@@ -1525,7 +1525,7 @@ void load_stones(Board *const b, const char *in, const board_t & bv)
 	}
 }
 
-Board loadSgf(const std::string & filename)
+Board loadSgfFile(const std::string & filename)
 {
 	FILE *sfh = fopen(filename.c_str(), "r");
 	if (!sfh) {
@@ -1553,6 +1553,68 @@ Board loadSgf(const std::string & filename)
 		load_stones(&b, AW + 2, B_WHITE);
 
 	fclose(sfh);
+
+	dump(b);
+
+	return b;
+}
+
+Board loadSgf(const std::string & in)
+{
+	int dim = 9;
+
+	const char *SZ = strstr(in.c_str(), "SZ[");
+	if (SZ)
+		dim = atoi(SZ + 3);
+
+	Board b(dim);
+
+	size_t o = 0;
+
+	while(o < in.size()) {
+		if (in[o] == ';' || in[o] == '(' || in[o] == ')') {
+			o++;
+			continue;
+		}
+
+		auto p = in.find('[', o);
+		if (p == std::string::npos) {
+			send(false, "# [ missing");
+			break;
+		}
+
+		std::string name = in.substr(o, p - o);
+
+		std::optional<board_t> player;
+
+		if (name == "B")
+			player = B_BLACK;
+		else if (name == "W")
+			player = B_WHITE;
+
+		auto p_end = in.find(']', p);
+
+		if (p_end == std::string::npos) {
+			send(false, "# ] missing");
+			break;
+		}
+
+		if (player.has_value()) {
+			std::string pos = in.substr(p + 1, p_end - (p + 1));
+
+			if (pos.size() != 2) {
+				send(false, "# coordinate not 2 characters");
+				break;
+			}
+
+			char x = pos.at(0) - 'a';
+			char y = pos.at(1) - 'a';
+
+			b.setAt(int(x), int(y), player.value());
+		}
+
+		o = p_end + 1;
+	}
 
 	dump(b);
 
@@ -1863,6 +1925,12 @@ int main(int argc, char *argv[])
 			test();
 		}
 		else if (parts.at(0) == "loadsgf") {
+			delete b;
+			b = new Board(loadSgfFile(parts.at(1)));
+
+			send(true, "=%s", id.c_str());
+		}
+		else if (parts.at(0) == "setsgf") {
 			delete b;
 			b = new Board(loadSgf(parts.at(1)));
 
