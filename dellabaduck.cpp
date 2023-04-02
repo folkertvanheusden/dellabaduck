@@ -1206,7 +1206,7 @@ void selectAlphaBeta(const Board & b, const ChainMap & cm, const std::vector<cha
 
 	size_t n_bytes  = sizeof(int) * dim * dim;
 
-	std::optional<int> best;
+	std::optional<int> global_best;
 
 	while(get_ts_ms() < hend_t && depth <= dim * dim) {
 		send(false, "# a/b depth: %d", depth);
@@ -1222,46 +1222,50 @@ void selectAlphaBeta(const Board & b, const ChainMap & cm, const std::vector<cha
 
 		std::atomic_bool quick_stop { false };
 
-		std::optional<int> local_best;
-
 		ok = false;
 
 		std::vector<std::thread *> threads;
 
+		std::vector<std::optional<std::pair<int, int> > > best;
+		best.resize(nThreads);
+
 		for(int i=0; i<nThreads; i++) {
-			threads.push_back(new std::thread([hend_t, end_t, &places, dim, b, p, depth, komi, &ei, &alpha, &beta, &best, &quick_stop, &local_best, &ok] {
+			threads.push_back(new std::thread([hend_t, end_t, &places, dim, b, p, depth, komi, &ei, alpha, beta, &best, &quick_stop, i, &best, &ok] {
+						int local_alpha = alpha;
+						int local_beta  = beta;
+
 						for(;;) {
-						int time_left = hend_t - get_ts_ms();
-						if (time_left <= 0 || ei.flag)
-						break;
+							int time_left = hend_t - get_ts_ms();
+							if (time_left <= 0 || ei.flag)
+								break;
 
-						auto v = places.try_get();
+							auto v = places.try_get();
 
-						if (v.has_value() == false) {
-						ok = true;
-						break;
+							if (v.has_value() == false) {
+								ok = true;
+								break;
+							}
+
+							Board work(b);
+
+							play(&work, { v.value(), dim }, p);
+
+							int score = search(work, p == P_BLACK ? P_WHITE : P_BLACK, local_alpha, local_beta, depth, komi, end_t, &ei, &quick_stop);
+
+							if (ei.flag == false && score > local_alpha) {
+								local_alpha = score;
+
+								best[i] = { v.value(), score };
+
+								if (score >= beta) {
+									send(false, "BCO: %d %d %d\n", local_alpha, score, local_beta);
+									quick_stop = true;
+									ok = true;
+									break;
+								}
+							}
 						}
-
-						Board work(b);
-
-						play(&work, { v.value(), dim }, p);
-
-						int score = search(work, p == P_BLACK ? P_WHITE : P_BLACK, alpha, beta, depth, komi, end_t, &ei, &quick_stop);
-
-						if (ei.flag == false && score > alpha) {
-						alpha = score;
-
-						local_best = v.value();
-
-						if (score >= beta) {
-							send(false, "BCO: %d %d %d\n", alpha, score, beta);
-							quick_stop = true;
-							ok = true;
-							break;
-						}
-					}
-				}
-			}));
+					}));
 		}
 
 		send(false, "# %zu threads", threads.size());
@@ -1276,10 +1280,22 @@ void selectAlphaBeta(const Board & b, const ChainMap & cm, const std::vector<cha
 			threads.erase(threads.begin());
 		}
 
-		if (ok && ei.flag == false && local_best.has_value()) {
-			best = local_best;
+		int                best_score = -32767;
+		std::optional<int> best_move;
 
-			send(false, "# Move selected for this depth: %s (%d)", v2t(Vertex(best.value(), dim)).c_str(), best);
+		for(size_t i=0; i<best.size(); i++) {
+			if (best.at(i).has_value() && best.at(i).value().second > best_score) {
+				best_move  = best.at(i).value().first;
+				best_score = best.at(i).value().second;
+
+				send(false, "# thread %zu chose %s with score %d", i, v2t(Vertex(best_move.value(), dim)).c_str(), best_score);
+			}
+		}
+
+		if (ok && ei.flag == false && best_move.has_value()) {
+			global_best = best_move;
+
+			send(false, "# Move selected for this depth: %s (%d)", v2t(Vertex(global_best.value(), dim)).c_str(), global_best);
 		}
 
 		depth++;
@@ -1294,11 +1310,11 @@ void selectAlphaBeta(const Board & b, const ChainMap & cm, const std::vector<cha
 		delete to_timer;
 	}
 
-	if (best.has_value()) {
-		send(false, "# Move selected for %c by A/B: %s (reached depth: %d, completed: %d)", p == P_BLACK ? 'B' : 'W', v2t(Vertex(best.value(), dim)).c_str(), depth, ok);
+	if (global_best.has_value()) {
+		send(false, "# Move selected for %c by A/B: %s (reached depth: %d, completed: %d)", p == P_BLACK ? 'B' : 'W', v2t(Vertex(global_best.value(), dim)).c_str(), depth, ok);
 
-		evals->at(best.value()).score += 10;
-		evals->at(best.value()).valid = true;
+		evals->at(global_best.value()).score += 10;
+		evals->at(global_best.value()).valid = true;
 	}
 
 #ifdef CALC_BCO
