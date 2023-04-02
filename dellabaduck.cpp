@@ -440,50 +440,42 @@ void findChainsScan(std::queue<std::pair<unsigned, unsigned> > *const work_queue
 	}
 }
 
-std::set<Vertex, decltype(vertexCmp)> pickEmptyAround(const ChainMap & cm, const Vertex & v)
+void pickEmptyAround(const ChainMap & cm, const Vertex & v, std::set<Vertex, decltype(vertexCmp)> *const target)
 {
 	const int x = v.getX();
 	const int y = v.getY();
 	const int dim = cm.getDim();
 
-	std::set<Vertex, decltype(vertexCmp)> out;
-
 	if (x > 0 && cm.getAt(x - 1, y) == nullptr)
-		out.insert({ x - 1, y, dim });
+		target->insert({ x - 1, y, dim });
 
 	if (x < dim - 1 && cm.getAt(x + 1, y) == nullptr)
-		out.insert({ x + 1, y, dim });
+		target->insert({ x + 1, y, dim });
 
 	if (y > 0 && cm.getAt(x, y - 1) == nullptr)
-		out.insert({ x, y - 1, dim });
+		target->insert({ x, y - 1, dim });
 
 	if (y < dim - 1 && cm.getAt(x, y + 1) == nullptr)
-		out.insert({ x, y + 1, dim });
-
-	return out;
+		target->insert({ x, y + 1, dim });
 }
 
-std::set<Vertex, decltype(vertexCmp)> pickEmptyAround(const Board & b, const Vertex & v)
+void pickEmptyAround(const Board & b, const Vertex & v, std::set<Vertex, decltype(vertexCmp)> *const target)
 {
 	const int x = v.getX();
 	const int y = v.getY();
 	const int dim = b.getDim();
 
-	std::set<Vertex, decltype(vertexCmp)> out;
-
 	if (x > 0 && b.getAt(x - 1, y) == B_EMPTY)
-		out.insert({ x - 1, y, dim });
+		target->insert({ x - 1, y, dim });
 
 	if (x < dim - 1 && b.getAt(x + 1, y) == B_EMPTY)
-		out.insert({ x + 1, y, dim });
+		target->insert({ x + 1, y, dim });
 
 	if (y > 0 && b.getAt(x, y - 1) == B_EMPTY)
-		out.insert({ x, y - 1, dim });
+		target->insert({ x, y - 1, dim });
 
 	if (y < dim - 1 && b.getAt(x, y + 1) == B_EMPTY)
-		out.insert({ x, y + 1, dim });
-
-	return out;
+		target->insert({ x, y + 1, dim });
 }
 
 void findChains(const Board & b, std::vector<chain_t *> *const chainsWhite, std::vector<chain_t *> *const chainsBlack, ChainMap *const cm, const std::optional<board_t> ignore)
@@ -538,11 +530,8 @@ void findChains(const Board & b, std::vector<chain_t *> *const chainsWhite, std:
 			}
 			while(work_queue.empty() == false);
 
-			for(auto & stone : curChain->chain) {
-				auto freedoms = pickEmptyAround(b, stone);  // TODO directly into curChain->freedoms
-
-				curChain->freedoms.merge(freedoms);
-			}
+			for(auto & stone : curChain->chain)
+				pickEmptyAround(b, stone, &curChain->freedoms);
 
 			if (curChain->type == B_WHITE)
 				chainsWhite->push_back(curChain);
@@ -773,10 +762,7 @@ void connect(Board *const b, ChainMap *const cm, std::vector<chain_t *> *const c
 		}
 
 		// add any new liberties
-		std::set<Vertex, decltype(vertexCmp)> newFreedoms = pickEmptyAround(*cm, v);
-
-		for(auto & cross : newFreedoms)
-			toMerge.at(0)->freedoms.insert(cross);
+		pickEmptyAround(*cm, v, &toMerge.at(0)->freedoms);
 	}
 	else {
 		// this is a new chain
@@ -999,7 +985,8 @@ void selectExtendChains(const Board & b, const ChainMap & cm, const std::vector<
 
 	for(auto chain : scan) {
 		for(auto chainStone : chain->chain) {
-			auto empties = pickEmptyAround(cm, chainStone);
+			std::set<Vertex, decltype(vertexCmp)> empties;
+			pickEmptyAround(cm, chainStone, &empties);
 
 			for(auto cross : empties) {
 				if (isUsable(cm, myLiberties, cross)) {  // TODO: redundant check?
