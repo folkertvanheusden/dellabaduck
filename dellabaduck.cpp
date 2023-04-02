@@ -2097,12 +2097,14 @@ int main(int argc, char *argv[])
 
 			timeLeft = -1.0;
 
-			if (v.has_value())
+			if (v.has_value()) {
 				send(true, "=%s %s", id.c_str(), v2t(v.value()).c_str());
-			else
-				send(true, "=%s pass", id.c_str());
 
-			sgf += myformat(";%c[%s]", player == P_BLACK ? 'B' : 'W', v2t(v.value()).c_str());
+				sgf += myformat(";%c[%s]", player == P_BLACK ? 'B' : 'W', v2t(v.value()).c_str());
+			}
+			else {
+				send(true, "=%s pass", id.c_str());
+			}
 
 			send(false, "# %s)", sgf.c_str());
 
