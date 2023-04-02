@@ -538,16 +538,16 @@ void findChains(const Board & b, std::vector<chain_t *> *const chainsWhite, std:
 			}
 			while(work_queue.empty() == false);
 
+			for(auto & stone : curChain->chain) {
+				auto freedoms = pickEmptyAround(b, stone);  // TODO directly into curChain->freedoms
+
+				curChain->freedoms.merge(freedoms);
+			}
+
 			if (curChain->type == B_WHITE)
 				chainsWhite->push_back(curChain);
 			else if (curChain->type == B_BLACK)
 				chainsBlack->push_back(curChain);
-
-			for(auto stone : curChain->chain) {
-				auto freedoms = pickEmptyAround(b, stone);
-
-				curChain->freedoms.merge(freedoms);
-			}
 		}
 	}
 
@@ -837,12 +837,27 @@ void play(Board *const b, const Vertex & v, const player_t & p)
 	ChainMap cm(b->getDim());
 
 	std::vector<chain_t *> chainsWhite, chainsBlack;
-	findChains(*b, &chainsWhite, &chainsBlack, &cm, p == P_BLACK ? B_WHITE : B_BLACK);
 
 	// sanity check
+#if !defined(NDEBUG)
+#warning DEBUG enabled
+	findChains(*b, &chainsWhite, &chainsBlack, &cm, { });
+
 	std::vector<chain_t *> & scan_me = p == P_WHITE ? chainsWhite : chainsBlack;
-	for(auto chain : scan_me)
-		assert(chain->freedoms.empty() == false);
+
+	bool ok = true;
+	for(auto chain : scan_me) {
+		if (chain->freedoms.empty()) {
+			dump(*b);
+			dump(*chain);
+			ok = false;
+		}
+	}
+
+	assert(ok);
+#else
+	findChains(*b, &chainsWhite, &chainsBlack, &cm, p == P_BLACK ? B_WHITE : B_BLACK);
+#endif
 
 	std::vector<chain_t *> & scan = p == P_BLACK ? chainsWhite : chainsBlack;
 
