@@ -839,6 +839,11 @@ void play(Board *const b, const Vertex & v, const player_t & p)
 	std::vector<chain_t *> chainsWhite, chainsBlack;
 	findChains(*b, &chainsWhite, &chainsBlack, &cm, p == P_BLACK ? B_WHITE : B_BLACK);
 
+	// sanity check
+	std::vector<chain_t *> & scan_me = p == P_WHITE ? chainsWhite : chainsBlack;
+	for(auto chain : scan_me)
+		assert(chain->freedoms.empty() == false);
+
 	std::vector<chain_t *> & scan = p == P_BLACK ? chainsWhite : chainsBlack;
 
 	for(auto chain : scan) {
@@ -1069,7 +1074,7 @@ int search(const Board & b, const player_t & p, int alpha, const int beta, const
 	ChainMap cm(b.getDim());
 	std::vector<chain_t *> chainsWhite, chainsBlack;
 	findChains(b, &chainsWhite, &chainsBlack, &cm, { });
-	scanEnclosed(b, &cm, playerToStone(p));
+//	scanEnclosed(b, &cm, playerToStone(p));
 
 	std::set<Vertex, decltype(vertexCmp)> liberties;
 	findLiberties(cm, &liberties, playerToStone(p));
