@@ -579,7 +579,6 @@ void findLiberties(const ChainMap & cm, std::set<Vertex, decltype(vertexCmp)> *c
 			}
 
 			if (ok == false) {
-				// TODO: some check if an opponent's freedom is reduced
 				if (x > 0) {
 					Vertex v(x - 1, y, dim);
 					auto p = cm.getAt(v);
@@ -817,8 +816,6 @@ void play(Board *const b, const Vertex & v, const player_t & p)
 	board_t stone_type = playerToStone(p);
 
 	b->setAt(v, stone_type);
-
-	// TODO: remove a freedom from adjacecnt opponents and remove them when their freedoms drop to 0
 
 	ChainMap cm(b->getDim());
 
@@ -1865,26 +1862,9 @@ void test()
 	}
 }
 
-std::string genSgf(const Board & b)
+std::string init_sgf(const int dim)
 {
-	std::string sgf = "(;SZ[" + myformat("%d", b.getDim()) + "]";
-
-	const int dim = b.getDim();
-
-	for(int y=0; y<dim; y++) {
-		for(int x=0; x<dim; x++) {
-			auto cross = b.getAt(x, y);
-
-			if (cross == B_EMPTY)
-				continue;
-	
-			sgf += myformat("%c[%c%c]", cross == B_BLACK ? 'B' : 'W', 'a' + x, 'a' + y);
-		}
-	}
-
-	sgf += ")";
-
-	return sgf;
+	return "(;AP[DellaBaduck]SZ[" + myformat("%d", dim) + "]";
 }
 
 int main(int argc, char *argv[])
@@ -1908,6 +1888,8 @@ int main(int argc, char *argv[])
 
 	int moves_executed = 0;
 	int moves_total    = 9 * 9;
+
+	std::string sgf = init_sgf(b->getDim());
 
 	for(;;) {
 		char buffer[4096] { 0 };
@@ -1950,6 +1932,8 @@ int main(int argc, char *argv[])
 
 			moves_executed = 0;
 			moves_total    = dim * dim / 2;
+
+			sgf = init_sgf(dim);
 		}
 		else if (parts.at(0) == "play" && parts.size() == 3) {
 			player_t p = (parts.at(1) == "b" || parts.at(1) == "black") ? P_BLACK : P_WHITE;
@@ -1962,7 +1946,9 @@ int main(int argc, char *argv[])
 				play(b, v, p);
 			}
 
-			send(false, "# %s)", genSgf(*b).c_str());
+			sgf += myformat(";%c[%s]", p == P_BLACK ? 'B' : 'W', parts.at(2).c_str());
+
+			send(false, "# %s)", sgf.c_str());
 		}
 		else if (parts.at(0) == "debug" && parts.size() == 2) {
 			ChainMap cm(b->getDim());
@@ -2006,6 +1992,8 @@ int main(int argc, char *argv[])
 			komi = atof(parts.at(1).c_str());
 
 			send(true, "=%s", id.c_str());  // TODO
+							//
+			sgf += "KM[" + parts.at(1) + "]";
 		}
 		else if (parts.at(0) == "time_settings") {
 			send(true, "=%s", id.c_str());  // TODO
@@ -2114,7 +2102,9 @@ int main(int argc, char *argv[])
 			else
 				send(true, "=%s pass", id.c_str());
 
-			send(false, "# %s)", genSgf(*b).c_str());
+			sgf += myformat(";%c[%s]", player == P_BLACK ? 'B' : 'W', v2t(v.value()).c_str());
+
+			send(false, "# %s)", sgf.c_str());
 
 			send(false, "# took %.3fs", (end_ts - start_ts) / 1000.0);
 		}
