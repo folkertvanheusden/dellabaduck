@@ -1060,7 +1060,7 @@ double bco_total = 0;
 uint64_t bco_n = 0;
 #endif
 
-int search(const Board & b, const player_t & p, int alpha, const int beta, const int depth, const bool was_pass, const double komi, end_indicator_t *const ei, std::atomic_bool *const quick_stop)
+int search(const Board & b, const player_t & p, int alpha, const int beta, const int depth, const double komi, const uint64_t end_t, end_indicator_t *const ei, std::atomic_bool *const quick_stop)
 {
 	if (ei->flag || *quick_stop)
 		return -32767;
@@ -1078,23 +1078,19 @@ int search(const Board & b, const player_t & p, int alpha, const int beta, const
 	std::set<Vertex, decltype(vertexCmp)> liberties;
 	findLiberties(cm, &liberties, playerToStone(p));
 
-	player_t opponent = getOpponent(p);
-
 	// no valid freedoms? return score (eval)
 	if (liberties.empty()) {
-		if (was_pass) {
-			purgeChains(&chainsBlack);
-			purgeChains(&chainsWhite);
+		purgeChains(&chainsBlack);
+		purgeChains(&chainsWhite);
 
-			auto s = score(b, komi);
-			return p == P_BLACK ? s.first - s.second : s.second - s.first;
-		}
-
-		return search(b, opponent, -beta, -alpha, depth - 1, true, komi, ei, quick_stop);
+		auto s = score(b, komi);
+		return p == P_BLACK ? s.first - s.second : s.second - s.first;
 	}
 
 	int bestScore = -32768;
 	std::optional<Vertex> bestMove;
+
+	player_t opponent = getOpponent(p);
 
 #ifdef CALC_BCO
 	int bco = 0;
@@ -1110,7 +1106,7 @@ int search(const Board & b, const player_t & p, int alpha, const int beta, const
 
 		play(&work, stone, p);
 
-		int score = -search(work, opponent, -beta, -alpha, depth - 1, false, komi, ei, quick_stop);
+		int score = -search(work, opponent, -beta, -alpha, depth - 1, komi, end_t, ei, quick_stop);
 
 		if (score > bestScore) {
 			bestScore = score;
@@ -1257,7 +1253,7 @@ void selectAlphaBeta(const Board & b, const ChainMap & cm, const std::vector<cha
 
 							play(&work, { v.value(), dim }, p);
 
-							int score = search(work, p == P_BLACK ? P_WHITE : P_BLACK, local_alpha, local_beta, depth, false, komi, &ei, &quick_stop);
+							int score = search(work, p == P_BLACK ? P_WHITE : P_BLACK, local_alpha, local_beta, depth, komi, end_t, &ei, &quick_stop);
 
 							std::unique_lock<std::mutex> lck(a_b_lock);
 
@@ -1284,9 +1280,7 @@ void selectAlphaBeta(const Board & b, const ChainMap & cm, const std::vector<cha
 							local_alpha = alpha;
 							local_beta  = beta;
 						}
-					}
-				)
-			);
+					}));
 		}
 
 		send(false, "# %zu threads", threads.size());
