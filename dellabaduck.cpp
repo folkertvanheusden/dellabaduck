@@ -5,6 +5,7 @@
 #include <condition_variable>
 #include <ctype.h>
 #include <fstream>
+#include <map>
 #include <optional>
 #include <queue>
 #include <random>
@@ -1365,6 +1366,106 @@ void selectAlphaBeta(const Board & b, const ChainMap & cm, const std::vector<cha
 	delete [] valid;
 }
 
+std::tuple<double, double, int> playout(const Board & in, const double komi, player_t p)
+{
+	Board b(in);
+
+	// find chains of stones
+	ChainMap cm(b.getDim());
+	std::vector<chain_t *> chainsWhite, chainsBlack;
+	findChains(b, &chainsWhite, &chainsBlack, &cm, { });
+
+	std::set<Vertex, decltype(vertexCmp)> liberties;
+	findLiberties(cm, &liberties, playerToStone(p));
+
+	int  mc      { 0     };
+
+	bool pass[2] { false };
+
+	while(++mc < 250) {
+		// no valid freedoms? return "pass".
+		if (liberties.empty()) {
+			pass[p] = true;
+
+			if (pass[0] && pass[1])
+				break;
+
+			p = getOpponent(p);
+
+			continue;
+		}
+
+		pass[p] = false;
+
+		std::uniform_int_distribution<> rng(0, liberties.size() - 1);
+		size_t r  = rng(gen);
+
+		auto   it = liberties.begin();
+		for(size_t i=0; i<r; i++)
+			it++;
+
+		const int x = it->getX();
+		const int y = it->getY();
+
+		connect(&b, &cm, &chainsWhite, &chainsBlack, &liberties, playerToStone(p), x, y);
+
+		p = getOpponent(p);
+	}
+
+	purgeChains(&chainsBlack);
+	purgeChains(&chainsWhite);
+
+	auto s = score(b, komi);
+
+	return std::tuple<double, double, int>(s.first, s.second, mc);
+}
+
+void selectPlayout(const Board & b, const ChainMap & cm, const std::vector<chain_t *> & chainsWhite, const std::vector<chain_t *> & chainsBlack, std::set<Vertex, decltype(vertexCmp)> & liberties, const player_t & p, std::vector<eval_t> *const evals, const double useTime, const double komi, const int nThreads)
+{
+	uint64_t start_t = get_ts_ms();  // TODO: start of genMove()
+	uint64_t end_t   = start_t + useTime * 1000;
+
+	const int dim   = b.getDim();
+	const int dimsq = dim * dim;
+
+	const player_t opponent = getOpponent(p);
+
+	auto vertexIntPairCmp = [](const auto & a, const auto & b)
+	{
+		return a.getV() < b.getV();
+	};
+
+	std::map<Vertex, double, decltype(vertexIntPairCmp)> scores(vertexIntPairCmp);
+
+	auto lib_it = liberties.begin();
+
+	while(get_ts_ms() < end_t) {
+		Board work(b);
+
+		play(&work, *lib_it, p);
+
+		auto rc = playout(work, komi, opponent);
+
+		double score = std::get<0>(rc) - std::get<1>(rc);
+
+		auto insert_result = scores.insert(std::pair<Vertex, double>({ *lib_it, score }));
+
+		if (insert_result.second == false)  // allready in the map?
+			insert_result.first->second = std::max(insert_result.first->second, score);  // update score
+
+		lib_it++;
+
+		if (lib_it == liberties.end())
+			lib_it = liberties.begin();
+	}
+
+	for(auto & element : scores) {
+		evals->at(element.first.getV()).score = element.second;
+
+		evals->at(element.first.getV()).valid = true;
+	}
+}
+
 std::optional<Vertex> genMove(Board *const b, const player_t & p, const bool doPlay, const double useTime, const double komi, const int nThreads)
 {
 	dump(*b);
@@ -1399,7 +1500,8 @@ std::optional<Vertex> genMove(Board *const b, const player_t & p, const bool doP
 	evals.resize(p2dim);
 
 	if (useTime > 0.1)
-		selectAlphaBeta(*b, cm, chainsWhite, chainsBlack, liberties, p, &evals, useTime, komi, nThreads);
+		// selectAlphaBeta(*b, cm, chainsWhite, chainsBlack, liberties, p, &evals, useTime, komi, nThreads);
+		selectPlayout(*b, cm, chainsWhite, chainsBlack, liberties, p, &evals, useTime, komi, nThreads);
 	else {
 		scanEnclosed(*b, &cm, playerToStone(p));
 
@@ -1463,60 +1565,6 @@ std::optional<Vertex> genMove(Board *const b, const player_t & p, const bool doP
 	purgeChains(&chainsWhite);
 
 	return v;
-}
-
-std::tuple<double, double, int> playout(const Board & in, const double komi, player_t p)
-{
-	Board b(in);
-
-	// find chains of stones
-	ChainMap cm(b.getDim());
-	std::vector<chain_t *> chainsWhite, chainsBlack;
-	findChains(b, &chainsWhite, &chainsBlack, &cm, { });
-
-	std::set<Vertex, decltype(vertexCmp)> liberties;
-	findLiberties(cm, &liberties, playerToStone(p));
-
-	int  mc      { 0     };
-
-	bool pass[2] { false };
-
-	while(++mc < 250) {
-		// no valid freedoms? return "pass".
-		if (liberties.empty()) {
-			pass[p] = true;
-
-			if (pass[0] && pass[1])
-				break;
-
-			p = getOpponent(p);
-
-			continue;
-		}
-
-		pass[p] = false;
-
-		std::uniform_int_distribution<> rng(0, liberties.size() - 1);
-		size_t r  = rng(gen);
-
-		auto   it = liberties.begin();
-		for(size_t i=0; i<r; i++)
-			it++;
-
-		const int x = it->getX();
-		const int y = it->getY();
-
-		connect(&b, &cm, &chainsWhite, &chainsBlack, &liberties, playerToStone(p), x, y);
-
-		p = getOpponent(p);
-	}
-
-	purgeChains(&chainsBlack);
-	purgeChains(&chainsWhite);
-
-	auto s = score(b, komi);
-
-	return std::tuple<double, double, int>(s.first, s.second, mc);
 }
 
 double benchmark_1(const Board & in, const int ms, const double komi)
