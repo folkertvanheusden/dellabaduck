@@ -954,7 +954,7 @@ bool isUsable(const ChainMap & cm, const std::vector<chain_t *> & liberties, con
 	return isValidMove(liberties, v) && cm.getEnclosed(v.getV()) == false;
 }
 
-void selectRandom(const Board & b, const ChainMap & cm, const std::vector<chain_t *> & chainsWhite, const std::vector<chain_t *> & chainsBlack, const player_t & p, std::vector<eval_t> *const evals)
+void selectRandom(const Board & b, const ChainMap & cm, const std::vector<chain_t *> & chainsWhite, const std::vector<chain_t *> & chainsBlack, std::set<Vertex, decltype(vertexCmp)> & liberties, const player_t & p, std::vector<eval_t> *const evals)
 {
 	const std::vector<chain_t *> & myLiberties = p == P_BLACK ? chainsBlack : chainsWhite;
 
@@ -974,7 +974,7 @@ void selectRandom(const Board & b, const ChainMap & cm, const std::vector<chain_
 	evals->at(v).valid = true;
 }
 
-void selectExtendChains(const Board & b, const ChainMap & cm, const std::vector<chain_t *> & chainsWhite, const std::vector<chain_t *> & chainsBlack, const player_t & p, std::vector<eval_t> *const evals)
+void selectExtendChains(const Board & b, const ChainMap & cm, const std::vector<chain_t *> & chainsWhite, const std::vector<chain_t *> & chainsBlack, std::set<Vertex, decltype(vertexCmp)> & liberties, const player_t & p, std::vector<eval_t> *const evals)
 {
 	const std::vector<chain_t *> & scan = p == P_BLACK ? chainsWhite : chainsBlack;
 
@@ -996,7 +996,7 @@ void selectExtendChains(const Board & b, const ChainMap & cm, const std::vector<
 	}
 }
 
-void selectKillChains(const Board & b, const ChainMap & cm, const std::vector<chain_t *> & chainsWhite, const std::vector<chain_t *> & chainsBlack, const player_t & p, std::vector<eval_t> *const evals)
+void selectKillChains(const Board & b, const ChainMap & cm, const std::vector<chain_t *> & chainsWhite, const std::vector<chain_t *> & chainsBlack, std::set<Vertex, decltype(vertexCmp)> & liberties, const player_t & p, std::vector<eval_t> *const evals)
 {
 	const std::vector<chain_t *> & scan = p == P_BLACK ? chainsBlack : chainsWhite;
 	const std::vector<chain_t *> & myLiberties = p == P_BLACK ? chainsBlack : chainsWhite;
@@ -1014,7 +1014,7 @@ void selectKillChains(const Board & b, const ChainMap & cm, const std::vector<ch
 	}
 }
 
-void selectAtLeastOne(const Board & b, const ChainMap & cm, const std::vector<chain_t *> & chainsWhite, const std::vector<chain_t *> & chainsBlack, const player_t & p, std::vector<eval_t> *const evals)
+void selectAtLeastOne(const Board & b, const ChainMap & cm, const std::vector<chain_t *> & chainsWhite, const std::vector<chain_t *> & chainsBlack, std::set<Vertex, decltype(vertexCmp)> & liberties, const player_t & p, std::vector<eval_t> *const evals)
 {
 	const std::vector<chain_t *> & myLiberties = p == P_BLACK ? chainsBlack : chainsWhite;
 
@@ -1381,17 +1381,17 @@ std::optional<Vertex> genMove(Board *const b, const player_t & p, const bool doP
 	std::vector<eval_t> evals;
 	evals.resize(p2dim);
 
-	// algorithms
-	// FIXME	selectRandom(*b, cm, chainsWhite, chainsBlack, p, &evals);
-
-//	selectExtendChains(*b, cm, chainsWhite, chainsBlack, liberties, p, &evals);
-
-//	selectKillChains(*b, cm, chainsWhite, chainsBlack, liberties, p, &evals);
-
-//	selectAtLeastOne(*b, cm, chainsWhite, chainsBlack, liberties, p, &evals);
-
-//	if (useTime > 0.1)
+	if (useTime > 0.1)
 		selectAlphaBeta(*b, cm, chainsWhite, chainsBlack, liberties, p, &evals, useTime, komi, nThreads);
+	else {
+		// FIXME selectRandom(*b, cm, chainsWhite, chainsBlack, p, &evals);
+
+		selectExtendChains(*b, cm, chainsWhite, chainsBlack, liberties, p, &evals);
+
+		selectKillChains(*b, cm, chainsWhite, chainsBlack, liberties, p, &evals);
+
+		selectAtLeastOne(*b, cm, chainsWhite, chainsBlack, liberties, p, &evals);
+	}
 
 	// find best
 	std::optional<Vertex> v;
