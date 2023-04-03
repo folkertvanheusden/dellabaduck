@@ -1223,6 +1223,8 @@ void selectAlphaBeta(const Board & b, const ChainMap & cm, const std::vector<cha
 
 		std::atomic_bool quick_stop { false };
 
+		bool allow_next_depth = true;
+
 		ok = false;
 
 		std::vector<std::thread *> threads;
@@ -1231,7 +1233,7 @@ void selectAlphaBeta(const Board & b, const ChainMap & cm, const std::vector<cha
 		best.resize(nThreads);
 
 		for(int i=0; i<nThreads; i++) {
-			threads.push_back(new std::thread([hend_t, end_t, &places, dim, b, p, depth, komi, &ei, &alpha, beta, &a_b_lock, &quick_stop, i, &best, &ok] {
+			threads.push_back(new std::thread([hend_t, end_t, &places, dim, b, p, depth, komi, &ei, &alpha, beta, &a_b_lock, &quick_stop, i, &best, &ok, &allow_next_depth] {
 						int local_alpha = alpha;
 						int local_beta  = beta;
 
@@ -1269,8 +1271,11 @@ void selectAlphaBeta(const Board & b, const ChainMap & cm, const std::vector<cha
 
 							}
 
-							if (score <= alpha)
+							if (score <= alpha) {
 								alpha = -32767;
+
+								allow_next_depth = false;
+							}
 
 							local_alpha = alpha;
 							local_beta  = beta;
@@ -1311,7 +1316,10 @@ void selectAlphaBeta(const Board & b, const ChainMap & cm, const std::vector<cha
 			send(false, "# Move selected for this depth: %s (%d)", v2t(Vertex(global_best.value(), dim)).c_str(), global_best);
 		}
 
-		depth++;
+		if (allow_next_depth)
+			depth++;
+		else
+			send(false, "# score outside window, retry depth");
 	}
 
 	if (to_timer) {
