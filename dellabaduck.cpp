@@ -1432,7 +1432,7 @@ std::tuple<double, double, int> playout(const Board & in, const double komi, pla
 void selectPlayout(const Board & b, const ChainMap & cm, const std::vector<chain_t *> & chainsWhite, const std::vector<chain_t *> & chainsBlack, std::set<Vertex, decltype(vertexCmp)> & liberties, const player_t & p, std::vector<eval_t> *const evals, const double useTime, const double komi, const int nThreads)
 {
 	uint64_t start_t = get_ts_ms();  // TODO: start of genMove()
-	uint64_t end_t   = start_t + useTime * 1000;
+	uint64_t end_t   = start_t + useTime * 900;
 
 	std::vector<std::thread *> threads;
 
