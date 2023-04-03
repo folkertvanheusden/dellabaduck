@@ -1434,41 +1434,60 @@ void selectPlayout(const Board & b, const ChainMap & cm, const std::vector<chain
 	uint64_t start_t = get_ts_ms();  // TODO: start of genMove()
 	uint64_t end_t   = start_t + useTime * 1000;
 
-	const player_t opponent = getOpponent(p);
+	std::vector<std::thread *> threads;
 
-	auto vertexIntPairCmp = [](const auto & a, const auto & b)
-	{
-		return a.getV() < b.getV();
-	};
+	std::mutex evals_lock;
 
-	std::map<Vertex, double, decltype(vertexIntPairCmp)> scores(vertexIntPairCmp);
+	for(int i=0; i<nThreads; i++) {
+		threads.push_back(new std::thread([&evals, &evals_lock, end_t, liberties, p, komi, b] {
+					const player_t opponent = getOpponent(p);
 
-	auto lib_it = liberties.begin();
+					auto vertexIntPairCmp = [](const auto & a, const auto & b)
+					{
+						return a.getV() < b.getV();
+					};
 
-	while(get_ts_ms() < end_t) {
-		Board work(b);
+					std::map<Vertex, double, decltype(vertexIntPairCmp)> scores(vertexIntPairCmp);
 
-		play(&work, *lib_it, p);
+					auto lib_it = liberties.begin();
 
-		auto rc = playout(work, komi, opponent);
+					while(get_ts_ms() < end_t) {
+						Board work(b);
 
-		double score = std::get<0>(rc) - std::get<1>(rc);
+						play(&work, *lib_it, p);
 
-		auto insert_result = scores.insert(std::pair<Vertex, double>({ *lib_it, score }));
+						auto rc = playout(work, komi, opponent);
 
-		if (insert_result.second == false)  // allready in the map?
-			insert_result.first->second = std::max(insert_result.first->second, score);  // update score
+						double score = std::get<0>(rc) - std::get<1>(rc);
 
-		lib_it++;
+						auto insert_result = scores.insert(std::pair<Vertex, double>({ *lib_it, score }));
 
-		if (lib_it == liberties.end())
-			lib_it = liberties.begin();
+						if (insert_result.second == false)  // allready in the map?
+							insert_result.first->second = std::max(insert_result.first->second, score);  // update score
+
+						lib_it++;
+
+						if (lib_it == liberties.end())
+							lib_it = liberties.begin();
+					}
+
+					std::unique_lock<std::mutex> lck(evals_lock);
+
+					for(auto & element : scores) {
+						evals->at(element.first.getV()).score = element.second;
+
+						evals->at(element.first.getV()).valid = true;
+					}
+				})
+			);
 	}
 
-	for(auto & element : scores) {
-		evals->at(element.first.getV()).score = element.second;
+	while(threads.empty() == false) {
+		(*threads.begin())->join();
 
-		evals->at(element.first.getV()).valid = true;
+		delete *threads.begin();
+
+		threads.erase(threads.begin());
 	}
 }
 
