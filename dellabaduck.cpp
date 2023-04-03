@@ -74,6 +74,8 @@ void send(const bool tx, const char *fmt, ...)
 	if (tx) {
 		if (cgos && fmt[0] == '#') {
 			fprintf(fh, "%s%s\n", ts_str, str);
+			free(str);
+			free(ts_str);
 			return;
 		}
 
