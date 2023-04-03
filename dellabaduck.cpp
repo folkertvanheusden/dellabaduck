@@ -1073,7 +1073,6 @@ int search(const Board & b, const player_t & p, int alpha, const int beta, const
 	ChainMap cm(b.getDim());
 	std::vector<chain_t *> chainsWhite, chainsBlack;
 	findChains(b, &chainsWhite, &chainsBlack, &cm, { });
-//	scanEnclosed(b, &cm, playerToStone(p));
 
 	std::set<Vertex, decltype(vertexCmp)> liberties;
 	findLiberties(cm, &liberties, playerToStone(p));
@@ -1358,8 +1357,6 @@ std::optional<Vertex> genMove(Board *const b, const player_t & p, const bool doP
 	std::vector<chain_t *> chainsWhite, chainsBlack;
 	findChains(*b, &chainsWhite, &chainsBlack, &cm, { });
 
-	scanEnclosed(*b, &cm, playerToStone(p));
-
 	std::set<Vertex, decltype(vertexCmp)> liberties;
 	findLiberties(cm, &liberties, playerToStone(p));
 
@@ -1384,6 +1381,8 @@ std::optional<Vertex> genMove(Board *const b, const player_t & p, const bool doP
 	if (useTime > 0.1)
 		selectAlphaBeta(*b, cm, chainsWhite, chainsBlack, liberties, p, &evals, useTime, komi, nThreads);
 	else {
+		scanEnclosed(*b, &cm, playerToStone(p));
+
 		// FIXME selectRandom(*b, cm, chainsWhite, chainsBlack, p, &evals);
 
 		selectExtendChains(*b, cm, chainsWhite, chainsBlack, liberties, p, &evals);
