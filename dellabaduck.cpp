@@ -710,7 +710,7 @@ int countLiberties(const Board & b, const int x, const int y)
 	return n;
 }
 
-void connect(Board *const b, ChainMap *const cm, std::vector<chain_t *> *const chainsWhite, std::vector<chain_t *> *const chainsBlack, const board_t what, const int x, const int y)
+void connect(Board *const b, ChainMap *const cm, std::vector<chain_t *> *const chainsWhite, std::vector<chain_t *> *const chainsBlack, std::set<Vertex, decltype(vertexCmp)> *const liberties, const board_t what, const int x, const int y)
 {
 	const int dim = b->getDim();
 
@@ -720,6 +720,9 @@ void connect(Board *const b, ChainMap *const cm, std::vector<chain_t *> *const c
 	// update board
 	assert(b->getAt(x, y) == B_EMPTY);
 	b->setAt(x, y, what);
+
+	// remove liberty below the new stone
+	liberties->erase(Vertex(x, y, dim));
 
 	// find chains to merge
 	std::set<chain_t *> toMergeTemp;
@@ -814,8 +817,11 @@ void connect(Board *const b, ChainMap *const cm, std::vector<chain_t *> *const c
 	// remove chains without liberties
 	for(auto chain=toClean.begin(); chain!=toClean.end();) {
 		if ((*chain)->freedoms.empty()) {
-			for(auto ve : (*chain)->chain)
-				b->setAt(ve, B_EMPTY);
+			for(auto ve : (*chain)->chain) {
+				b->setAt(ve, B_EMPTY);  // remove part of the chain
+
+				liberties->insert(ve);  // ...and add that cross to the liberties set
+			}
 
 			chain = toClean.erase(chain);
 		}
@@ -1468,14 +1474,14 @@ std::tuple<double, double, int> playout(const Board & in, const double komi, pla
 	std::vector<chain_t *> chainsWhite, chainsBlack;
 	findChains(b, &chainsWhite, &chainsBlack, &cm, { });
 
+	std::set<Vertex, decltype(vertexCmp)> liberties;
+	findLiberties(cm, &liberties, playerToStone(p));
+
 	int  mc      { 0     };
 
 	bool pass[2] { false };
 
 	while(++mc < 250) {
-		std::set<Vertex, decltype(vertexCmp)> liberties;
-		findLiberties(cm, &liberties, playerToStone(p));
-
 		// no valid freedoms? return "pass".
 		if (liberties.empty()) {
 			pass[p] = true;
@@ -1500,7 +1506,7 @@ std::tuple<double, double, int> playout(const Board & in, const double komi, pla
 		const int x = it->getX();
 		const int y = it->getY();
 
-		connect(&b, &cm, &chainsWhite, &chainsBlack, playerToStone(p), x, y);
+		connect(&b, &cm, &chainsWhite, &chainsBlack, &liberties, playerToStone(p), x, y);
 
 		p = getOpponent(p);
 	}
