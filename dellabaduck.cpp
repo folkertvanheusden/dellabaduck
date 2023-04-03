@@ -1333,7 +1333,7 @@ void selectAlphaBeta(const Board & b, const ChainMap & cm, const std::vector<cha
 		if (ok && ei.flag == false && best_move.has_value()) {
 			global_best = best_move;
 
-			send(false, "# Move selected for this depth: %s (%d)", v2t(Vertex(global_best.value(), dim)).c_str(), global_best);
+			send(false, "# Move selected for this depth: %s (%d)", v2t(Vertex(global_best.value(), dim)).c_str(), global_best.value());
 		}
 
 		if (allow_next_depth)
