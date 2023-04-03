@@ -166,7 +166,7 @@ auto vertexCmp = [](const Vertex & a, const Vertex & b)
 typedef struct {
 	board_t type;
 	std::set<Vertex, decltype(vertexCmp)> chain;
-	std::set<Vertex, decltype(vertexCmp)> freedoms;
+	std::set<Vertex, decltype(vertexCmp)> liberties;
 } chain_t;
 
 void dump(const std::set<Vertex, decltype(vertexCmp)> & set)
@@ -188,11 +188,11 @@ void dump(const chain_t & chain)
 		line += myformat("%s ", v2t(v).c_str());
 	send(true, line.c_str());
 
-	if (chain.freedoms.empty() == false) {
-		send(true, "# Freedoms of that chain:");
+	if (chain.liberties.empty() == false) {
+		send(true, "# Liberties of that chain:");
 
 		line = "# ";
-		for(auto v : chain.freedoms) 
+		for(auto v : chain.liberties) 
 			line += myformat("%s ", v2t(v).c_str());
 		send(true, line.c_str());
 	}
@@ -546,7 +546,7 @@ void findChains(const Board & b, std::vector<chain_t *> *const chainsWhite, std:
 			while(work_queue.empty() == false);
 
 			for(auto & stone : curChain->chain)
-				pickEmptyAround(b, stone, &curChain->freedoms);
+				pickEmptyAround(b, stone, &curChain->liberties);
 
 			if (curChain->type == B_WHITE)
 				chainsWhite->push_back(curChain);
@@ -598,28 +598,28 @@ void findLiberties(const ChainMap & cm, std::set<Vertex, decltype(vertexCmp)> *c
 					Vertex v(x - 1, y, dim);
 					auto p = cm.getAt(v);
 
-					ok |= p == nullptr || (p != nullptr && p->type == for_whom && p->freedoms.size() > 1);
+					ok |= p == nullptr || (p != nullptr && p->type == for_whom && p->liberties.size() > 1);
 				}
 
 				if (x < dim - 1) {
 					Vertex v(x + 1, y, dim);
 					auto p = cm.getAt(v);
 
-					ok |= p == nullptr || (p != nullptr && p->type == for_whom && p->freedoms.size() > 1);
+					ok |= p == nullptr || (p != nullptr && p->type == for_whom && p->liberties.size() > 1);
 				}
 
 				if (y > 0) {
 					Vertex v(x, y - 1, dim);
 					auto p = cm.getAt(v);
 
-					ok |= p == nullptr || (p != nullptr && p->type == for_whom && p->freedoms.size() > 1);
+					ok |= p == nullptr || (p != nullptr && p->type == for_whom && p->liberties.size() > 1);
 				}
 
 				if (y < dim - 1) {
 					Vertex v(x, y + 1, dim);
 					auto p = cm.getAt(v);
 
-					ok |= p == nullptr || (p != nullptr && p->type == for_whom && p->freedoms.size() > 1);
+					ok |= p == nullptr || (p != nullptr && p->type == for_whom && p->liberties.size() > 1);
 				}
 			}
 
@@ -753,9 +753,9 @@ void connect(Board *const b, ChainMap *const cm, std::vector<chain_t *> *const c
 		// update board->chain map
 		cm->setAt(x, y, toMerge.at(0));
 
-		// first remove this freedom
+		// first remove this liberty
 		for(auto & chain : toMerge)
-			chain->freedoms.erase(v);
+			chain->liberties.erase(v);
 
 		// merge
 		auto cleanChainSet = what == B_WHITE ? chainsWhite : chainsBlack;
@@ -763,7 +763,7 @@ void connect(Board *const b, ChainMap *const cm, std::vector<chain_t *> *const c
 		for(size_t i=1; i<toMerge.size(); i++) {
 			toMerge.at(0)->chain.merge(toMerge.at(i)->chain);  // add stones
 
-			toMerge.at(0)->freedoms.merge(toMerge.at(i)->freedoms);  // add empty crosses surrounding the chain
+			toMerge.at(0)->liberties.merge(toMerge.at(i)->liberties);  // add empty crosses surrounding the chain
 
 			// remove chain from chainset
 			auto it = std::find(cleanChainSet->begin(), cleanChainSet->end(), toMerge.at(i));
@@ -779,7 +779,7 @@ void connect(Board *const b, ChainMap *const cm, std::vector<chain_t *> *const c
 		}
 
 		// add any new liberties
-		pickEmptyAround(*cm, v, &toMerge.at(0)->freedoms);
+		pickEmptyAround(*cm, v, &toMerge.at(0)->liberties);
 	}
 	else {
 		// this is a new chain
@@ -797,7 +797,7 @@ void connect(Board *const b, ChainMap *const cm, std::vector<chain_t *> *const c
 		cm->setAt(x, y, curChain);
 
 		// find any liberties around it
-		pickEmptyAround(*cm, Vertex(x, y, dim), &curChain->freedoms);
+		pickEmptyAround(*cm, Vertex(x, y, dim), &curChain->liberties);
 	}
 
 	// find surrounding opponent chains
@@ -817,7 +817,7 @@ void connect(Board *const b, ChainMap *const cm, std::vector<chain_t *> *const c
 
 	// remove chains without liberties
 	for(auto chain=toClean.begin(); chain!=toClean.end();) {
-		if ((*chain)->freedoms.empty()) {
+		if ((*chain)->liberties.empty()) {
 			for(auto ve : (*chain)->chain) {
 				b->setAt(ve, B_EMPTY);  // remove part of the chain
 
@@ -853,7 +853,7 @@ void play(Board *const b, const Vertex & v, const player_t & p)
 
 	bool ok = true;
 	for(auto chain : scan_me) {
-		if (chain->freedoms.empty()) {
+		if (chain->liberties.empty()) {
 			dump(*b);
 			dump(*chain);
 			ok = false;
@@ -868,7 +868,7 @@ void play(Board *const b, const Vertex & v, const player_t & p)
 	std::vector<chain_t *> & scan = p == P_BLACK ? chainsWhite : chainsBlack;
 
 	for(auto chain : scan) {
-		if (chain->freedoms.empty()) {
+		if (chain->liberties.empty()) {
 			for(auto ve : chain->chain) {
 				b->setAt(ve, B_EMPTY);
 				send(false, "# purge %s", v2t(ve).c_str());
@@ -964,7 +964,7 @@ typedef struct {
 inline bool isValidMove(const std::vector<chain_t *> & liberties, const Vertex & v)
 {
 	for(auto chain : liberties) {
-		if (chain->freedoms.find(v) != chain->freedoms.end())
+		if (chain->liberties.find(v) != chain->liberties.end())
 			return true;
 	}
 
@@ -983,11 +983,11 @@ void selectRandom(const Board & b, const ChainMap & cm, const std::vector<chain_
 
 	size_t chainNr   = rand() % myLiberties.size();
 
-	size_t chainSize = myLiberties.at(chainNr)->freedoms.size();
+	size_t chainSize = myLiberties.at(chainNr)->liberties.size();
 
 	int r = chainSize > 1 ? rand() % (chainSize - 1) : 0;
 
-	auto it = myLiberties.at(chainNr)->freedoms.begin();
+	auto it = myLiberties.at(chainNr)->liberties.begin();
 	for(int i=0; i<r; i++)
 		it++;
 
@@ -1025,9 +1025,9 @@ void selectKillChains(const Board & b, const ChainMap & cm, const std::vector<ch
 	const std::vector<chain_t *> & myLiberties = p == P_BLACK ? chainsBlack : chainsWhite;
 
 	for(auto chain : scan) {
-		const int add = chain->chain.size() - chain->freedoms.size();
+		const int add = chain->chain.size() - chain->liberties.size();
 
-		for(auto stone : chain->freedoms) {
+		for(auto stone : chain->liberties) {
 			if (isUsable(cm, myLiberties, stone)) {
 				int v = stone.getV();
 				evals->at(v).score += add;
@@ -1044,7 +1044,7 @@ void selectAtLeastOne(const Board & b, const ChainMap & cm, const std::vector<ch
 	if (myLiberties.empty())
 		return;
 
-	auto      it = myLiberties.at(0)->freedoms.begin();
+	auto      it = myLiberties.at(0)->liberties.begin();
 	const int v = it->getV();
 
 	evals->at(v).score++;
@@ -1066,7 +1066,7 @@ int calcNLiberties(const std::vector<chain_t *> & chains)
 	int n = 0;
 
 	for(auto chain : chains)
-		n += chain->freedoms.size();
+		n += chain->liberties.size();
 
 	return n;
 }
@@ -1119,7 +1119,7 @@ int search(const Board & b, const player_t & p, int alpha, const int beta, const
 #endif
 
 	for(auto stone : liberties) {
-		// TODO: check if in freedoms van de mogelijke crosses van p
+		// TODO: check if in liberties van de mogelijke crosses van p
 #ifdef CALC_BCO
 		bco++;
 #endif
@@ -1478,7 +1478,7 @@ std::optional<Vertex> genMove(Board *const b, const player_t & p, const bool doP
 	std::set<Vertex, decltype(vertexCmp)> liberties;
 	findLiberties(cm, &liberties, playerToStone(p));
 
-	// no valid freedoms? return "pass".
+	// no valid liberties? return "pass".
 	if (liberties.empty()) {
 		purgeChains(&chainsBlack);
 		purgeChains(&chainsWhite);
@@ -1553,7 +1553,7 @@ std::optional<Vertex> genMove(Board *const b, const player_t & p, const bool doP
 
 	send(false, line.c_str());
 
-	// remove any chains that no longer have freedoms after this move
+	// remove any chains that no longer have liberties after this move
 	// also play the move
 	if (doPlay && v.has_value())
 		play(b, v.value(), p);
@@ -1784,7 +1784,7 @@ bool compareChain(const std::set<Vertex, decltype(vertexCmp)> & a, const std::se
 	return true;
 }
 
-typedef enum { fc_stones, fc_freedoms } fc_search_t;
+typedef enum { fc_stones, fc_liberties } fc_search_t;
 
 bool findChain(const std::vector<chain_t *> & chains, const std::set<Vertex, decltype(vertexCmp)> & search_for, const fc_search_t & type)
 {
@@ -1793,8 +1793,8 @@ bool findChain(const std::vector<chain_t *> & chains, const std::set<Vertex, dec
 			if (compareChain(c->chain, search_for))
 				return true;
 		}
-		else if (type == fc_freedoms) {
-			if (compareChain(c->freedoms, search_for))
+		else if (type == fc_liberties) {
+			if (compareChain(c->liberties, search_for))
 				return true;
 		}
 	}
@@ -1928,10 +1928,10 @@ void test()
 		}
 
 		for(auto ch : b.white_chains) {
-			auto white_freedoms = stringToChain(ch.second, brd.getDim());
+			auto white_liberties = stringToChain(ch.second, brd.getDim());
 
-			if (findChain(chainsWhite, white_freedoms, fc_freedoms) == false)
-				printf("white freedoms mismatch for %s\n", ch.second.c_str()), ok = false;
+			if (findChain(chainsWhite, white_liberties, fc_liberties) == false)
+				printf("white liberties mismatch for %s\n", ch.second.c_str()), ok = false;
 		}
 
 		for(auto ch : b.black_chains) {
@@ -1942,10 +1942,10 @@ void test()
 		}
 
 		for(auto ch : b.black_chains) {
-			auto black_freedoms = stringToChain(ch.second, brd.getDim());
+			auto black_liberties = stringToChain(ch.second, brd.getDim());
 
-			if (findChain(chainsBlack, black_freedoms, fc_freedoms) == false)
-				printf("black freedoms mismatch for %s\n", ch.second.c_str()), ok = false;
+			if (findChain(chainsBlack, black_liberties, fc_liberties) == false)
+				printf("black liberties mismatch for %s\n", ch.second.c_str()), ok = false;
 		}
 
 		if (!ok) {
