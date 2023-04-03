@@ -7,6 +7,7 @@
 #include <fstream>
 #include <optional>
 #include <queue>
+#include <random>
 #include <set>
 #include <stdarg.h>
 #include <stdint.h>
@@ -34,6 +35,19 @@ const char *const board_t_names[] = { ".", "o", "x" };
 FILE *fh = fopen("input.dat", "a+");
 
 bool cgos = true;
+
+auto produce_seed()
+{
+	std::vector<unsigned int> random_data(std::mt19937::state_size);
+
+	std::random_device source;
+	std::generate(std::begin(random_data), std::end(random_data), [&](){return source();});
+
+	return std::seed_seq(std::begin(random_data), std::end(random_data));
+}
+
+thread_local auto mt_seed = produce_seed();
+thread_local std::mt19937_64 gen { mt_seed };
 
 void send(const bool tx, const char *fmt, ...)
 {
@@ -1454,15 +1468,16 @@ std::tuple<double, double, int> playout(const Board & in, const double komi, pla
 	std::vector<chain_t *> chainsWhite, chainsBlack;
 	findChains(b, &chainsWhite, &chainsBlack, &cm, { });
 
-	int mc = 0;
+	int  mc      { 0     };
 
 	bool pass[2] { false };
 
-	for(;;) {
-		const std::vector<chain_t *> & myLiberties = p == P_BLACK ? chainsBlack : chainsWhite;
+	while(++mc < 250) {
+		std::set<Vertex, decltype(vertexCmp)> liberties;
+		findLiberties(cm, &liberties, playerToStone(p));
 
 		// no valid freedoms? return "pass".
-		if (calcNLiberties(myLiberties) == 0) {
+		if (liberties.empty()) {
 			pass[p] = true;
 
 			if (pass[0] && pass[1])
@@ -1475,12 +1490,11 @@ std::tuple<double, double, int> playout(const Board & in, const double komi, pla
 
 		pass[p] = false;
 
-		size_t chainIdx  = rand() % myLiberties.size();
-		size_t chainSize = myLiberties.at(chainIdx)->freedoms.size();
-		int r = chainSize > 1 ? rand() % (chainSize - 1) : 0;
+		std::uniform_int_distribution<> rng(0, liberties.size() - 1);
+		size_t r  = rng(gen);
 
-		auto it = myLiberties.at(chainIdx)->freedoms.begin();
-		for(int i=0; i<r; i++)
+		auto   it = liberties.begin();
+		for(size_t i=0; i<r; i++)
 			it++;
 
 		const int x = it->getX();
@@ -1489,9 +1503,6 @@ std::tuple<double, double, int> playout(const Board & in, const double komi, pla
 		connect(&b, &cm, &chainsWhite, &chainsBlack, playerToStone(p), x, y);
 
 		p = getOpponent(p);
-
-		if (++mc == 250)
-			break;
 	}
 
 	purgeChains(&chainsBlack);
@@ -1507,8 +1518,8 @@ double benchmark_1(const Board & in, const int ms, const double komi)
 	send(true, "# starting benchmark 1: duration: %.3fs, board dimensions: %d, komi: %g", ms / 1000.0, in.getDim(), komi);
 
 	uint64_t start = get_ts_ms();
-	uint64_t end = 0;
-	uint64_t n = 0;
+	uint64_t end   = 0;
+	uint64_t n     = 0;
 	uint64_t total_puts = 0;
 
 	do {
@@ -1522,10 +1533,11 @@ double benchmark_1(const Board & in, const int ms, const double komi)
 	}
 	while(end - start < ms);
 
-	double pops = n * 1000. / (end - start);
-	send(true, "# playouts (%d) per second: %f (%.1f stones on average)", n, pops, total_puts / double(n));
+	double td         = (end - start) / 1000.;
+	double n_playouts = n / td;
+	send(true, "# playouts (total: %lu) per second: %f (%.1f stones on average (total: %lu) or %f stones per second)", n, n_playouts, total_puts / double(n), total_puts, total_puts / td);
 
-	return pops;
+	return n_playouts;
 }
 
 double benchmark_2(const Board & in, const int ms)
@@ -1818,6 +1830,7 @@ void test()
 			{ { "G6", "G7 H6 F6 G5" }, { "J6", "J7 H6 J5" }, { "B7 A7", "B8 A8 B6 A6" }, { "D7", "E7 D6" }, { "F7", "F8 G7 E7 F6" } }
 		       	});
 
+#if 0
 	boards.push_back({
 			"xx.xxxxox\n"
 			"xooooxoox\n"
@@ -1832,6 +1845,7 @@ void test()
 			{ },
 			{ }
 			});
+#endif
 
 	for(auto b : boards) {
 		bool   ok   = true;
