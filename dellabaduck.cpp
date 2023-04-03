@@ -495,7 +495,7 @@ void pickEmptyAround(const Board & b, const Vertex & v, std::set<Vertex, decltyp
 
 void findChains(const Board & b, std::vector<chain_t *> *const chainsWhite, std::vector<chain_t *> *const chainsBlack, ChainMap *const cm, const std::optional<board_t> ignore)
 {
-	const int dim = b.getDim();
+	const unsigned dim = b.getDim();
 
 	bool *scanned = new bool[dim * dim]();
 
@@ -535,7 +535,7 @@ void findChains(const Board & b, std::vector<chain_t *> *const chainsWhite, std:
 
 					cm->setAt(x, y, curChain);
 
-					curChain->chain.insert({ int(x), int(y), dim });
+					curChain->chain.insert({ int(x), int(y), int(dim) });
 
 					findChainsScan(&work_queue, b, x, y, 0, -1, cur_bv, scanned);
 					findChainsScan(&work_queue, b, x, y, 0, +1, cur_bv, scanned);
@@ -796,9 +796,6 @@ void connect(Board *const b, ChainMap *const cm, std::vector<chain_t *> *const c
 
 		cm->setAt(x, y, curChain);
 	}
-
-	// erase liberties from opponent chains
-	std::vector<chain_t *> *const scan = what == B_BLACK ? chainsWhite : chainsBlack;
 
 	// find surrounding opponent chains
 	std::set<chain_t *> toClean;
@@ -1224,8 +1221,6 @@ void selectAlphaBeta(const Board & b, const ChainMap & cm, const std::vector<cha
 	int depth = 1;
 	bool ok = false;
 
-	size_t n_bytes  = sizeof(int) * dim * dim;
-
 	std::optional<int> global_best;
 
 	int alpha = -32767;
@@ -1425,9 +1420,6 @@ void selectPlayout(const Board & b, const ChainMap & cm, const std::vector<chain
 	uint64_t start_t = get_ts_ms();  // TODO: start of genMove()
 	uint64_t end_t   = start_t + useTime * 1000;
 
-	const int dim   = b.getDim();
-	const int dimsq = dim * dim;
-
 	const player_t opponent = getOpponent(p);
 
 	auto vertexIntPairCmp = [](const auto & a, const auto & b)
@@ -1567,7 +1559,7 @@ std::optional<Vertex> genMove(Board *const b, const player_t & p, const bool doP
 	return v;
 }
 
-double benchmark_1(const Board & in, const int ms, const double komi)
+double benchmark_1(const Board & in, const unsigned ms, const double komi)
 {
 	send(true, "# starting benchmark 1: duration: %.3fs, board dimensions: %d, komi: %g", ms / 1000.0, in.getDim(), komi);
 
@@ -1594,7 +1586,7 @@ double benchmark_1(const Board & in, const int ms, const double komi)
 	return n_playouts;
 }
 
-double benchmark_2(const Board & in, const int ms)
+double benchmark_2(const Board & in, const unsigned ms)
 {
 	send(true, "# starting benchmark 2: duration: %.3fs, board dimensions: %d", ms / 1000.0, in.getDim());
 
@@ -1623,7 +1615,7 @@ double benchmark_2(const Board & in, const int ms)
 	return pops;
 }
 
-double benchmark_3(const Board & in, const int ms)
+double benchmark_3(const Board & in, const unsigned ms)
 {
 	send(true, "# starting benchmark 3: duration: %.3fs, board dimensions: %d", ms / 1000.0, in.getDim());
 
