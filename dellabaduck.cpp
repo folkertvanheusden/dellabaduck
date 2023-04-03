@@ -980,7 +980,7 @@ void selectRandom(const Board & b, const ChainMap & cm, const std::vector<chain_
 
 	size_t chainSize = myLiberties.at(chainNr)->freedoms.size();
 
-	int r = chainSize > 0 ? rand() % (chainSize - 1) : 0;
+	int r = chainSize > 1 ? rand() % (chainSize - 1) : 0;
 
 	auto it = myLiberties.at(chainNr)->freedoms.begin();
 	for(int i=0; i<r; i++)
