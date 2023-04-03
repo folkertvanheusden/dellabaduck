@@ -1208,13 +1208,13 @@ void selectAlphaBeta(const Board & b, const ChainMap & cm, const std::vector<cha
 
 	std::optional<int> global_best;
 
+	int alpha = -32767;
+	int beta  =  32767;
+
 	while(get_ts_ms() < hend_t && depth <= dim * dim) {
 		send(false, "# a/b depth: %d", depth);
 
 		fifo<int> places(dim * dim + 1);
-
-		int alpha = -32767;
-		int beta  =  32767;
 
 		// queue "work" for threads
 		for(auto & v: places_for_sort)
@@ -1291,6 +1291,9 @@ void selectAlphaBeta(const Board & b, const ChainMap & cm, const std::vector<cha
 				send(false, "# thread %zu chose %s with score %d", i, v2t(Vertex(best_move.value(), dim)).c_str(), best_score);
 			}
 		}
+
+		if (best_score > alpha)
+			alpha = best_score;
 
 		if (ok && ei.flag == false && best_move.has_value()) {
 			global_best = best_move;
