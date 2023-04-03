@@ -1404,7 +1404,7 @@ std::tuple<double, double, int> playout(const Board & in, const double komi, pla
 			continue;
 		}
 
-		pass[p] = false;
+		pass[0] = pass[1] = false;
 
 		std::uniform_int_distribution<> rng(0, liberties.size() - 1);
 		size_t r  = rng(gen);
