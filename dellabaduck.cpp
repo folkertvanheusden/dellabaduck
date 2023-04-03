@@ -1338,7 +1338,7 @@ void selectAlphaBeta(const Board & b, const ChainMap & cm, const std::vector<cha
 	delete [] valid;
 }
 
-std::optional<Vertex> genMove(Board *const b, const player_t & p, const bool doPlay, const double useTime, const double komi)
+std::optional<Vertex> genMove(Board *const b, const player_t & p, const bool doPlay, const double useTime, const double komi, const int nThreads)
 {
 	dump(*b);
 
@@ -1383,7 +1383,7 @@ std::optional<Vertex> genMove(Board *const b, const player_t & p, const bool doP
 //	selectAtLeastOne(*b, cm, chainsWhite, chainsBlack, liberties, p, &evals);
 
 //	if (useTime > 0.1)
-		selectAlphaBeta(*b, cm, chainsWhite, chainsBlack, liberties, p, &evals, useTime, komi, std::thread::hardware_concurrency());
+		selectAlphaBeta(*b, cm, chainsWhite, chainsBlack, liberties, p, &evals, useTime, komi, nThreads);
 
 	// find best
 	std::optional<Vertex> v;
@@ -1898,10 +1898,14 @@ std::string init_sgf(const int dim)
 
 int main(int argc, char *argv[])
 {
+	int nThreads = std::thread::hardware_concurrency();
+
 	int c = -1;
-	while((c = getopt(argc, argv, "c")) != -1) {
+	while((c = getopt(argc, argv, "ct:")) != -1) {
 		if (c == 'c')  // console
 			cgos = false;
+		else if (c == 't')
+			nThreads = atoi(optarg);
 	}
 
 	setbuf(stdout, nullptr);
@@ -2084,7 +2088,7 @@ int main(int argc, char *argv[])
 				if (++moves_executed >= moves_total)
 					moves_total = (moves_total * 4) / 3;
 
-				auto v = genMove(b, p, true, time_use, komi);
+				auto v = genMove(b, p, true, time_use, komi, nThreads);
 
 				uint64_t end_ts = get_ts_ms();
 
@@ -2121,7 +2125,7 @@ int main(int argc, char *argv[])
 				moves_total = (moves_total * 4) / 3;
 
 			uint64_t start_ts = get_ts_ms();
-			auto v = genMove(b, player, parts.at(0) == "genmove", time_use, komi);
+			auto v = genMove(b, player, parts.at(0) == "genmove", time_use, komi, nThreads);
 			uint64_t end_ts = get_ts_ms();
 
 			timeLeft = -1.0;
