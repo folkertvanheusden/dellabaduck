@@ -1615,7 +1615,7 @@ double benchmark_2(const Board & in, const unsigned ms)
 	while(end - start < ms);
 
 	double pops = n * 1000. / (end - start);
-	send(true, "# playouts (%d) per second: %f", n, pops);
+	send(true, "# playouts (%lu total) per second: %f", n, pops);
 
 	return pops;
 }
@@ -1656,7 +1656,7 @@ double benchmark_3(const Board & in, const unsigned ms)
 	while(end - start < ms);
 
 	double pops = n * 1000. / (end - start);
-	send(true, "# playouts (%d) per second: %f", n, pops);
+	send(true, "# playouts (%lu total) per second: %f", n, pops);
 
 	return pops;
 }
