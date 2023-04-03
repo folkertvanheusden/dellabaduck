@@ -554,6 +554,10 @@ void findChains(const Board & b, std::vector<chain_t *> *const chainsWhite, std:
 				chainsWhite->push_back(curChain);
 			else if (curChain->type == B_BLACK)
 				chainsBlack->push_back(curChain);
+			else {
+				send(true, "# INTERNAL ERROR: %d is not valid for a stone type", curChain->type);
+				exit(1);
+			}
 		}
 	}
 
@@ -769,6 +773,7 @@ void connect(Board *const b, ChainMap *const cm, std::vector<chain_t *> *const c
 
 			// remove chain from chainset
 			auto it = std::find(cleanChainSet->begin(), cleanChainSet->end(), toMerge.at(i));
+			delete *it;
 			cleanChainSet->erase(it);
 		}
 
@@ -793,8 +798,10 @@ void connect(Board *const b, ChainMap *const cm, std::vector<chain_t *> *const c
 			chainsWhite->push_back(curChain);
 		else if (what == B_BLACK)
 			chainsBlack->push_back(curChain);
-		else
-			assert(0);
+		else {
+			send(true, "# INTERNAL ERROR: %d is not valid for a stone type", what);
+			exit(1);
+		}
 
 		cm->setAt(x, y, curChain);
 
