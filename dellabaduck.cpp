@@ -795,6 +795,9 @@ void connect(Board *const b, ChainMap *const cm, std::vector<chain_t *> *const c
 			assert(0);
 
 		cm->setAt(x, y, curChain);
+
+		// find any liberties around it
+		pickEmptyAround(*cm, Vertex(x, y, dim), &curChain->freedoms);
 	}
 
 	// find surrounding opponent chains
@@ -820,6 +823,8 @@ void connect(Board *const b, ChainMap *const cm, std::vector<chain_t *> *const c
 
 				liberties->insert(ve);  // ...and add that cross to the liberties set
 			}
+
+			delete *chain;
 
 			chain = toClean.erase(chain);
 		}
