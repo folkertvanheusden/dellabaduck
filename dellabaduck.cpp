@@ -1210,6 +1210,7 @@ void selectAlphaBeta(const Board & b, const ChainMap & cm, const std::vector<cha
 
 	int alpha = -32767;
 	int beta  =  32767;
+	std::mutex a_b_lock;
 
 	while(get_ts_ms() < hend_t && depth <= dim * dim) {
 		send(false, "# a/b depth: %d", depth);
@@ -1230,7 +1231,7 @@ void selectAlphaBeta(const Board & b, const ChainMap & cm, const std::vector<cha
 		best.resize(nThreads);
 
 		for(int i=0; i<nThreads; i++) {
-			threads.push_back(new std::thread([hend_t, end_t, &places, dim, b, p, depth, komi, &ei, alpha, beta, &best, &quick_stop, i, &best, &ok] {
+			threads.push_back(new std::thread([hend_t, end_t, &places, dim, b, p, depth, komi, &ei, &alpha, beta, &a_b_lock, &quick_stop, i, &best, &ok] {
 						int local_alpha = alpha;
 						int local_beta  = beta;
 
@@ -1252,18 +1253,27 @@ void selectAlphaBeta(const Board & b, const ChainMap & cm, const std::vector<cha
 
 							int score = search(work, p == P_BLACK ? P_WHITE : P_BLACK, local_alpha, local_beta, depth, komi, end_t, &ei, &quick_stop);
 
-							if (ei.flag == false && score > local_alpha) {
-								local_alpha = score;
+							std::unique_lock<std::mutex> lck(a_b_lock);
+
+							if (ei.flag == false && score > alpha) {
+								alpha = score;
 
 								best[i] = { v.value(), score };
 
 								if (score >= beta) {
-									send(false, "BCO: %d %d %d\n", local_alpha, score, local_beta);
+									send(false, "BCO: %d %d %d\n", alpha, score, beta);
 									quick_stop = true;
 									ok = true;
 									break;
 								}
+
 							}
+
+							if (score <= alpha)
+								alpha = -32767;
+
+							local_alpha = alpha;
+							local_beta  = beta;
 						}
 					}));
 		}
