@@ -1100,7 +1100,7 @@ int search(const Board & b, const player_t & p, int alpha, const int beta, const
 	std::set<Vertex, decltype(vertexCmp)> liberties;
 	findLiberties(cm, &liberties, playerToStone(p));
 
-	// no valid freedoms? return score (eval)
+	// no valid liberties? return score (eval)
 	if (liberties.empty()) {
 		purgeChains(&chainsBlack);
 		purgeChains(&chainsWhite);
@@ -1383,7 +1383,7 @@ std::tuple<double, double, int> playout(const Board & in, const double komi, pla
 	bool pass[2] { false };
 
 	while(++mc < 250) {
-		// no valid freedoms? return "pass".
+		// no valid liberties? return "pass".
 		if (liberties.empty()) {
 			pass[p] = true;
 
