@@ -1434,21 +1434,17 @@ void selectPlayout(const Board & b, const ChainMap & cm, const std::vector<chain
 	const int dim   = b.getDim();
 	const int dimsq = dim * dim;
 
-	std::vector<std::pair<double, uint32_t> > results;
-	results.resize(dimsq);
+	std::vector<std::pair<double, uint32_t> > all_results;
+	all_results.resize(dimsq);
 
-	std::mutex results_lock;
+	std::mutex all_results_lock;
 
 	for(int i=0; i<nThreads; i++) {
-		threads.push_back(new std::thread([&results, &results_lock, end_t, liberties, p, komi, b] {
+		threads.push_back(new std::thread([&all_results, &all_results_lock, end_t, liberties, p, komi, b, dimsq] {
 					const player_t opponent = getOpponent(p);
 
-					auto vertexIntPairCmp = [](const auto & a, const auto & b)
-					{
-						return a.getV() < b.getV();
-					};
-
-					std::map<Vertex, std::pair<double, uint32_t>, decltype(vertexIntPairCmp)> scores(vertexIntPairCmp);
+					std::vector<std::pair<double, uint32_t> > local_results;
+					local_results.resize(dimsq);
 
 					auto lib_it = liberties.begin();
 
@@ -1461,12 +1457,8 @@ void selectPlayout(const Board & b, const ChainMap & cm, const std::vector<chain
 
 						double score = std::get<0>(rc) - std::get<1>(rc);
 
-						auto insert_result = scores.insert(std::pair<Vertex, std::pair<double, uint32_t> >({ *lib_it, { score, 1 } }));
-
-						if (insert_result.second == false) {  // allready in the map?
-							insert_result.first->second.first += score;
-							insert_result.first->second.second++;
-						}
+						local_results.at(lib_it->getV()).first += score;
+						local_results.at(lib_it->getV()).second++;
 
 						lib_it++;
 
@@ -1474,12 +1466,12 @@ void selectPlayout(const Board & b, const ChainMap & cm, const std::vector<chain
 							lib_it = liberties.begin();
 					}
 
-					std::unique_lock<std::mutex> lck(results_lock);
+					std::unique_lock<std::mutex> lck(all_results_lock);
 
-					for(auto & element : scores) {
-						if (element.second.second) {
-							results.at(element.first.getV()).first  += element.second.first;  // score
-							results.at(element.first.getV()).second += element.second.second;  // n
+					for(int i=0; i<dimsq; i++) {
+						if (local_results.at(i).second) {
+							all_results.at(i).first  += local_results.at(i).first;  // score
+							all_results.at(i).second += local_results.at(i).second;  // count
 						}
 					}
 				})
@@ -1495,10 +1487,10 @@ void selectPlayout(const Board & b, const ChainMap & cm, const std::vector<chain
 	}
 
 	for(int i=0; i<dimsq; i++) {
-		if (results.at(i).second) {
-			assert(i == results.first.getV());
+		if (all_results.at(i).second) {
+			assert(i == all_results.first.getV());
 
-			double score = results.at(i).first / results.at(i).second;
+			double score = all_results.at(i).first / all_results.at(i).second;
 
 			evals->at(i).score += score;
 
