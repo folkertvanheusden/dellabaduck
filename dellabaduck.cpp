@@ -717,7 +717,7 @@ int countLiberties(const Board & b, const int x, const int y)
 	return n;
 }
 
-void connect(Board *const b, ChainMap *const cm, std::vector<chain_t *> *const chainsWhite, std::vector<chain_t *> *const chainsBlack, std::set<Vertex, decltype(vertexCmp)> *const liberties, const board_t what, const int x, const int y)
+void connect(Board *const b, ChainMap *const cm, std::vector<chain_t *> *const chainsWhite, std::vector<chain_t *> *const chainsBlack, const board_t what, const int x, const int y)
 {
 	const int dim = b->getDim();
 
@@ -727,9 +727,6 @@ void connect(Board *const b, ChainMap *const cm, std::vector<chain_t *> *const c
 	// update board
 	assert(b->getAt(x, y) == B_EMPTY);
 	b->setAt(x, y, what);
-
-	// remove liberty below the new stone
-	liberties->erase(Vertex(x, y, dim));
 
 	// find chains to merge
 	std::set<chain_t *> toMergeTemp;
@@ -827,11 +824,8 @@ void connect(Board *const b, ChainMap *const cm, std::vector<chain_t *> *const c
 	// remove chains without liberties
 	for(auto chain=toClean.begin(); chain!=toClean.end();) {
 		if ((*chain)->liberties.empty()) {
-			for(auto ve : (*chain)->chain) {
+			for(auto ve : (*chain)->chain)
 				b->setAt(ve, B_EMPTY);  // remove part of the chain
-
-				liberties->insert(ve);  // ...and add that cross to the liberties set
-			}
 
 			delete *chain;
 
@@ -966,7 +960,7 @@ std::string scoreStr(auto scores)
 }
 
 typedef struct {
-	int score;
+	double score;
 	bool valid;
 } eval_t;
 
@@ -1384,14 +1378,14 @@ std::tuple<double, double, int> playout(const Board & in, const double komi, pla
 	std::vector<chain_t *> chainsWhite, chainsBlack;
 	findChains(b, &chainsWhite, &chainsBlack, &cm, { });
 
-	std::set<Vertex, decltype(vertexCmp)> liberties;
-	findLiberties(cm, &liberties, playerToStone(p));
-
 	int  mc      { 0     };
 
 	bool pass[2] { false };
 
 	while(++mc < 250) {
+		std::set<Vertex, decltype(vertexCmp)> liberties;
+		findLiberties(cm, &liberties, playerToStone(p));
+
 		// no valid liberties? return "pass".
 		if (liberties.empty()) {
 			pass[p] = true;
@@ -1416,7 +1410,8 @@ std::tuple<double, double, int> playout(const Board & in, const double komi, pla
 		const int x = it->getX();
 		const int y = it->getY();
 
-		connect(&b, &cm, &chainsWhite, &chainsBlack, &liberties, playerToStone(p), x, y);
+		// TODO: pass liberties[] (for each color) to connect
+		connect(&b, &cm, &chainsWhite, &chainsBlack, playerToStone(p), x, y);
 
 		p = getOpponent(p);
 	}
@@ -1436,10 +1431,16 @@ void selectPlayout(const Board & b, const ChainMap & cm, const std::vector<chain
 
 	std::vector<std::thread *> threads;
 
-	std::mutex evals_lock;
+	const int dim   = b.getDim();
+	const int dimsq = dim * dim;
+
+	std::vector<std::pair<double, uint32_t> > results;
+	results.resize(dimsq);
+
+	std::mutex results_lock;
 
 	for(int i=0; i<nThreads; i++) {
-		threads.push_back(new std::thread([&evals, &evals_lock, end_t, liberties, p, komi, b] {
+		threads.push_back(new std::thread([&results, &results_lock, end_t, liberties, p, komi, b] {
 					const player_t opponent = getOpponent(p);
 
 					auto vertexIntPairCmp = [](const auto & a, const auto & b)
@@ -1447,7 +1448,7 @@ void selectPlayout(const Board & b, const ChainMap & cm, const std::vector<chain
 						return a.getV() < b.getV();
 					};
 
-					std::map<Vertex, double, decltype(vertexIntPairCmp)> scores(vertexIntPairCmp);
+					std::map<Vertex, std::pair<double, uint32_t>, decltype(vertexIntPairCmp)> scores(vertexIntPairCmp);
 
 					auto lib_it = liberties.begin();
 
@@ -1460,10 +1461,12 @@ void selectPlayout(const Board & b, const ChainMap & cm, const std::vector<chain
 
 						double score = std::get<0>(rc) - std::get<1>(rc);
 
-						auto insert_result = scores.insert(std::pair<Vertex, double>({ *lib_it, score }));
+						auto insert_result = scores.insert(std::pair<Vertex, std::pair<double, uint32_t> >({ *lib_it, { score, 1 } }));
 
-						if (insert_result.second == false)  // allready in the map?
-							insert_result.first->second = std::max(insert_result.first->second, score);  // update score
+						if (insert_result.second == false) {  // allready in the map?
+							insert_result.first->second.first += score;
+							insert_result.first->second.second++;
+						}
 
 						lib_it++;
 
@@ -1471,12 +1474,13 @@ void selectPlayout(const Board & b, const ChainMap & cm, const std::vector<chain
 							lib_it = liberties.begin();
 					}
 
-					std::unique_lock<std::mutex> lck(evals_lock);
+					std::unique_lock<std::mutex> lck(results_lock);
 
 					for(auto & element : scores) {
-						evals->at(element.first.getV()).score = element.second;
-
-						evals->at(element.first.getV()).valid = true;
+						if (element.second.second) {
+							results.at(element.first.getV()).first  += element.second.first;  // score
+							results.at(element.first.getV()).second += element.second.second;  // n
+						}
 					}
 				})
 			);
@@ -1488,6 +1492,18 @@ void selectPlayout(const Board & b, const ChainMap & cm, const std::vector<chain
 		delete *threads.begin();
 
 		threads.erase(threads.begin());
+	}
+
+	for(int i=0; i<dimsq; i++) {
+		if (results.at(i).second) {
+			assert(i == results.first.getV());
+
+			double score = results.at(i).first / results.at(i).second;
+
+			evals->at(i).score += score;
+
+			evals->at(i).valid = true;
+		}
 	}
 }
 
@@ -1562,7 +1578,7 @@ std::optional<Vertex> genMove(Board *const b, const player_t & p, const bool doP
 			int v = y * dim + x;
 
 			if (evals.at(v).valid)
-				line += myformat("%3d ", evals.at(v).score);
+				line += myformat("%3f ", evals.at(v).score);
 			else
 				line += myformat("  %s ", board_t_names[b->getAt(x, y)]);
 		}
