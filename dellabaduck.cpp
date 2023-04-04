@@ -171,6 +171,11 @@ typedef struct {
 	std::set<Vertex, decltype(vertexCmp)> liberties;
 } chain_t;
 
+void dump(const player_t p)
+{
+	send(true, "# color: %s", p == P_BLACK ? "black" : "white");
+}
+
 void dump(const std::set<Vertex, decltype(vertexCmp)> & set)
 {
 	send(true, "# Vertex set");
@@ -1471,7 +1476,7 @@ void selectPlayout(const Board & b, const ChainMap & cm, const std::vector<chain
 
 							score_threshold = total_scores / total_count;
 
-							printf("set threshold to %f\n", score_threshold);
+							// printf("set threshold to %f\n", score_threshold);
 						}
 
 						int    v             = lib_it->getV();
@@ -2281,7 +2286,7 @@ int main(int argc, char *argv[])
 
 			send(false, "# %s)", sgf.c_str());
 
-			send(false, "# took %.3fs", (end_ts - start_ts) / 1000.0);
+			send(false, "# took %.3fs for %s", (end_ts - start_ts) / 1000.0, v.has_value() ? v2t(v.value()).c_str() : "pass");
 		}
 		else if (parts.at(0) == "cputime") {
 			struct rusage ru { 0 };
