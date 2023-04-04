@@ -1491,7 +1491,7 @@ void selectPlayout(const Board & b, const ChainMap & cm, const std::vector<chain
 
 							auto rc = playout(work, komi, opponent);
 
-							double score = std::get<0>(rc) - std::get<1>(rc);
+							double score = p == P_BLACK ? std::get<0>(rc) - std::get<1>(rc) : std::get<1>(rc) - std::get<0>(rc);
 
 							local_results.at(v).first += score;
 							local_results.at(v).second++;
