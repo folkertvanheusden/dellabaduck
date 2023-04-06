@@ -1840,15 +1840,15 @@ Board loadSgf(const std::string & in)
 		if (player.has_value()) {
 			std::string pos = in.substr(p + 1, p_end - (p + 1));
 
-			if (pos.size() != 2) {
-				send(false, "# coordinate not 2 characters");
-				break;
-			}
+			int x = tolower(pos.at(0)) - 'a';
+			int y = atoi(pos.substr(1).c_str()) - 1;
 
-			char x = pos.at(0) - 'a';
-			char y = pos.at(1) - 'a';
+			b.setAt(x, y, player.value());
 
-			b.setAt(int(x), int(y), player.value());
+			// printf("%s: %d,%d/%d\n", pos.c_str(), x, y, player.value());
+		}
+		else {
+			send(false, "# ignoring cross: color \"%s\" not understood", name.c_str());
 		}
 
 		o = p_end + 1;
