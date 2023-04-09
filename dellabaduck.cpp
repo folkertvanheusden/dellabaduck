@@ -378,6 +378,8 @@ std::string dumpToSgf(const Board & b, const double komi)
 	int         dim = b.getDim();
 	std::string sgf = init_sgf(dim);
 
+	sgf += myformat(";KM[%f]", komi);
+
 	for(int y=0; y<dim; y++) {
 		for(int x=0; x<dim; x++) {
 			auto v     = Vertex(x, y, dim);
@@ -386,7 +388,7 @@ std::string dumpToSgf(const Board & b, const double komi)
 
 			if (stone == B_EMPTY)
 				continue;
-			
+
 			sgf += myformat(";%c[%s]", stone == B_BLACK ? 'B' : 'W', v2t(v).c_str());
 		}
 	}
@@ -2311,9 +2313,8 @@ int main(int argc, char *argv[])
 
 			send(true, "=%s %s", id.c_str(), scoreStr(final_score).c_str());
 		}
-		else if (parts.at(0) == "unittest") {
+		else if (parts.at(0) == "unittest")
 			test(parts.size() == 2 ? parts.at(1) == "-v" : false);
-		}
 		else if (parts.at(0) == "loadsgf") {
 			delete b;
 			b = new Board(loadSgfFile(parts.at(1)));
