@@ -350,6 +350,32 @@ void dump(const Board & b)
 	send(false, line.c_str());
 }
 
+std::string init_sgf(const int dim)
+{
+	return "(;AP[DellaBaduck]SZ[" + myformat("%d", dim) + "]";
+}
+
+std::string dumpToSgf(const Board & b)
+{
+	int         dim = b.getDim();
+	std::string sgf = init_sgf(dim);
+
+	for(int y=0; y<dim; y++) {
+		for(int x=0; x<dim; x++) {
+			auto v     = Vertex(x, y, dim);
+
+			auto stone = b.getAt(v.getV());
+
+			if (stone == B_EMPTY)
+				continue;
+
+			sgf += myformat(";%c[%s]", stone == B_BLACK ? 'B' : 'W', v2t(v).c_str());
+		}
+	}
+
+	return sgf + ")";
+}
+
 class ChainMap {
 	private:
 		const int dim;
@@ -1759,7 +1785,7 @@ bool findChain(const std::vector<chain_t *> & chains, const std::set<Vertex, dec
 	return false;
 }
 
-void test()
+void test(const bool verbose)
 {
 	struct test_data {
 		std::string b;
@@ -1859,6 +1885,13 @@ void test()
 		bool   ok   = true;
 		Board  brd  = stringToBoard(b.b);
 
+		if (verbose) {
+			auto   temp_score = score(brd, 7.5);
+			double test_score = temp_score.first - temp_score.second;
+
+			printf("%s %f\n", dumpToSgf(brd).c_str(), test_score);
+		}
+
 		auto   temp_score = score(brd, 1.5);
 		double test_score = temp_score.first - temp_score.second;
 
@@ -1918,11 +1951,6 @@ void test()
 		purgeChains(&chainsBlack);
 		purgeChains(&chainsWhite);
 	}
-}
-
-std::string init_sgf(const int dim)
-{
-	return "(;AP[DellaBaduck]SZ[" + myformat("%d", dim) + "]";
 }
 
 uint64_t perft(const Board & b, const player_t p, const int depth)
@@ -2120,9 +2148,8 @@ int main(int argc, char *argv[])
 
 			send(true, "=%s %s", id.c_str(), scoreStr(final_score).c_str());
 		}
-		else if (parts.at(0) == "unittest") {
-			test();
-		}
+		else if (parts.at(0) == "unittest")
+			test(parts.size() == 2 ? parts.at(1) == "-v" : false);
 		else if (parts.at(0) == "loadsgf") {
 			delete b;
 			b = new Board(loadSgfFile(parts.at(1)));
