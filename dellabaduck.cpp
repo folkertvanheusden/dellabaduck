@@ -2217,10 +2217,9 @@ uint64_t perft(const Board & b, const player_t p, const int depth, const bool pa
 		total += perft(new_board, new_player, new_depth, false, verbose);
 	}
 
-	if (liberties.empty())
+	if (pass)
 		total++;
-
-	if (!pass)
+	else
 		total += perft(b, new_player, new_depth, true, verbose);
 
 	if (verbose)
