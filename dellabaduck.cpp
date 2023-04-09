@@ -839,12 +839,18 @@ void connect(Board *const b, ChainMap *const cm, std::vector<chain_t *> *const c
 		toClean.insert(cm->getAt(x + 1, y));
 
 	// remove chains without liberties
+	auto purgeChainSet = what == B_WHITE ? chainsBlack : chainsWhite;
+
 	for(auto chain=toClean.begin(); chain!=toClean.end();) {
 		if ((*chain)->liberties.empty()) {
-			for(auto ve : (*chain)->chain)
+			for(auto ve : (*chain)->chain) {
 				b->setAt(ve, B_EMPTY);  // remove part of the chain
+				cm->setAt(ve, nullptr);
+			}
 
 			delete *chain;
+
+			purgeChainSet->erase(std::find(purgeChainSet->begin(), purgeChainSet->end(), *chain));
 
 			chain = toClean.erase(chain);
 		}
