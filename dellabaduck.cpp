@@ -2115,7 +2115,7 @@ int getNEmpty(const Board & b, const player_t p)
 	return liberties.size();
 }
 
-uint64_t perft(const Board & b, const player_t p, const int depth)
+uint64_t perft(const Board & b, const player_t p, const int depth, const bool pass)
 {
 	if (depth == 0)
 		return 1;
@@ -2140,8 +2140,13 @@ uint64_t perft(const Board & b, const player_t p, const int depth)
 
 		play(&new_board, cross, p);
 
-		total += perft(new_board, new_player, new_depth);
+		total += perft(new_board, new_player, new_depth, false);
 	}
+
+	if (liberties.empty() && pass)
+		total++;
+	else
+		total += perft(b, new_player, new_depth, true);
 
 	purgeChains(&chainsBlack);
 	purgeChains(&chainsWhite);
@@ -2417,7 +2422,7 @@ int main(int argc, char *argv[])
 			int      depth   = atoi(parts.at(1).c_str());
 
 			uint64_t start_t = get_ts_ms();
-			uint64_t total   = perft(*b, P_BLACK, depth);
+			uint64_t total   = perft(*b, P_BLACK, depth, false);
 			uint64_t diff_t  = std::max(uint64_t(1), get_ts_ms() - start_t);
 
 			send(true, "# Total perft for depth %d: %lu (%.1f moves per second, %.3f seconds)", depth, total, total * 1000. / diff_t, diff_t / 1000.);
