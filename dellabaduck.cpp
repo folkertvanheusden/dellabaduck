@@ -132,6 +132,11 @@ class Vertex
 			return v == rhs.v;
 		}
 
+		bool operator()(const Vertex & a, const Vertex & b) const
+		{
+			return a.v > b.v;
+		}
+
 		struct HashFunction {
 			size_t operator()(const Vertex & v) const {
 				return std::hash<int>()(v.v);
@@ -198,6 +203,16 @@ void dump(const std::set<Vertex> & set)
 	send(true, line.c_str());
 }
 
+void dump(const std::unordered_set<Vertex, Vertex::HashFunction> & set)
+{
+	send(true, "# Vertex set");
+
+	std::string line = "# ";
+	for(auto v : set)
+		line += myformat("%s ", v2t(v).c_str());
+	send(true, line.c_str());
+}
+
 void dump(const chain_t & chain)
 {
 	send(true, "# Chain for %s", board_t_names[chain.type]);
@@ -225,8 +240,8 @@ void dump(const std::vector<chain_t *> & chains)
 
 class Board {
 	private:
-		const int dim;
-		board_t *const b;
+		int      dim { 0       };
+		board_t *b   { nullptr };
 
 	public:
 		Board(const int dim) : dim(dim), b(new board_t[dim * dim]()) {
@@ -235,6 +250,30 @@ class Board {
 
 		~Board() {
 			delete [] b;
+		}
+
+		Board(const std::string & str) {
+			auto slash = str.find('/');
+
+			dim = slash;
+			b = new board_t[dim * dim]();
+
+			int o = 0;
+
+			for(int y=dim - 1; y >= 0; y--) {
+				for(int x=dim - 1; x >= 0; x--) {
+					char c = str[o++];
+
+					if (c == 'w' || c == 'W')
+						setAt(x, y, B_WHITE);
+					else if (c == 'b' || c == 'B')
+						setAt(x, y, B_BLACK);
+					else
+						assert(c == '.');
+				}
+
+				o++;  // skip slash
+			}
 		}
 
 		Board(const Board & bIn) : dim(bIn.getDim()), b(new board_t[dim * dim]) {
@@ -394,6 +433,35 @@ std::string dumpToSgf(const Board & b, const double komi)
 	}
 
 	return sgf + ")";
+}
+
+std::string dumpToString(const Board & b, const player_t next_player, const int pass_depth)
+{
+	const int   dim = b.getDim();
+
+	std::string out;
+
+	for(int y=dim - 1; y >= 0; y--) {
+		for(int x=dim - 1; x >= 0; x--) {
+			auto stone = b.getAt(x, y);
+
+			if (stone == B_EMPTY)
+				out += ".";
+			else if (stone == B_BLACK)
+				out += "b";
+			else
+				out += "w";
+		}
+
+		if (y)
+			out += "/";
+	}
+
+	out += next_player == P_WHITE ? " w" : " b";
+
+	out += myformat(" %d", pass_depth);
+
+	return out;
 }
 
 class ChainMap {
@@ -2118,7 +2186,7 @@ int getNEmpty(const Board & b, const player_t p)
 	return liberties.size();
 }
 
-uint64_t perft(const Board & b, const player_t p, const int depth, const bool pass)
+uint64_t perft(const Board & b, const player_t p, const int depth, const bool pass, const bool verbose)
 {
 	if (depth == 0)
 		return 1;
@@ -2141,15 +2209,23 @@ uint64_t perft(const Board & b, const player_t p, const int depth, const bool pa
 	for(auto & cross : liberties) {
 		Board new_board(b);
 
+		if (verbose)
+			fprintf(stderr, "%d %s %s\n", depth, v2t(cross).c_str(), dumpToString(new_board, p, pass).c_str());
+
 		play(&new_board, cross, p);
 
-		total += perft(new_board, new_player, new_depth, false);
+		total += perft(new_board, new_player, new_depth, false, verbose);
 	}
 
-	if (liberties.empty() && pass)
+	if (liberties.empty()) {
 		total++;
-	else
-		total += perft(b, new_player, new_depth, true);
+
+		if (verbose)
+			fprintf(stderr, "%d pass %s\n", depth, dumpToString(b, new_player, 2).c_str());
+
+		if (!pass)
+			total += perft(b, new_player, new_depth, true, verbose);
+	}
 
 	purgeChains(&chainsBlack);
 	purgeChains(&chainsWhite);
@@ -2247,20 +2323,29 @@ int main(int argc, char *argv[])
 
 			send(false, "# %s)", sgf.c_str());
 		}
-		else if (parts.at(0) == "debug" && parts.size() == 2) {
-			ChainMap cm(b->getDim());
-			std::vector<chain_t *> chainsWhite, chainsBlack;
-			findChains(*b, &chainsWhite, &chainsBlack, &cm, { });
-
-			scanEnclosed(*b, &cm, playerToStone((parts.at(1) == "b" || parts.at(1) == "black") ? P_BLACK : P_WHITE));
-
+		else if (parts.at(0) == "debug") {
 			dump(*b);
-			dump(chainsBlack);
-			dump(chainsWhite);
-			dump(cm);
 
-			purgeChains(&chainsBlack);
-			purgeChains(&chainsWhite);
+			if (parts.size() == 2) {
+				ChainMap cm(b->getDim());
+				std::vector<chain_t *> chainsWhite, chainsBlack;
+				findChains(*b, &chainsWhite, &chainsBlack, &cm, { });
+
+				auto s = playerToStone((parts.at(1) == "b" || parts.at(1) == "black") ? P_BLACK : P_WHITE);
+
+				scanEnclosed(*b, &cm, s);
+
+				dump(chainsBlack);
+				dump(chainsWhite);
+				dump(cm);
+
+				std::unordered_set<Vertex, Vertex::HashFunction> liberties;
+				findLiberties(cm, &liberties, s);
+				dump(liberties);
+
+				purgeChains(&chainsBlack);
+				purgeChains(&chainsWhite);
+			}
 		}
 		else if (parts.at(0) == "quit") {
 			send(true, "=%s", id.c_str());
@@ -2421,14 +2506,25 @@ int main(int argc, char *argv[])
 				send(true, "=%s %.4f", id.c_str(), usage);
 			}
 		}
-		else if (parts.at(0) == "perft" && parts.size() == 2) {
+		else if (parts.at(0) == "perft" && (parts.size() == 2 || parts.size() == 3)) {
 			int      depth   = atoi(parts.at(1).c_str());
 
+			bool     verbose = parts.size() == 3 ? parts.at(2) == "-v" : false;
+
 			uint64_t start_t = get_ts_ms();
-			uint64_t total   = perft(*b, P_BLACK, depth, false);
+			uint64_t total   = perft(*b, P_BLACK, depth, false, verbose);
 			uint64_t diff_t  = std::max(uint64_t(1), get_ts_ms() - start_t);
 
 			send(true, "# Total perft for depth %d: %lu (%.1f moves per second, %.3f seconds)", depth, total, total * 1000. / diff_t, diff_t / 1000.);
+		}
+		else if (parts.at(0) == "dumpstr") {
+			auto out = dumpToString(*b, P_BLACK, 0);
+
+			send(true, "# %s", out.c_str());
+		}
+		else if (parts.at(0) == "loadstr" && parts.size() == 2) {
+			delete b;
+			b = new Board(parts.at(1));
 		}
 		else {
 			send(true, "?");
