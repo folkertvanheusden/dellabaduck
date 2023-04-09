@@ -2414,11 +2414,13 @@ int main(int argc, char *argv[])
 			}
 		}
 		else if (parts.at(0) == "perft" && parts.size() == 2) {
-			int      depth = atoi(parts.at(1).c_str());
+			int      depth   = atoi(parts.at(1).c_str());
 
-			uint64_t total = perft(*b, P_BLACK, depth);
+			uint64_t start_t = get_ts_ms();
+			uint64_t total   = perft(*b, P_BLACK, depth);
+			uint64_t diff_t  = std::max(uint64_t(1), get_ts_ms() - start_t);
 
-			send(true, "# Total perft for depth %d: %lu", depth, total);
+			send(true, "# Total perft for depth %d: %lu (%.1f moves per second, %.3f seconds)", depth, total, total * 1000. / diff_t, diff_t / 1000.);
 		}
 		else {
 			send(true, "?");
