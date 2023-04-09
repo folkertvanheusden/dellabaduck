@@ -1005,15 +1005,12 @@ bool isUsable(const ChainMap & cm, const std::vector<chain_t *> & liberties, con
 
 void selectRandom(const Board & b, const ChainMap & cm, const std::vector<chain_t *> & chainsWhite, const std::vector<chain_t *> & chainsBlack, std::unordered_set<Vertex, Vertex::HashFunction> & liberties, const player_t & p, std::vector<eval_t> *const evals)
 {
-	const std::vector<chain_t *> & myLiberties = p == P_BLACK ? chainsBlack : chainsWhite;
+	size_t chainSize = liberties.size();
 
-	size_t chainNr   = rand() % myLiberties.size();
+	int    r         = chainSize > 1 ? rand() % (chainSize - 1) : 0;
 
-	size_t chainSize = myLiberties.at(chainNr)->liberties.size();
+	auto   it        = liberties.begin();
 
-	int r = chainSize > 1 ? rand() % (chainSize - 1) : 0;
-
-	auto it = myLiberties.at(chainNr)->liberties.begin();
 	for(int i=0; i<r; i++)
 		it++;
 
@@ -1587,13 +1584,13 @@ std::optional<Vertex> genMove(Board *const b, const player_t & p, const bool doP
 	std::vector<eval_t> evals;
 	evals.resize(p2dim);
 
-	if (useTime > 0.1)
+	if (useTime >= 0.1)
 		// selectAlphaBeta(*b, cm, chainsWhite, chainsBlack, liberties, p, &evals, useTime, komi, nThreads);
 		selectPlayout(*b, cm, chainsWhite, chainsBlack, liberties, p, &evals, useTime, komi, nThreads);
 	else {
 		scanEnclosed(*b, &cm, playerToStone(p));
 
-		// FIXME selectRandom(*b, cm, chainsWhite, chainsBlack, p, &evals);
+		selectRandom(*b, cm, chainsWhite, chainsBlack, liberties, p, &evals);
 
 		selectExtendChains(*b, cm, chainsWhite, chainsBlack, liberties, p, &evals);
 
@@ -2054,6 +2051,22 @@ void test()
 	}
 }
 
+int getNEmpty(const Board & b, const player_t p)
+{
+	ChainMap cm(b.getDim());
+
+	std::vector<chain_t *> chainsWhite, chainsBlack;
+	findChains(b, &chainsWhite, &chainsBlack, &cm, { });
+
+	std::unordered_set<Vertex, Vertex::HashFunction> liberties;
+	findLiberties(cm, &liberties, playerToStone(p));
+
+	purgeChains(&chainsBlack);
+	purgeChains(&chainsWhite);
+
+	return liberties.size();
+}
+
 std::string init_sgf(const int dim)
 {
 	return "(;AP[DellaBaduck]SZ[" + myformat("%d", dim) + "]";
@@ -2118,6 +2131,7 @@ int main(int argc, char *argv[])
 		else if (parts.at(0) == "boardsize") {
 			delete b;
 			b = new Board(atoi(parts.at(1).c_str()));
+
 			send(true, "=%s", id.c_str());
 		}
 		else if (parts.at(0) == "clear_board") {
@@ -2127,7 +2141,9 @@ int main(int argc, char *argv[])
 			send(true, "=%s", id.c_str());
 
 			moves_executed = 0;
-			moves_total    = dim * dim / 2;
+			// not /2: assuming that some stones are regained during the game
+			moves_total    = dim * dim;
+			timeLeft       = -1;
 
 			sgf = init_sgf(dim);
 		}
@@ -2282,7 +2298,7 @@ int main(int argc, char *argv[])
 			if (timeLeft < 0)
 				timeLeft = 5.0;
 
-			double time_use = timeLeft / (moves_total - moves_executed);
+			double time_use = timeLeft / (std::max(getNEmpty(*b, player), moves_total) - moves_executed);
 
 			if (++moves_executed >= moves_total)
 				moves_total = (moves_total * 4) / 3;
