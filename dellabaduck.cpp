@@ -1925,6 +1925,40 @@ std::string init_sgf(const int dim)
 	return "(;AP[DellaBaduck]SZ[" + myformat("%d", dim) + "]";
 }
 
+uint64_t perft(const Board & b, const player_t p, const int depth)
+{
+	if (depth == 0)
+		return 1;
+
+	const int      dim        = b.getDim();
+
+	const int      new_depth  = depth - 1;
+	const player_t new_player = getOpponent(p);
+
+	uint64_t       total      = 0;
+
+	// find chains of stones
+	ChainMap cm(dim);
+	std::vector<chain_t *> chainsWhite, chainsBlack;
+	findChains(b, &chainsWhite, &chainsBlack, &cm, { });
+
+	std::set<Vertex, decltype(vertexCmp)> liberties;
+	findLiberties(cm, &liberties, playerToStone(p));
+
+	for(auto & cross : liberties) {
+		Board new_board(b);
+
+		play(&new_board, cross, p);
+
+		total += perft(new_board, new_player, new_depth);
+	}
+
+	purgeChains(&chainsBlack);
+	purgeChains(&chainsWhite);
+
+	return total;
+}
+
 int main(int argc, char *argv[])
 {
 	int nThreads = std::thread::hardware_concurrency();
@@ -1981,7 +2015,7 @@ int main(int argc, char *argv[])
 			send(true, "=%s DellaBaduck", id.c_str());
 		else if (parts.at(0) == "version")
 			send(true, "=%s 0.1", id.c_str());
-		else if (parts.at(0) == "boardsize") {
+		else if (parts.at(0) == "boardsize" && parts.size() == 2) {
 			delete b;
 			b = new Board(atoi(parts.at(1).c_str()));
 			send(true, "=%s", id.c_str());
@@ -2182,6 +2216,13 @@ int main(int argc, char *argv[])
 
 				send(true, "=%s %.4f", id.c_str(), usage);
 			}
+		}
+		else if (parts.at(0) == "perft" && parts.size() == 2) {
+			int      depth = atoi(parts.at(1).c_str());
+
+			uint64_t total = perft(*b, P_BLACK, depth);
+
+			send(true, "# Total perft for depth %d: %lu", depth, total);
 		}
 		else {
 			send(true, "?");
