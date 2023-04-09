@@ -2217,15 +2217,14 @@ uint64_t perft(const Board & b, const player_t p, const int depth, const bool pa
 		total += perft(new_board, new_player, new_depth, false, verbose);
 	}
 
-	if (liberties.empty()) {
+	if (liberties.empty())
 		total++;
 
-		if (verbose)
-			fprintf(stderr, "%d pass %s\n", depth, dumpToString(b, new_player, 2).c_str());
+	if (!pass)
+		total += perft(b, new_player, new_depth, true, verbose);
 
-		if (!pass)
-			total += perft(b, new_player, new_depth, true, verbose);
-	}
+	if (verbose)
+		fprintf(stderr, "%d pass %s\n", depth, dumpToString(b, p, pass).c_str());
 
 	purgeChains(&chainsBlack);
 	purgeChains(&chainsWhite);
