@@ -488,9 +488,12 @@ void findChainsScan(std::queue<std::pair<unsigned, unsigned> > *const work_queue
 		x += dx;
 		y += dy;
 
+		if (x >= dim || y >= dim)
+			break;
+
 		const unsigned v = y * dim + x;
 
-		if (x >= dim || y >= dim || scanned[v])
+		if (scanned[v])
 			break;
 
 		board_t type_at = b.getAt(v);
