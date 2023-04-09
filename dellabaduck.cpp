@@ -2114,7 +2114,11 @@ int main(int argc, char *argv[])
 			send(true, "=%s time_left", id.c_str());
 		}
 		else if (parts.at(0) == "final_score") {
-			send(true, "=%s %s", id.c_str(), scoreStr(score(*b, komi)).c_str());
+			auto final_score = score(*b, komi);
+
+			send(false, "# black: %f, white: %f", final_score.first, final_score.second);
+
+			send(true, "=%s %s", id.c_str(), scoreStr(final_score).c_str());
 		}
 		else if (parts.at(0) == "unittest") {
 			test();
