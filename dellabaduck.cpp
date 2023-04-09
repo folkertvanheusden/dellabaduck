@@ -360,6 +360,8 @@ std::string dumpToSgf(const Board & b, const double komi)
 	int         dim = b.getDim();
 	std::string sgf = init_sgf(dim);
 
+	sgf += myformat(";KM[%f]", komi);
+
 	for(int y=0; y<dim; y++) {
 		for(int x=0; x<dim; x++) {
 			auto v     = Vertex(x, y, dim);
