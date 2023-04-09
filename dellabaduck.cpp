@@ -355,7 +355,7 @@ std::string init_sgf(const int dim)
 	return "(;AP[DellaBaduck]SZ[" + myformat("%d", dim) + "]";
 }
 
-std::string dumpToSgf(const Board & b)
+std::string dumpToSgf(const Board & b, const double komi)
 {
 	int         dim = b.getDim();
 	std::string sgf = init_sgf(dim);
@@ -1803,7 +1803,7 @@ void test(const bool verbose)
 			".....\n"
 			".....\n"
 			".....\n"
-			, 5, -1.5,
+			, 5, -7.5,
 			{ },
 			{ },
 			});
@@ -1816,7 +1816,7 @@ void test(const bool verbose)
 			"xxxx...\n"
 			".....xx\n"
 			".....x.\n"
-			, 7, 19.5,
+			, 7, 13.5,
 			{ { "C5", "C6 D5 B5 C4" } },
 			{ { "G2 F2 F1", "G3 F3 E2 G1 E1" }, { "G7 F7 E7 D7 C7 B7 A7 G6 A6 G5 A5 G4 F4 E4 A4 D3 C3 B3 A3", "F6 E6 D6 C6 B6 F5 E5 B5 D4 C4 B4 G3 F3 E3 D2 C2 B2 A2" } }
 			});
@@ -1829,7 +1829,7 @@ void test(const bool verbose)
 			"xxxx...\n"
 			".....xx\n"
 			".o...x.\n"
-			, 7, 19.5,
+			, 7, 13.5,
 			{ { "B1", "B2 C1 A1" } },
 			{ { "G2 F2 F1", "G3 F3 E2 G1 E1" }, { "G7 F7 E7 D7 C7 B7 A7 G6 A6 G5 A5 G4 F4 E4 A4 D3 C3 B3 A3", "F6 E6 D6 C6 B6 F5 E5 B5 D4 C4 B4 G3 F3 E3 D2 C2 B2 A2" } }
 		       	});
@@ -1844,7 +1844,7 @@ void test(const bool verbose)
 			".o...x...\n"
 			"......ooo\n"
 			".....o...\n"
-			, 9, 15.5,
+			, 9, 9.5,
 			{ { "F1", "F2 G1 E1" }, { "J2 H2 G2", "J3 H3 G3 F2 J1 H1 G1" }, { "B3", "B4 C3 A3 B2" }, { "J7", "H7 J6" } },
 			{ { "G4 F4 F3", "G5 F5 H4 E4 G3 E3 F2" }, { "G9 F9 E9 D9 C9 B9 A9 G8 A8 G7 A7 G6 F6 E6 A6 D5 C5 B5 A5", "H9 H8 F8 E8 D8 C8 B8 H7 F7 E7 B7 H6 D6 C6 B6 G5 F5 E5 D4 C4 B4 A4" }, { "J8", "J9 H8" } }
 		       	});
@@ -1859,7 +1859,7 @@ void test(const bool verbose)
 			".........\n"
 			".........\n"
 			".........\n"
-			, 9, -1.5,
+			, 9, -7.5,
 			{ { "D4", "D5 E4 C4 D3" }, { "F4", "F5 G4 E4 F3" }, { "H4", "H5 J4 G4 H3" }, { "C7 C6", "C8 D6 B6 C5" }, { "D8", "D9 E8 C8" } },
 			{ { "G6", "G7 H6 F6 G5" }, { "J6", "J7 H6 J5" }, { "B7 A7", "B8 A8 B6 A6" }, { "D7", "E7 D6" }, { "F7", "F8 G7 E7 F6" } }
 		       	});
@@ -1875,7 +1875,7 @@ void test(const bool verbose)
 			"xooooooox\n"
 			"oooxoxoxx\n"
 			"xoxooxoox\n"
-			, 9, -9.5,
+			, 9, -15.5,
 			{ },
 			{ }
 			});
@@ -1885,15 +1885,13 @@ void test(const bool verbose)
 		bool   ok   = true;
 		Board  brd  = stringToBoard(b.b);
 
-		if (verbose) {
-			auto   temp_score = score(brd, 7.5);
-			double test_score = temp_score.first - temp_score.second;
+		double komi       = 7.5;
 
-			printf("%s %f\n", dumpToSgf(brd).c_str(), test_score);
-		}
-
-		auto   temp_score = score(brd, 1.5);
+		auto   temp_score = score(brd, komi);
 		double test_score = temp_score.first - temp_score.second;
+
+		if (verbose)
+			printf("%s %f\n", dumpToSgf(brd, komi).c_str(), test_score);
 
 		if (test_score != b.score)
 			printf("expected score: %f, current: %f\n", b.score, test_score), ok = false;
