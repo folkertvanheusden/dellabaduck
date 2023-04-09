@@ -1616,13 +1616,14 @@ std::optional<Vertex> genMove(Board *const b, const player_t & p, const bool doP
 	// find best
 	std::optional<Vertex> v;
 
-	int bestScore = -32767;
+	double bestScore = -32767.;
 	for(int i=0; i<p2dim; i++) {
 		if (evals.at(i).score > bestScore && evals.at(i).valid) {
 			Vertex temp { i, dim };
 
 			if (liberties.find(temp) != liberties.end()) {
 				v.emplace(temp);
+
 				bestScore = evals.at(i).score;
 			}
 		}
