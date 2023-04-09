@@ -1007,11 +1007,17 @@ void selectRandom(const Board & b, const ChainMap & cm, const std::vector<chain_
 {
 	size_t chainSize = liberties.size();
 
-	int    r         = chainSize > 1 ? rand() % (chainSize - 1) : 0;
+	size_t r         = 0;
+
+	if (chainSize > 1) {
+		std::uniform_int_distribution<> rng(0, chainSize - 2);
+
+		r = rng(gen);
+	}
 
 	auto   it        = liberties.begin();
 
-	for(int i=0; i<r; i++)
+	for(size_t i=0; i<r; i++)
 		it++;
 
 	const int v = it->getV();
@@ -1420,10 +1426,18 @@ std::tuple<double, double, int> playout(const Board & in, const double komi, pla
 
 		pass[0] = pass[1] = false;
 
-		std::uniform_int_distribution<> rng(0, liberties.size() - 1);
-		size_t r  = rng(gen);
+		size_t r  = 0;
+
+		size_t chainSize = liberties.size();
+
+		if (chainSize > 1) {
+			std::uniform_int_distribution<> rng(0, chainSize - 2);
+
+			r = rng(gen);
+		}
 
 		auto   it = liberties.begin();
+
 		for(size_t i=0; i<r; i++)
 			it++;
 
