@@ -2186,7 +2186,7 @@ int getNEmpty(const Board & b, const player_t p)
 	return liberties.size();
 }
 
-uint64_t perft(const Board & b, const player_t p, const int depth, const bool pass, const bool verbose)
+uint64_t perft(const Board & b, const player_t p, const int depth, const bool pass, const int verbose, const bool top)
 {
 	if (depth == 0)
 		return 1;
@@ -2209,20 +2209,31 @@ uint64_t perft(const Board & b, const player_t p, const int depth, const bool pa
 	for(auto & cross : liberties) {
 		Board new_board(b);
 
-		if (verbose)
+		if (verbose == 2)
 			fprintf(stderr, "%d %s %s\n", depth, v2t(cross).c_str(), dumpToString(new_board, p, pass).c_str());
 
 		play(&new_board, cross, p);
 
-		total += perft(new_board, new_player, new_depth, false, verbose);
+		uint64_t cur_count = perft(new_board, new_player, new_depth, false, verbose, false);
+
+		total += cur_count;
+
+		if (verbose == 1 && top)
+			fprintf(stderr, "%s: %ld\n", v2t(cross).c_str(), cur_count);
 	}
 
 	if (pass)
 		total++;
-	else
-		total += perft(b, new_player, new_depth, true, verbose);
+	else {
+		uint64_t cur_count = perft(b, new_player, new_depth, true, verbose, false);
 
-	if (verbose)
+		total += cur_count;
+
+		if (verbose == 1 && top)
+			fprintf(stderr, "pass: %ld\n", cur_count);
+	}
+
+	if (verbose == 2)
 		fprintf(stderr, "%d pass %s\n", depth, dumpToString(b, p, pass).c_str());
 
 	purgeChains(&chainsBlack);
@@ -2507,10 +2518,10 @@ int main(int argc, char *argv[])
 		else if (parts.at(0) == "perft" && (parts.size() == 2 || parts.size() == 3)) {
 			int      depth   = atoi(parts.at(1).c_str());
 
-			bool     verbose = parts.size() == 3 ? parts.at(2) == "-v" : false;
+			int      verbose = parts.size() == 3 ? atoi(parts.at(2).c_str()) : 0;
 
 			uint64_t start_t = get_ts_ms();
-			uint64_t total   = perft(*b, P_BLACK, depth, false, verbose);
+			uint64_t total   = perft(*b, P_BLACK, depth, false, verbose, true);
 			uint64_t diff_t  = std::max(uint64_t(1), get_ts_ms() - start_t);
 
 			send(true, "# Total perft for depth %d: %lu (%.1f moves per second, %.3f seconds)", depth, total, total * 1000. / diff_t, diff_t / 1000.);
