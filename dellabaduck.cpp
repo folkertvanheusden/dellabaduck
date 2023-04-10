@@ -2251,12 +2251,16 @@ int main(int argc, char *argv[])
 {
 	int nThreads = std::thread::hardware_concurrency();
 
+	int dim = 9;
+
 	int c = -1;
-	while((c = getopt(argc, argv, "vt:")) != -1) {
+	while((c = getopt(argc, argv, "vt:5")) != -1) {
 		if (c == 'v')  // console
 			verbose = true;
 		else if (c == 't')
 			nThreads = atoi(optarg);
+		else if (c == '5')
+			dim = 5;
 	}
 
 	setbuf(stdout, nullptr);
@@ -2264,7 +2268,7 @@ int main(int argc, char *argv[])
 
 	srand(time(nullptr));
 
-	Board   *b    = new Board(9);
+	Board   *b    = new Board(dim);
 
 	player_t p    = P_BLACK;
 	
@@ -2275,7 +2279,7 @@ int main(int argc, char *argv[])
 	double komi = 0.;
 
 	int moves_executed = 0;
-	int moves_total    = 9 * 9;
+	int moves_total    = dim * dim;
 
 	std::string sgf = init_sgf(b->getDim());
 
