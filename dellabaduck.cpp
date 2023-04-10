@@ -2196,9 +2196,6 @@ int getNEmpty(const Board & b, const player_t p)
 
 uint64_t perft(const Board & b, const player_t p, const int depth, const bool pass, const int verbose, const bool top)
 {
-	if (depth == 0)
-		return 1;
-
 	const int      dim        = b.getDim();
 
 	const int      new_depth  = depth - 1;
@@ -2211,8 +2208,18 @@ uint64_t perft(const Board & b, const player_t p, const int depth, const bool pa
 	std::vector<chain_t *> chainsWhite, chainsBlack;
 	findChains(b, &chainsWhite, &chainsBlack, &cm, { });
 
+	// find the liberties -> the "moves"
 	std::unordered_set<Vertex, Vertex::HashFunction> liberties;
 	findLiberties(cm, &liberties, playerToStone(p));
+	
+	if (depth == 1) {
+		purgeChains(&chainsBlack);
+		purgeChains(&chainsWhite);
+
+		// +1 == pass
+
+		return liberties.size() + 1;
+	}
 
 	for(auto & cross : liberties) {
 		Board new_board(b);
@@ -2230,9 +2237,7 @@ uint64_t perft(const Board & b, const player_t p, const int depth, const bool pa
 			send(true, "%s: %ld", v2t(cross).c_str(), cur_count);
 	}
 
-	if (pass)
-		total++;
-	else {
+	if (!pass) {
 		uint64_t cur_count = perft(b, new_player, new_depth, true, verbose, false);
 
 		total += cur_count;
