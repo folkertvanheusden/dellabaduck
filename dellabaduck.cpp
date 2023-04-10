@@ -618,7 +618,7 @@ void pickEmptyAround(const Board & b, const Vertex & v, std::set<Vertex> *const 
 		target->insert({ x, y + 1, dim });
 }
 
-void findChains(const Board & b, std::vector<chain_t *> *const chainsWhite, std::vector<chain_t *> *const chainsBlack, ChainMap *const cm, const std::optional<board_t> ignore)
+void findChains(const Board & b, std::vector<chain_t *> *const chainsWhite, std::vector<chain_t *> *const chainsBlack, ChainMap *const cm)
 {
 	const unsigned dim = b.getDim();
 
@@ -632,7 +632,7 @@ void findChains(const Board & b, std::vector<chain_t *> *const chainsWhite, std:
 				continue;
 
 			board_t bv = b.getAt(v);
-			if (bv == B_EMPTY || (ignore.has_value() && ignore.value() == bv))
+			if (bv == B_EMPTY)
 				continue;
 
 			chain_t *curChain = new chain_t;
@@ -976,7 +976,7 @@ void play(Board *const b, const Vertex & v, const player_t & p)
 
 	std::vector<chain_t *> chainsWhite, chainsBlack;
 
-	findChains(*b, &chainsWhite, &chainsBlack, &cm, { });
+	findChains(*b, &chainsWhite, &chainsBlack, &cm);
 
 	std::vector<chain_t *> & scan = p == P_BLACK ? chainsWhite : chainsBlack;
 
@@ -1214,7 +1214,7 @@ int search(const Board & b, const player_t & p, int alpha, const int beta, const
 
 	ChainMap cm(b.getDim());
 	std::vector<chain_t *> chainsWhite, chainsBlack;
-	findChains(b, &chainsWhite, &chainsBlack, &cm, { });
+	findChains(b, &chainsWhite, &chainsBlack, &cm);
 
 	std::unordered_set<Vertex, Vertex::HashFunction> liberties;
 	findLiberties(cm, &liberties, playerToStone(p));
@@ -1492,7 +1492,7 @@ std::tuple<double, double, int> playout(const Board & in, const double komi, pla
 	// find chains of stones
 	ChainMap cm(b.getDim());
 	std::vector<chain_t *> chainsWhite, chainsBlack;
-	findChains(b, &chainsWhite, &chainsBlack, &cm, { });
+	findChains(b, &chainsWhite, &chainsBlack, &cm);
 
 	int  mc      { 0     };
 
@@ -1663,7 +1663,7 @@ std::optional<Vertex> genMove(Board *const b, const player_t & p, const bool doP
 	// find chains of stones
 	ChainMap cm(dim);
 	std::vector<chain_t *> chainsWhite, chainsBlack;
-	findChains(*b, &chainsWhite, &chainsBlack, &cm, { });
+	findChains(*b, &chainsWhite, &chainsBlack, &cm);
 
 	std::unordered_set<Vertex, Vertex::HashFunction> liberties;
 	findLiberties(cm, &liberties, playerToStone(p));
@@ -1794,7 +1794,7 @@ double benchmark_2(const Board & in, const unsigned ms)
 
 	do {
 		std::vector<chain_t *> chainsWhite, chainsBlack;
-		findChains(in, &chainsWhite, &chainsBlack, &cm, { });
+		findChains(in, &chainsWhite, &chainsBlack, &cm);
 
 		purgeChains(&chainsBlack);
 		purgeChains(&chainsWhite);
@@ -2107,7 +2107,7 @@ void test(const bool verbose)
 
 		ChainMap cm(brd.getDim());
 		std::vector<chain_t *> chainsWhite, chainsBlack;
-		findChains(brd, &chainsWhite, &chainsBlack, &cm, { });
+		findChains(brd, &chainsWhite, &chainsBlack, &cm);
 
 		scanEnclosed(brd, &cm, playerToStone(P_WHITE));
 
@@ -2165,7 +2165,7 @@ int getNEmpty(const Board & b, const player_t p)
 	ChainMap cm(b.getDim());
 
 	std::vector<chain_t *> chainsWhite, chainsBlack;
-	findChains(b, &chainsWhite, &chainsBlack, &cm, { });
+	findChains(b, &chainsWhite, &chainsBlack, &cm);
 
 	std::unordered_set<Vertex, Vertex::HashFunction> liberties;
 	findLiberties(cm, &liberties, playerToStone(p));
@@ -2188,7 +2188,7 @@ uint64_t perft(const Board & b, const player_t p, const int depth, const bool pa
 	// find chains of stones
 	ChainMap cm(dim);
 	std::vector<chain_t *> chainsWhite, chainsBlack;
-	findChains(b, &chainsWhite, &chainsBlack, &cm, { });
+	findChains(b, &chainsWhite, &chainsBlack, &cm);
 
 	// find the liberties -> the "moves"
 	std::unordered_set<Vertex, Vertex::HashFunction> liberties;
@@ -2358,7 +2358,7 @@ int main(int argc, char *argv[])
 			if (parts.size() == 2) {
 				ChainMap cm(b->getDim());
 				std::vector<chain_t *> chainsWhite, chainsBlack;
-				findChains(*b, &chainsWhite, &chainsBlack, &cm, { });
+				findChains(*b, &chainsWhite, &chainsBlack, &cm);
 
 				auto s = playerToStone((parts.at(1) == "b" || parts.at(1) == "black") ? P_BLACK : P_WHITE);
 
