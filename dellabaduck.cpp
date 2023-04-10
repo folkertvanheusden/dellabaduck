@@ -2252,6 +2252,9 @@ uint64_t perft(const Board & b, const player_t p, const int depth, const bool pa
 	purgeChains(&chainsBlack);
 	purgeChains(&chainsWhite);
 
+	if (verbose == 1 && top)
+		fprintf(stderr, "total: %ld\n", total);
+
 	return total;
 }
 
