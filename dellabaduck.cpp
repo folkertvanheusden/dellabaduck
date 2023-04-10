@@ -36,7 +36,7 @@ const char *const board_t_names[] = { ".", "o", "x" };
 
 FILE *fh = fopen("input.dat", "a+");
 
-bool cgos = true;
+bool verbose = false;
 
 auto produce_seed()
 {
@@ -51,7 +51,7 @@ auto produce_seed()
 thread_local auto mt_seed = produce_seed();
 thread_local std::mt19937_64 gen { mt_seed };
 
-void send(const bool tx, const char *fmt, ...)
+void send(const bool is_verbose, const char *fmt, ...)
 {
 	uint64_t now = get_ts_ms();
 	time_t t_now = now / 1000;
@@ -72,20 +72,14 @@ void send(const bool tx, const char *fmt, ...)
 	va_end(ap);
 	fflush(fh);
 
-	if (tx) {
-		if (cgos && fmt[0] == '#') {
-			fprintf(fh, "%s%s\n", ts_str, str);
-			free(str);
-			free(ts_str);
-			return;
-		}
+	fprintf(fh, "%s%s\n", ts_str, str);
 
-		fprintf(fh, "%s|%s|\n", ts_str, str);
-
-		printf("%s\n", str);
+	if (is_verbose) {
+		if (verbose)
+			printf("%s\n", str);
 	}
 	else {
-		fprintf(fh, "%s%s\n", ts_str, str);
+		printf("%s\n", str);
 	}
 
 	fflush(fh);
@@ -228,7 +222,7 @@ void dump(const chain_t & chain)
 		line = "# ";
 		for(auto v : chain.liberties) 
 			line += myformat("%s ", v2t(v).c_str());
-		send(true, line.c_str());
+		send(true, "%s", line.c_str());
 	}
 }
 
@@ -403,7 +397,7 @@ void dump(const Board & b)
 				line += "!";
 		}
 
-		send(false, line.c_str());
+		send(true, line.c_str());
 	}
 
 	line = "#      ";
@@ -417,7 +411,7 @@ void dump(const Board & b)
 		line += myformat("%c", xc);
 	}
 
-	send(false, line.c_str());
+	send(true, line.c_str());
 }
 
 std::string init_sgf(const int dim)
@@ -544,7 +538,7 @@ void dump(const ChainMap & cm)
 		for(int x=0; x<dim; x++)
 			line += cm.getEnclosed(y * dim + x) ? '1' : '0';
 
-		send(false, line.c_str());
+		send(true, line.c_str());
 	}
 
 	line = "#      ";
@@ -558,7 +552,7 @@ void dump(const ChainMap & cm)
 		line += myformat("%c", xc);
 	}
 
-	send(false, line.c_str());
+	send(true, line.c_str());
 }
 
 void findChainsScan(std::queue<std::pair<unsigned, unsigned> > *const work_queue, const Board & b, unsigned x, unsigned y, const int dx, const int dy, const board_t type, bool *const scanned)
@@ -684,7 +678,7 @@ void findChains(const Board & b, std::vector<chain_t *> *const chainsWhite, std:
 			else if (curChain->type == B_BLACK)
 				chainsBlack->push_back(curChain);
 			else {
-				send(true, "# INTERNAL ERROR: %d is not valid for a stone type", curChain->type);
+				send(false, "# INTERNAL ERROR: %d is not valid for a stone type", curChain->type);
 				exit(1);
 			}
 		}
@@ -925,7 +919,7 @@ void connect(Board *const b, ChainMap *const cm, std::vector<chain_t *> *const c
 		else if (what == B_BLACK)
 			chainsBlack->push_back(curChain);
 		else {
-			send(true, "# INTERNAL ERROR: %d is not valid for a stone type", what);
+			send(false, "# INTERNAL ERROR: %d is not valid for a stone type", what);
 			exit(1);
 		}
 
@@ -1009,7 +1003,7 @@ void play(Board *const b, const Vertex & v, const player_t & p)
 		if (chain->liberties.empty()) {
 			for(auto ve : chain->chain) {
 				b->setAt(ve, B_EMPTY);
-				send(false, "# purge %s", v2t(ve).c_str());
+				send(true, "# purge %s", v2t(ve).c_str());
 			}
 		}
 	}
@@ -1355,7 +1349,7 @@ void selectAlphaBeta(const Board & b, const ChainMap & cm, const std::vector<cha
 
 	std::sort(places_for_sort.begin(), places_for_sort.end(), CompareCrossesSortHelper(b, p));
 
-	send(false, "# work: %d, time: %f", n_work, useTime);
+	send(true, "# work: %d, time: %f", n_work, useTime);
 
 	uint64_t start_t = get_ts_ms();  // TODO: start of genMove()
 	uint64_t hend_t  = start_t + useTime * 1000 / 2;
@@ -1374,7 +1368,7 @@ void selectAlphaBeta(const Board & b, const ChainMap & cm, const std::vector<cha
 	std::mutex a_b_lock;
 
 	while(get_ts_ms() < hend_t && depth <= dim * dim) {
-		send(false, "# a/b depth: %d", depth);
+		send(true, "# a/b depth: %d", depth);
 
 		fifo<int> places(dim * dim + 1);
 
@@ -1424,7 +1418,7 @@ void selectAlphaBeta(const Board & b, const ChainMap & cm, const std::vector<cha
 								best[i] = { v.value(), score };
 
 								if (score >= beta) {
-									send(false, "BCO: %d %d %d\n", alpha, score, beta);
+									send(true, "BCO: %d %d %d\n", alpha, score, beta);
 									quick_stop = true;
 									ok = true;
 									break;
@@ -1444,12 +1438,12 @@ void selectAlphaBeta(const Board & b, const ChainMap & cm, const std::vector<cha
 					}));
 		}
 
-		send(false, "# %zu threads", threads.size());
+		send(true, "# %zu threads", threads.size());
 
 		while(threads.empty() == false) {
 			(*threads.begin())->join();
 
-			//send(false, "# thread terminated, %zu left", threads.size());
+			send(true, "# thread terminated, %zu left", threads.size());
 
 			delete *threads.begin();
 
@@ -1464,7 +1458,7 @@ void selectAlphaBeta(const Board & b, const ChainMap & cm, const std::vector<cha
 				best_move  = best.at(i).value().first;
 				best_score = best.at(i).value().second;
 
-				send(false, "# thread %zu chose %s with score %d", i, v2t(Vertex(best_move.value(), dim)).c_str(), best_score);
+				send(true, "# thread %zu chose %s with score %d", i, v2t(Vertex(best_move.value(), dim)).c_str(), best_score);
 			}
 		}
 
@@ -1474,13 +1468,13 @@ void selectAlphaBeta(const Board & b, const ChainMap & cm, const std::vector<cha
 		if (ok && ei.flag == false && best_move.has_value()) {
 			global_best = best_move;
 
-			send(false, "# Move selected for this depth: %s (%d)", v2t(Vertex(global_best.value(), dim)).c_str(), global_best.value());
+			send(true, "# Move selected for this depth: %s (%d)", v2t(Vertex(global_best.value(), dim)).c_str(), global_best.value());
 		}
 
 		if (allow_next_depth)
 			depth++;
 		else
-			send(false, "# score outside window, retry depth");
+			send(true, "# score outside window, retry depth");
 	}
 
 	if (to_timer) {
@@ -1493,7 +1487,7 @@ void selectAlphaBeta(const Board & b, const ChainMap & cm, const std::vector<cha
 	}
 
 	if (global_best.has_value()) {
-		send(false, "# Move selected for %c by A/B: %s (reached depth: %d, completed: %d)", p == P_BLACK ? 'B' : 'W', v2t(Vertex(global_best.value(), dim)).c_str(), depth, ok);
+		send(true, "# Move selected for %c by A/B: %s (reached depth: %d, completed: %d)", p == P_BLACK ? 'B' : 'W', v2t(Vertex(global_best.value(), dim)).c_str(), depth, ok);
 
 		evals->at(global_best.value()).score += 10;
 		evals->at(global_best.value()).valid = true;
@@ -1501,7 +1495,7 @@ void selectAlphaBeta(const Board & b, const ChainMap & cm, const std::vector<cha
 
 #ifdef CALC_BCO
 	double factor = bco_total / bco_n;
-	send(false, "# BCO at %.3f%%; move %d, n: %lu", factor * 100, int(factor * dim * dim), bco_n);
+	send(true, "# BCO at %.3f%%; move %d, n: %lu", factor * 100, int(factor * dim * dim), bco_n);
 #endif
 
 	delete [] valid;
@@ -1705,7 +1699,7 @@ std::optional<Vertex> genMove(Board *const b, const player_t & p, const bool doP
 	dump(chainsBlack);
 	dump(chainsWhite);
 
-	send(false, "# useTime: %f", useTime);
+	send(true, "# useTime: %f", useTime);
 
 	std::vector<eval_t> evals;
 	evals.resize(p2dim);
@@ -1754,7 +1748,7 @@ std::optional<Vertex> genMove(Board *const b, const player_t & p, const bool doP
 				line += myformat("  %s ", board_t_names[b->getAt(x, y)]);
 		}
 
-		send(false, line.c_str());
+		send(true, "%s", line.c_str());
 	}
 
 	std::string line = "#      ";
@@ -1766,7 +1760,7 @@ std::optional<Vertex> genMove(Board *const b, const player_t & p, const bool doP
 		line += myformat(" %c  ", c);
 	}
 
-	send(false, line.c_str());
+	send(true, "%s", line.c_str());
 
 	// remove any chains that no longer have liberties after this move
 	// also play the move
@@ -1897,7 +1891,8 @@ Board loadSgfFile(const std::string & filename)
 {
 	FILE *sfh = fopen(filename.c_str(), "r");
 	if (!sfh) {
-		send(true, "Cannot open %s", filename.c_str());
+		send(false, "# Cannot open %s", filename.c_str());
+
 		return Board(9);
 	}
 
@@ -2223,7 +2218,7 @@ uint64_t perft(const Board & b, const player_t p, const int depth, const bool pa
 		Board new_board(b);
 
 		if (verbose == 2)
-			fprintf(stderr, "%d %s %s\n", depth, v2t(cross).c_str(), dumpToString(new_board, p, pass).c_str());
+			send(true, "%d %s %s", depth, v2t(cross).c_str(), dumpToString(new_board, p, pass).c_str());
 
 		play(&new_board, cross, p);
 
@@ -2232,7 +2227,7 @@ uint64_t perft(const Board & b, const player_t p, const int depth, const bool pa
 		total += cur_count;
 
 		if (verbose == 1 && top)
-			fprintf(stderr, "%s: %ld\n", v2t(cross).c_str(), cur_count);
+			send(true, "%s: %ld", v2t(cross).c_str(), cur_count);
 	}
 
 	if (pass)
@@ -2243,17 +2238,17 @@ uint64_t perft(const Board & b, const player_t p, const int depth, const bool pa
 		total += cur_count;
 
 		if (verbose == 1 && top)
-			fprintf(stderr, "pass: %ld\n", cur_count);
+			send(true, "pass: %ld", cur_count);
 	}
 
 	if (verbose == 2)
-		fprintf(stderr, "%d pass %s\n", depth, dumpToString(b, p, pass).c_str());
+		send(true, "%d pass %s", depth, dumpToString(b, p, pass).c_str());
 
 	purgeChains(&chainsBlack);
 	purgeChains(&chainsWhite);
 
 	if (verbose == 1 && top)
-		fprintf(stderr, "total: %ld\n", total);
+		send(true, "total: %ld", total);
 
 	return total;
 }
@@ -2263,9 +2258,9 @@ int main(int argc, char *argv[])
 	int nThreads = std::thread::hardware_concurrency();
 
 	int c = -1;
-	while((c = getopt(argc, argv, "ct:")) != -1) {
-		if (c == 'c')  // console
-			cgos = false;
+	while((c = getopt(argc, argv, "vt:")) != -1) {
+		if (c == 'v')  // console
+			verbose = true;
 		else if (c == 't')
 			nThreads = atoi(optarg);
 	}
@@ -2302,7 +2297,7 @@ int main(int argc, char *argv[])
 		if (buffer[0] == 0x00)
 			continue;
 
-		send(false, "> %s", buffer);
+		send(true, "> %s", buffer);
 
 		std::vector<std::string> parts = split(buffer, " ");
 
@@ -2313,16 +2308,16 @@ int main(int argc, char *argv[])
 		}
 
 		if (parts.at(0) == "protocol_version")
-			send(true, "=%s 2", id.c_str());
+			send(false, "=%s 2", id.c_str());
 		else if (parts.at(0) == "name")
-			send(true, "=%s DellaBaduck", id.c_str());
+			send(false, "=%s DellaBaduck", id.c_str());
 		else if (parts.at(0) == "version")
-			send(true, "=%s 0.1", id.c_str());
+			send(false, "=%s 0.1", id.c_str());
 		else if (parts.at(0) == "boardsize" && parts.size() == 2) {
 			delete b;
 			b = new Board(atoi(parts.at(1).c_str()));
 
-			send(true, "=%s", id.c_str());
+			send(false, "=%s", id.c_str());
 		}
 		else if (parts.at(0) == "clear_board") {
 			int dim = b->getDim();
@@ -2333,7 +2328,7 @@ int main(int argc, char *argv[])
 			p    = P_BLACK;
 			pass = 0;
 
-			send(true, "=%s", id.c_str());
+			send(false, "=%s", id.c_str());
 
 			moves_executed = 0;
 			// not /2: assuming that some stones are regained during the game
@@ -2345,7 +2340,7 @@ int main(int argc, char *argv[])
 		else if (parts.at(0) == "play" && parts.size() == 3) {
 			p = (parts.at(1) == "b" || parts.at(1) == "black") ? P_BLACK : P_WHITE;
 
-			send(true, "=%s", id.c_str());
+			send(false, "=%s", id.c_str());
 
 			if (str_tolower(parts.at(2)) == "pass")
 				pass++;
@@ -2359,10 +2354,12 @@ int main(int argc, char *argv[])
 
 			sgf += myformat(";%c[%s]", p == P_BLACK ? 'B' : 'W', parts.at(2).c_str());
 
-			send(false, "# %s)", sgf.c_str());
+			send(true, "# %s)", sgf.c_str());
 		}
 		else if (parts.at(0) == "debug") {
 			dump(*b);
+
+			send(true, "# %s", dumpToString(*b, p, pass).c_str());
 
 			if (parts.size() == 2) {
 				ChainMap cm(b->getDim());
@@ -2388,14 +2385,14 @@ int main(int argc, char *argv[])
 			}
 		}
 		else if (parts.at(0) == "quit") {
-			send(true, "=%s", id.c_str());
+			send(false, "=%s", id.c_str());
 			break;
 		}
 		else if (parts.at(0) == "known_command") {  // TODO
 			if (parts.at(1) == "known_command")
-				send(true, "=%s true", id.c_str());
+				send(false, "=%s true", id.c_str());
 			else
-				send(true, "=%s false", id.c_str());
+				send(false, "=%s false", id.c_str());
 		}
 		else if (parts.at(0) == "benchmark" && parts.size() == 3) {
 			double pops = -1.;
@@ -2408,43 +2405,43 @@ int main(int argc, char *argv[])
 			else if (parts.at(2) == "3")
 				pops = benchmark_3(*b, atoi(parts.at(1).c_str()));
 
-			send(true, "=%s %f", id.c_str(), pops);
+			send(false, "=%s %f", id.c_str(), pops);
 		}
 		else if (parts.at(0) == "komi") {
 			komi = atof(parts.at(1).c_str());
 
-			send(true, "=%s", id.c_str());  // TODO
+			send(false, "=%s", id.c_str());  // TODO
 							//
 			sgf += "KM[" + parts.at(1) + "]";
 		}
 		else if (parts.at(0) == "time_settings") {
-			send(true, "=%s", id.c_str());  // TODO
+			send(false, "=%s", id.c_str());  // TODO
 		}
 		else if (parts.at(0) == "time_left" && parts.size() >= 3) {
 			timeLeft = atof(parts.at(2).c_str());
 
-			send(true, "=%s", id.c_str());  // TODO
+			send(false, "=%s", id.c_str());  // TODO
 		}
 		else if (parts.at(0) == "list_commands") {
-			send(true, "=%s name", id.c_str());
-			send(true, "=%s version", id.c_str());
-			send(true, "=%s boardsize", id.c_str());
-			send(true, "=%s clear_board", id.c_str());
-			send(true, "=%s play", id.c_str());
-			send(true, "=%s genmove", id.c_str());
-			send(true, "=%s komi", id.c_str());
-			send(true, "=%s quit", id.c_str());
-			send(true, "=%s loadsgf", id.c_str());
-			send(true, "=%s final_score", id.c_str());
-			send(true, "=%s time_settings", id.c_str());
-			send(true, "=%s time_left", id.c_str());
+			send(false, "=%s name", id.c_str());
+			send(false, "=%s version", id.c_str());
+			send(false, "=%s boardsize", id.c_str());
+			send(false, "=%s clear_board", id.c_str());
+			send(false, "=%s play", id.c_str());
+			send(false, "=%s genmove", id.c_str());
+			send(false, "=%s komi", id.c_str());
+			send(false, "=%s quit", id.c_str());
+			send(false, "=%s loadsgf", id.c_str());
+			send(false, "=%s final_score", id.c_str());
+			send(false, "=%s time_settings", id.c_str());
+			send(false, "=%s time_left", id.c_str());
 		}
 		else if (parts.at(0) == "final_score") {
 			auto final_score = score(*b, komi);
 
-			send(false, "# black: %f, white: %f", final_score.first, final_score.second);
+			send(true, "# black: %f, white: %f", final_score.first, final_score.second);
 
-			send(true, "=%s %s", id.c_str(), scoreStr(final_score).c_str());
+			send(false, "=%s %s", id.c_str(), scoreStr(final_score).c_str());
 		}
 		else if (parts.at(0) == "unittest")
 			test(parts.size() == 2 ? parts.at(1) == "-v" : false);
@@ -2455,7 +2452,7 @@ int main(int argc, char *argv[])
 			p    = P_BLACK;
 			pass = 0;
 
-			send(true, "=%s", id.c_str());
+			send(false, "=%s", id.c_str());
 		}
 		else if (parts.at(0) == "setsgf") {
 			delete b;
@@ -2464,7 +2461,7 @@ int main(int argc, char *argv[])
 			p    = P_BLACK;
 			pass = 0;
 
-			send(true, "=%s", id.c_str());
+			send(false, "=%s", id.c_str());
 		}
 		else if (parts.at(0) == "autoplay" && parts.size() == 2) {
 			double think_time = atof(parts.at(1).c_str());
@@ -2527,21 +2524,21 @@ int main(int argc, char *argv[])
 			timeLeft = -1.0;
 
 			if (v.has_value()) {
-				send(true, "=%s %s", id.c_str(), v2t(v.value()).c_str());
+				send(false, "=%s %s", id.c_str(), v2t(v.value()).c_str());
 
 				sgf += myformat(";%c[%s]", player == P_BLACK ? 'B' : 'W', v2t(v.value()).c_str());
 
 				pass = 0;
 			}
 			else {
-				send(true, "=%s pass", id.c_str());
+				send(false, "=%s pass", id.c_str());
 
 				pass++;
 			}
 
-			send(false, "# %s)", sgf.c_str());
+			send(true, "# %s)", sgf.c_str());
 
-			send(false, "# took %.3fs for %s", (end_ts - start_ts) / 1000.0, v.has_value() ? v2t(v.value()).c_str() : "pass");
+			send(true, "# took %.3fs for %s", (end_ts - start_ts) / 1000.0, v.has_value() ? v2t(v.value()).c_str() : "pass");
 
 			p = getOpponent(player);
 		}
@@ -2553,11 +2550,11 @@ int main(int argc, char *argv[])
 			else {
 				double usage = ru.ru_utime.tv_sec + ru.ru_utime.tv_usec / 1000000.0;
 
-				send(true, "=%s %.4f", id.c_str(), usage);
+				send(false, "=%s %.4f", id.c_str(), usage);
 			}
 		}
 		else if (parts.at(0) == "player") {
-			send(true, "=%s %c", id.c_str(), p == P_BLACK ? 'B' : 'W');
+			send(false, "=%s %c", id.c_str(), p == P_BLACK ? 'B' : 'W');
 		}
 		else if (parts.at(0) == "perft" && (parts.size() == 2 || parts.size() == 3)) {
 			int      depth   = atoi(parts.at(1).c_str());
@@ -2584,12 +2581,10 @@ int main(int argc, char *argv[])
 			pass = std::get<2>(new_position);
 		}
 		else {
-			send(true, "?");
+			send(false, "?");
 		}
 
-		send(true, "");
-
-		//		dump(*b);
+		send(false, "");
 
 		fflush(nullptr);
 	}
