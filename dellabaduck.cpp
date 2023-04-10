@@ -321,6 +321,19 @@ class Board {
 		}
 };
 
+std::tuple<Board *, player_t, int> stringToPosition(const std::string & in)
+{
+	auto parts = split(in, " ");
+
+	Board   *b      = new Board(parts.at(0));
+
+	player_t player = parts.at(1) == "b" || parts.at(1) == "B" ? P_BLACK : P_WHITE;
+
+	int      pass   = atoi(parts.at(2).c_str());
+
+	return { b, player, pass };
+}
+
 Board stringToBoard(const std::string & in)
 {
 	auto templines = split(in, "\n");
@@ -2259,7 +2272,11 @@ int main(int argc, char *argv[])
 
 	srand(time(nullptr));
 
-	Board *b = new Board(9);
+	Board   *b    = new Board(9);
+
+	player_t p    = P_BLACK;
+	
+	int      pass = 0;
 
 	double timeLeft = -1;
 
@@ -2306,8 +2323,13 @@ int main(int argc, char *argv[])
 		}
 		else if (parts.at(0) == "clear_board") {
 			int dim = b->getDim();
+
 			delete b;
 			b = new Board(dim);
+
+			p    = P_BLACK;
+			pass = 0;
+
 			send(true, "=%s", id.c_str());
 
 			moves_executed = 0;
@@ -2318,14 +2340,18 @@ int main(int argc, char *argv[])
 			sgf = init_sgf(dim);
 		}
 		else if (parts.at(0) == "play" && parts.size() == 3) {
-			player_t p = (parts.at(1) == "b" || parts.at(1) == "black") ? P_BLACK : P_WHITE;
+			p = (parts.at(1) == "b" || parts.at(1) == "black") ? P_BLACK : P_WHITE;
 
 			send(true, "=%s", id.c_str());
 
-			if (str_tolower(parts.at(2)) != "pass") {
+			if (str_tolower(parts.at(2)) == "pass")
+				pass++;
+			else {
 				Vertex v = t2v(parts.at(2), b->getDim());
 
 				play(b, v, p);
+
+				pass = 0;
 			}
 
 			sgf += myformat(";%c[%s]", p == P_BLACK ? 'B' : 'W', parts.at(2).c_str());
@@ -2341,6 +2367,8 @@ int main(int argc, char *argv[])
 				findChains(*b, &chainsWhite, &chainsBlack, &cm, { });
 
 				auto s = playerToStone((parts.at(1) == "b" || parts.at(1) == "black") ? P_BLACK : P_WHITE);
+
+				send(true, "%c", p == P_BLACK ? 'B' : 'W');
 
 				scanEnclosed(*b, &cm, s);
 
@@ -2421,17 +2449,21 @@ int main(int argc, char *argv[])
 			delete b;
 			b = new Board(loadSgfFile(parts.at(1)));
 
+			p    = P_BLACK;
+			pass = 0;
+
 			send(true, "=%s", id.c_str());
 		}
 		else if (parts.at(0) == "setsgf") {
 			delete b;
 			b = new Board(loadSgf(parts.at(1)));
 
+			p    = P_BLACK;
+			pass = 0;
+
 			send(true, "=%s", id.c_str());
 		}
 		else if (parts.at(0) == "autoplay" && parts.size() == 2) {
-			player_t p = P_BLACK;
-
 			double think_time = atof(parts.at(1).c_str());
 
 			double time_left[] = { think_time, think_time };
@@ -2495,14 +2527,20 @@ int main(int argc, char *argv[])
 				send(true, "=%s %s", id.c_str(), v2t(v.value()).c_str());
 
 				sgf += myformat(";%c[%s]", player == P_BLACK ? 'B' : 'W', v2t(v.value()).c_str());
+
+				pass = 0;
 			}
 			else {
 				send(true, "=%s pass", id.c_str());
+
+				pass++;
 			}
 
 			send(false, "# %s)", sgf.c_str());
 
 			send(false, "# took %.3fs for %s", (end_ts - start_ts) / 1000.0, v.has_value() ? v2t(v.value()).c_str() : "pass");
+
+			p = getOpponent(player);
 		}
 		else if (parts.at(0) == "cputime") {
 			struct rusage ru { 0 };
@@ -2515,16 +2553,19 @@ int main(int argc, char *argv[])
 				send(true, "=%s %.4f", id.c_str(), usage);
 			}
 		}
+		else if (parts.at(0) == "player") {
+			send(true, "=%s %c", id.c_str(), p == P_BLACK ? 'B' : 'W');
+		}
 		else if (parts.at(0) == "perft" && (parts.size() == 2 || parts.size() == 3)) {
 			int      depth   = atoi(parts.at(1).c_str());
 
 			int      verbose = parts.size() == 3 ? atoi(parts.at(2).c_str()) : 0;
 
 			uint64_t start_t = get_ts_ms();
-			uint64_t total   = perft(*b, P_BLACK, depth, false, verbose, true);
+			uint64_t total   = perft(*b, p, depth, pass, verbose, true);
 			uint64_t diff_t  = std::max(uint64_t(1), get_ts_ms() - start_t);
 
-			send(true, "# Total perft for depth %d: %lu (%.1f moves per second, %.3f seconds)", depth, total, total * 1000. / diff_t, diff_t / 1000.);
+			send(true, "# Total perft for %c with depth %d: %lu (%.1f moves per second, %.3f seconds)", p == P_BLACK ? 'B' : 'W', depth, total, total * 1000. / diff_t, diff_t / 1000.);
 		}
 		else if (parts.at(0) == "dumpstr") {
 			auto out = dumpToString(*b, P_BLACK, 0);
@@ -2533,7 +2574,11 @@ int main(int argc, char *argv[])
 		}
 		else if (parts.at(0) == "loadstr" && parts.size() == 2) {
 			delete b;
-			b = new Board(parts.at(1));
+
+			auto new_position = stringToPosition(parts.at(1));
+			b    = std::get<0>(new_position);
+			p    = std::get<1>(new_position);
+			pass = std::get<2>(new_position);
 		}
 		else {
 			send(true, "?");
