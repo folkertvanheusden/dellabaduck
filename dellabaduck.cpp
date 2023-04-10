@@ -976,26 +976,7 @@ void play(Board *const b, const Vertex & v, const player_t & p)
 
 	std::vector<chain_t *> chainsWhite, chainsBlack;
 
-	// sanity check
-#if !defined(NDEBUG)
-#warning DEBUG enabled
 	findChains(*b, &chainsWhite, &chainsBlack, &cm, { });
-
-	std::vector<chain_t *> & scan_me = p == P_WHITE ? chainsWhite : chainsBlack;
-
-	bool ok = true;
-	for(auto chain : scan_me) {
-		if (chain->liberties.empty()) {
-			dump(*b);
-			dump(*chain);
-			ok = false;
-		}
-	}
-
-	assert(ok);
-#else
-	findChains(*b, &chainsWhite, &chainsBlack, &cm, p == P_BLACK ? B_WHITE : B_BLACK);
-#endif
 
 	std::vector<chain_t *> & scan = p == P_BLACK ? chainsWhite : chainsBlack;
 
@@ -1003,7 +984,10 @@ void play(Board *const b, const Vertex & v, const player_t & p)
 		if (chain->liberties.empty()) {
 			for(auto ve : chain->chain) {
 				b->setAt(ve, B_EMPTY);
+#if !defined(NDEBUG)
+#warning DEBUG enabled
 				send(true, "# purge %s", v2t(ve).c_str());
+#endif
 			}
 		}
 	}
@@ -1660,8 +1644,6 @@ void selectPlayout(const Board & b, const ChainMap & cm, const std::vector<chain
 
 	for(int i=0; i<dimsq; i++) {
 		if (all_results.at(i).second) {
-			assert(i == all_results.first.getV());
-
 			double score = all_results.at(i).first / all_results.at(i).second;
 
 			evals->at(i).score += score;
@@ -2215,6 +2197,13 @@ uint64_t perft(const Board & b, const player_t p, const int depth, const bool pa
 	if (depth == 1) {
 		purgeChains(&chainsBlack);
 		purgeChains(&chainsWhite);
+
+		if (verbose == 1 && top) {
+			for(auto & cross : liberties)
+				send(true, "%s: 1", v2t(cross).c_str());
+
+			send(true, "PASS: 1");
+		}
 
 		// +1 == pass
 
