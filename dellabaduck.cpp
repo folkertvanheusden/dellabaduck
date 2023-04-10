@@ -255,7 +255,7 @@ class Board {
 			int o = 0;
 
 			for(int y=dim - 1; y >= 0; y--) {
-				for(int x=dim - 1; x >= 0; x--) {
+				for(int x=0; x<dim; x++) {
 					char c = str[o++];
 
 					if (c == 'w' || c == 'W')
@@ -449,7 +449,7 @@ std::string dumpToString(const Board & b, const player_t next_player, const int 
 	std::string out;
 
 	for(int y=dim - 1; y >= 0; y--) {
-		for(int x=dim - 1; x >= 0; x--) {
+		for(int x=0; x<dim; x++) {
 			auto stone = b.getAt(x, y);
 
 			if (stone == B_EMPTY)
@@ -2565,17 +2565,17 @@ int main(int argc, char *argv[])
 			uint64_t total   = perft(*b, p, depth, pass, verbose, true);
 			uint64_t diff_t  = std::max(uint64_t(1), get_ts_ms() - start_t);
 
-			send(true, "# Total perft for %c with depth %d: %lu (%.1f moves per second, %.3f seconds)", p == P_BLACK ? 'B' : 'W', depth, total, total * 1000. / diff_t, diff_t / 1000.);
+			send(true, "# Total perft for %c and %d passes with depth %d: %lu (%.1f moves per second, %.3f seconds)", p == P_BLACK ? 'B' : 'W', pass, depth, total, total * 1000. / diff_t, diff_t / 1000.);
 		}
 		else if (parts.at(0) == "dumpstr") {
 			auto out = dumpToString(*b, P_BLACK, 0);
 
 			send(true, "# %s", out.c_str());
 		}
-		else if (parts.at(0) == "loadstr" && parts.size() == 2) {
+		else if (parts.at(0) == "loadstr" && parts.size() == 4) {
 			delete b;
 
-			auto new_position = stringToPosition(parts.at(1));
+			auto new_position = stringToPosition(parts.at(1) + " " + parts.at(2) + " " + parts.at(3));
 			b    = std::get<0>(new_position);
 			p    = std::get<1>(new_position);
 			pass = std::get<2>(new_position);
