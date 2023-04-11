@@ -459,7 +459,7 @@ void dump(const Board & b)
 				line += "!";
 		}
 
-		send(true, line.c_str());
+		send(true, "%s", line.c_str());
 	}
 
 	line = "#      ";
@@ -473,7 +473,7 @@ void dump(const Board & b)
 		line += myformat("%c", xc);
 	}
 
-	send(true, line.c_str());
+	send(true, "%s", line.c_str());
 }
 
 std::string init_sgf(const int dim)
@@ -600,7 +600,7 @@ void dump(const ChainMap & cm)
 		for(int x=0; x<dim; x++)
 			line += cm.getEnclosed(y * dim + x) ? '1' : '0';
 
-		send(true, line.c_str());
+		send(true, "%s", line.c_str());
 	}
 
 	line = "#      ";
@@ -614,7 +614,7 @@ void dump(const ChainMap & cm)
 		line += myformat("%c", xc);
 	}
 
-	send(true, line.c_str());
+	send(true, "%s", line.c_str());
 }
 
 void findChainsScan(std::queue<std::pair<unsigned, unsigned> > *const work_queue, const Board & b, unsigned x, unsigned y, const int dx, const int dy, const board_t type, bool *const scanned)
