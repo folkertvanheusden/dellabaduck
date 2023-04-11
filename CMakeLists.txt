@@ -8,9 +8,13 @@ add_compile_options(-Wall -pedantic)
 
 add_executable(
   dellabaduck
+  board.cpp
   dellabaduck.cpp
+  random.cpp
   str.cpp
   time.cpp
+  vertex.cpp
+  zobrist.cpp
 )
 
 set(CMAKE_BUILD_TYPE RelWithDebInfo)
