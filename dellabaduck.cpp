@@ -760,55 +760,40 @@ void findLiberties(const ChainMap & cm, std::unordered_set<Vertex, Vertex::HashF
 
 			bool ok = false;
 
-			if (x > 0) {
-				Vertex v(x - 1, y, dim);
+			if (x > 0)
+				ok |= cm.getAt({ x - 1, y, dim }) == nullptr;
 
-				ok |= cm.getAt(v) == nullptr;
-			}
+			if (x < dim - 1)
+				ok |= cm.getAt({ x + 1, y, dim }) == nullptr;
 
-			if (x < dim - 1) {
-				Vertex v(x + 1, y, dim);
+			if (y > 0)
+				ok |= cm.getAt({ x, y - 1, dim }) == nullptr;
 
-				ok |= cm.getAt(v) == nullptr;
-			}
-
-			if (y > 0) {
-				Vertex v(x, y - 1, dim);
-
-				ok |= cm.getAt(v) == nullptr;
-			}
-
-			if (y < dim - 1) {
-				Vertex v(x, y + 1, dim);
-
-				ok |= cm.getAt(v) == nullptr;
-			}
+			if (y < dim - 1)
+				ok |= cm.getAt({ x, y + 1, dim }) == nullptr;
 
 			if (ok == false) {
 				if (x > 0) {
-					Vertex v(x - 1, y, dim);
-					auto p = cm.getAt(v);
+					auto p = cm.getAt({ x - 1, y, dim });
 
 					ok |= p == nullptr || (p != nullptr && p->type == for_whom && p->liberties.size() > 1);
 				}
 
 				if (x < dim - 1) {
-					Vertex v(x + 1, y, dim);
-					auto p = cm.getAt(v);
+					auto p = cm.getAt({ x + 1, y, dim });
 
 					ok |= p == nullptr || (p != nullptr && p->type == for_whom && p->liberties.size() > 1);
 				}
 
 				if (y > 0) {
 					Vertex v(x, y - 1, dim);
-					auto p = cm.getAt(v);
+					auto p = cm.getAt({ x, y - 1, dim });
 
 					ok |= p == nullptr || (p != nullptr && p->type == for_whom && p->liberties.size() > 1);
 				}
 
 				if (y < dim - 1) {
-					Vertex v(x, y + 1, dim);
-					auto p = cm.getAt(v);
+					auto p = cm.getAt({ x, y + 1, dim });
 
 					ok |= p == nullptr || (p != nullptr && p->type == for_whom && p->liberties.size() > 1);
 				}
