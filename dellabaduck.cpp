@@ -1610,7 +1610,78 @@ std::tuple<double, double, int> playout(const Board & in, const double komi, pla
 	return std::tuple<double, double, int>(s.first, s.second, mc);
 }
 
-void selectPlayout(const Board & b, const ChainMap & cm, const std::vector<chain_t *> & chainsWhite, const std::vector<chain_t *> & chainsBlack, std::unordered_set<Vertex, Vertex::HashFunction> & liberties, const player_t & p, std::vector<eval_t> *const evals, const double useTime, const double komi, const int nThreads)
+void playoutThread(std::vector<std::pair<double, uint32_t> > *const all_results, std::mutex *const all_results_lock, const uint64_t h_end_t, const uint64_t end_t, const std::unordered_set<Vertex, Vertex::HashFunction> *const liberties, const player_t p, const double komi, const Board *const b)
+{
+	const int dim   = b->getDim();
+	const int dimsq = dim * dim;
+
+	const player_t opponent = getOpponent(p);
+
+	bool   halfway_trigger = false;
+	double score_threshold = -1000.;
+
+	std::vector<std::pair<double, uint32_t> > local_results;
+	local_results.resize(dimsq);
+
+	auto lib_it = liberties->begin();
+
+	for(;;) {
+		uint64_t now = get_ts_ms();
+
+		if (now >= end_t)
+			break;
+
+		if (now >= h_end_t && halfway_trigger == false) {
+			halfway_trigger = true;
+
+			double total_scores = 0.;
+			int    total_count  = 0;
+
+			for(int i=0; i<dimsq; i++) {
+				total_scores += local_results.at(i).first;
+				total_count  += local_results.at(i).second;
+			}
+
+			score_threshold = total_scores / total_count;
+
+			// printf("set threshold to %f\n", score_threshold);
+		}
+
+		int    v             = lib_it->getV();
+
+		// when never played, try get it played
+		double current_score = local_results.at(v).second > 0 ? local_results.at(v).first / local_results.at(v).second : 1000000.;
+
+		if (current_score >= score_threshold) {
+			Board work(&z, *b);
+
+			play(&work, *lib_it, p);
+
+			auto rc = playout(work, komi, opponent);
+
+			double score = p == P_BLACK ? std::get<0>(rc) - std::get<1>(rc) : std::get<1>(rc) - std::get<0>(rc);
+
+			local_results.at(v).first += score;
+			local_results.at(v).second++;
+		}
+
+		lib_it++;
+
+		if (lib_it == liberties->end())
+			lib_it = liberties->begin();
+	}
+
+	std::unique_lock<std::mutex> lck(*all_results_lock);
+
+	for(int i=0; i<dimsq; i++) {
+		if (local_results.at(i).second) {
+			all_results->at(i).first  += local_results.at(i).first;  // score
+			all_results->at(i).second += local_results.at(i).second;  // count
+		}
+	}
+}
+
+void selectPlayout(const Board & b, const ChainMap & cm, const std::vector<chain_t *> & chainsWhite, const std::vector<chain_t *> & chainsBlack, const std::unordered_set<Vertex, Vertex::HashFunction> & liberties, const player_t & p, std::vector<eval_t> *const evals, const double useTime, const double komi, const int nThreads)
 {
 	uint64_t start_t = get_ts_ms();  // TODO: start of genMove()
 	uint64_t h_end_t = start_t + useTime * 450;
@@ -1626,75 +1697,8 @@ void selectPlayout(const Board & b, const ChainMap & cm, const std::vector<chain
 
 	std::mutex all_results_lock;
 
-	for(int i=0; i<nThreads; i++) {
-		threads.push_back(new std::thread([&all_results, &all_results_lock, h_end_t, end_t, liberties, p, komi, b, dimsq] {
-					const player_t opponent = getOpponent(p);
-
-					bool   halfway_trigger = false;
-					double score_threshold = -1000.;
-
-					std::vector<std::pair<double, uint32_t> > local_results;
-					local_results.resize(dimsq);
-
-					auto lib_it = liberties.begin();
-
-					for(;;) {
-						uint64_t now = get_ts_ms();
-
-						if (now >= end_t)
-							break;
-
-						if (now >= h_end_t && halfway_trigger == false) {
-							halfway_trigger = true;
-
-							double total_scores = 0.;
-							int    total_count  = 0;
-
-							for(int i=0; i<dimsq; i++) {
-								total_scores += local_results.at(i).first;
-								total_count  += local_results.at(i).second;
-							}
-
-							score_threshold = total_scores / total_count;
-
-							// printf("set threshold to %f\n", score_threshold);
-						}
-
-						int    v             = lib_it->getV();
-
-						// when never played, try get it played
-						double current_score = local_results.at(v).second > 0 ? local_results.at(v).first / local_results.at(v).second : 1000000.;
-
-						if (current_score >= score_threshold) {
-							Board work(&z, b);
-
-							play(&work, *lib_it, p);
-
-							auto rc = playout(work, komi, opponent);
-
-							double score = p == P_BLACK ? std::get<0>(rc) - std::get<1>(rc) : std::get<1>(rc) - std::get<0>(rc);
-
-							local_results.at(v).first += score;
-							local_results.at(v).second++;
-						}
-
-						lib_it++;
-
-						if (lib_it == liberties.end())
-							lib_it = liberties.begin();
-					}
-
-					std::unique_lock<std::mutex> lck(all_results_lock);
-
-					for(int i=0; i<dimsq; i++) {
-						if (local_results.at(i).second) {
-							all_results.at(i).first  += local_results.at(i).first;  // score
-							all_results.at(i).second += local_results.at(i).second;  // count
-						}
-					}
-				})
-			);
-	}
+	for(int i=0; i<nThreads; i++)
+		threads.push_back(new std::thread(playoutThread, &all_results, &all_results_lock, h_end_t, end_t, &liberties, p, komi, &b));
 
 	while(threads.empty() == false) {
 		(*threads.begin())->join();
