@@ -25,58 +25,21 @@
 #include <sys/resource.h>
 #include <sys/time.h>
 
+#include "board.h"
 #include "fifo.h"
+#include "random.h"
 #include "str.h"
 #include "time.h"
+#include "vertex.h"
+
 
 //#define CALC_BCO
 
 typedef enum { P_BLACK = 0, P_WHITE } player_t;
-typedef enum { B_EMPTY, B_WHITE, B_BLACK, B_LAST } board_t;
-const char *const board_t_names[] = { ".", "o", "x" };
 
 FILE *fh = fopen("input.dat", "a+");
 
 bool verbose = false;
-
-auto produce_seed()
-{
-	std::vector<unsigned int> random_data(std::mt19937::state_size);
-
-	std::random_device source;
-	std::generate(std::begin(random_data), std::end(random_data), [&](){return source();});
-
-	return std::seed_seq(std::begin(random_data), std::end(random_data));
-}
-
-thread_local auto mt_seed = produce_seed();
-thread_local std::mt19937_64 gen { mt_seed };
-
-class Zobrist {
-private:
-	std::vector<std::uint64_t> rngs;
-
-	std::uniform_int_distribution<std::uint64_t> distribution{ std::numeric_limits<std::uint64_t>::min(), std::numeric_limits<std::uint64_t>::max() };
-
-public:
-	Zobrist(const int dim) {
-		setDim(dim);
-	}
-
-	~Zobrist() {
-	}
-
-	void setDim(const int dim) {
-		size_t newN = dim * dim * 2;
-
-		for(size_t i=rngs.size(); i<newN; i++)
-			rngs.push_back(distribution(gen));
-	}
-
-	uint64_t get(const int nr, const bool black) const {
-		return rngs.at(nr * 2 + black);
-	}
-};
 
 Zobrist z(19);
 
@@ -126,62 +89,6 @@ player_t getOpponent(const player_t & p)
 {
 	return p == P_WHITE ? P_BLACK : P_WHITE;
 }
-
-class Vertex
-{
-	private:
-		const int v, dim;
-
-	public:
-		Vertex(const int v, const int dim) : v(v), dim(dim) {
-			assert(dim & 1);
-		}
-
-		Vertex(const int x, const int y, const int dim) : v(y * dim + x), dim(dim) {
-			assert(dim & 1);
-		}
-
-		Vertex(const Vertex & v) : v(v.getV()), dim(v.getDim()) {
-			assert(dim & 1);
-		}
-
-		bool operator<(const Vertex & rhs) const
-		{
-			return v < rhs.v;
-		}
-
-		bool operator==(const Vertex & rhs) const
-		{
-			return v == rhs.v;
-		}
-
-		bool operator()(const Vertex & a, const Vertex & b) const
-		{
-			return a.v > b.v;
-		}
-
-		struct HashFunction {
-			size_t operator()(const Vertex & v) const {
-				return std::hash<int>()(v.v);
-			}
-		};
-
-		int getDim() const {
-			return dim;
-		}
-
-		int getV() const {
-			return v;
-		}
-
-		int getX() const {
-			return v % dim;
-		}
-
-		int getY() const {
-			return v / dim;
-		}
-};
 
 std::string v2t(const Vertex & v)
 {
@@ -238,7 +145,7 @@ void dump(const std::unordered_set<Vertex, Vertex::HashFunction> & set)
 
 void dump(const chain_t & chain)
 {
-	send(true, "# Chain for %s", board_t_names[chain.type]);
+	send(true, "# Chain for %s", board_t_name(chain.type));
 
 	std::string line = "# ";
 	for(auto v : chain.chain) 
@@ -260,122 +167,6 @@ void dump(const std::vector<chain_t *> & chains)
 	for(auto chain : chains)
 		dump(*chain);
 }
-
-class Board {
-	private:
-		const Zobrist *const z { nullptr };
-		int            dim     { 0       };
-		board_t       *b       { nullptr };
-		uint64_t       hash    { 0       };
-
-		uint64_t getHashForField(const int v) {
-			board_t stone = b[v];
-
-			if (stone == B_EMPTY)
-				return 0;
-
-			return z->get(v, stone == B_BLACK);
-		}
-
-	public:
-		Board(const Zobrist *const z, const int dim) : z(z), dim(dim), b(new board_t[dim * dim]()) {
-			assert(dim & 1);
-		}
-
-		~Board() {
-			delete [] b;
-		}
-
-		Board(const Zobrist *const z, const std::string & str) : z(z) {
-			auto slash = str.find('/');
-
-			dim = slash;
-			b = new board_t[dim * dim]();
-
-			int o = 0;
-
-			for(int y=dim - 1; y >= 0; y--) {
-				for(int x=0; x<dim; x++) {
-					char c = str[o];
-
-					if (c == 'w' || c == 'W')
-						setAt(x, y, B_WHITE), hash ^= z->get(o, false);
-					else if (c == 'b' || c == 'B')
-						setAt(x, y, B_BLACK), hash ^= z->get(o, true);
-					else
-						assert(c == '.');
-
-					o++;
-				}
-
-				o++;  // skip slash
-			}
-		}
-
-		Board(const Zobrist *const z, const Board & bIn) : z(z), dim(bIn.getDim()), b(new board_t[dim * dim]) {
-			assert(dim & 1);
-
-			bIn.getTo(b);
-
-			hash = bIn.hash;
-		}
-
-		int getDim() const {
-			return dim;
-		}
-
-		void getTo(board_t *const bto) const {
-			memcpy(bto, b, dim * dim * sizeof(*b));
-		}
-
-		board_t getAt(const int v) const {
-			assert(v < dim * dim);
-			assert(v >= 0);
-			return b[v];
-		}
-
-		board_t getAt(const int x, const int y) const {
-			assert(x < dim && x >= 0);
-			assert(y < dim && y >= 0);
-			int v = y * dim + x;
-			return b[v];
-		}
-
-		void setAt(const int v, const board_t bv) {
-			assert(v < dim * dim);
-			assert(v >= 0);
-
-			hash ^= getHashForField(v);
-
-			b[v] = bv;
-
-			hash ^= getHashForField(v);
-		}
-
-		void setAt(const Vertex & v, const board_t bv) {
-			int vd = v.getV();
-
-			hash ^= getHashForField(vd);
-
-			b[vd] = bv;
-
-			hash ^= getHashForField(vd);
-		}
-
-		void setAt(const int x, const int y, const board_t bv) {
-			assert(x < dim && x >= 0);
-			assert(y < dim && y >= 0);
-			int v = y * dim + x;
-
-			hash ^= getHashForField(v);
-			b[v] = bv;
-			hash ^= getHashForField(v);
-		}
-
-		uint64_t getHash() const {
-			return hash;
-		}
-};
 
 std::tuple<Board *, player_t, int> stringToPosition(const std::string & in)
 {
@@ -1778,7 +1569,7 @@ std::optional<Vertex> genMove(Board *const b, const player_t & p, const bool doP
 			if (evals.at(v).valid)
 				line += myformat("%3f ", evals.at(v).score);
 			else
-				line += myformat("  %s ", board_t_names[b->getAt(x, y)]);
+				line += myformat("  %s ", board_t_name(b->getAt(x, y)));
 		}
 
 		send(true, "%s", line.c_str());
