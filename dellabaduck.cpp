@@ -2289,11 +2289,11 @@ uint64_t perft(const Board & b, std::set<uint64_t> *const seen, const player_t p
 	// find the liberties -> the "moves"
 	std::unordered_set<Vertex, Vertex::HashFunction> liberties;
 	findLiberties(cm, &liberties, playerToStone(p));
+
+	purgeChains(&chainsBlack);
+	purgeChains(&chainsWhite);
 	
 	if (depth == 1) {
-		purgeChains(&chainsBlack);
-		purgeChains(&chainsWhite);
-
 		if (verbose == 1 && top) {
 			for(auto & cross : liberties)
 				send(true, "%s: 1", v2t(cross).c_str());
@@ -2341,9 +2341,6 @@ uint64_t perft(const Board & b, std::set<uint64_t> *const seen, const player_t p
 
 	if (verbose == 2)
 		send(true, "%d pass %s", depth, dumpToString(b, p, pass).c_str());
-
-	purgeChains(&chainsBlack);
-	purgeChains(&chainsWhite);
 
 	if (verbose == 1 && top)
 		send(true, "total: %ld", total);
