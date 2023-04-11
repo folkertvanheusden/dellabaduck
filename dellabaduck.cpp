@@ -3,15 +3,16 @@
 #include <atomic>
 #include <climits>
 #include <condition_variable>
+#include <cstdint>
 #include <ctype.h>
 #include <fstream>
+#include <limits>
 #include <map>
 #include <optional>
 #include <queue>
 #include <random>
 #include <set>
 #include <stdarg.h>
-#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -50,6 +51,34 @@ auto produce_seed()
 
 thread_local auto mt_seed = produce_seed();
 thread_local std::mt19937_64 gen { mt_seed };
+
+class Zobrist {
+private:
+	std::vector<std::uint64_t> rngs;
+
+	std::uniform_int_distribution<std::uint64_t> distribution{ std::numeric_limits<std::uint64_t>::min(), std::numeric_limits<std::uint64_t>::max() };
+
+public:
+	Zobrist(const int dim) {
+		setDim(dim);
+	}
+
+	~Zobrist() {
+	}
+
+	void setDim(const int dim) {
+		size_t newN = dim * dim * 2;
+
+		for(size_t i=rngs.size(); i<newN; i++)
+			rngs.push_back(distribution(gen));
+	}
+
+	uint64_t get(const int nr, const bool black) const {
+		return rngs.at(nr * 2 + black);
+	}
+};
+
+Zobrist z(19);
 
 void send(const bool is_verbose, const char *fmt, ...)
 {
@@ -234,11 +263,22 @@ void dump(const std::vector<chain_t *> & chains)
 
 class Board {
 	private:
-		int      dim { 0       };
-		board_t *b   { nullptr };
+		const Zobrist *const z { nullptr };
+		int            dim     { 0       };
+		board_t       *b       { nullptr };
+		uint64_t       hash    { 0       };
+
+		uint64_t getHashForField(const int v) {
+			board_t stone = b[v];
+
+			if (stone == B_EMPTY)
+				return 0;
+
+			return z->get(v, stone == B_BLACK);
+		}
 
 	public:
-		Board(const int dim) : dim(dim), b(new board_t[dim * dim]()) {
+		Board(const Zobrist *const z, const int dim) : z(z), dim(dim), b(new board_t[dim * dim]()) {
 			assert(dim & 1);
 		}
 
@@ -246,7 +286,7 @@ class Board {
 			delete [] b;
 		}
 
-		Board(const std::string & str) {
+		Board(const Zobrist *const z, const std::string & str) : z(z) {
 			auto slash = str.find('/');
 
 			dim = slash;
@@ -256,24 +296,28 @@ class Board {
 
 			for(int y=dim - 1; y >= 0; y--) {
 				for(int x=0; x<dim; x++) {
-					char c = str[o++];
+					char c = str[o];
 
 					if (c == 'w' || c == 'W')
-						setAt(x, y, B_WHITE);
+						setAt(x, y, B_WHITE), hash ^= z->get(o, false);
 					else if (c == 'b' || c == 'B')
-						setAt(x, y, B_BLACK);
+						setAt(x, y, B_BLACK), hash ^= z->get(o, true);
 					else
 						assert(c == '.');
+
+					o++;
 				}
 
 				o++;  // skip slash
 			}
 		}
 
-		Board(const Board & bIn) : dim(bIn.getDim()), b(new board_t[dim * dim]) {
+		Board(const Zobrist *const z, const Board & bIn) : z(z), dim(bIn.getDim()), b(new board_t[dim * dim]) {
 			assert(dim & 1);
 
 			bIn.getTo(b);
+
+			hash = bIn.hash;
 		}
 
 		int getDim() const {
@@ -300,18 +344,36 @@ class Board {
 		void setAt(const int v, const board_t bv) {
 			assert(v < dim * dim);
 			assert(v >= 0);
+
+			hash ^= getHashForField(v);
+
 			b[v] = bv;
+
+			hash ^= getHashForField(v);
 		}
 
 		void setAt(const Vertex & v, const board_t bv) {
-			b[v.getV()] = bv;
+			int vd = v.getV();
+
+			hash ^= getHashForField(vd);
+
+			b[vd] = bv;
+
+			hash ^= getHashForField(vd);
 		}
 
 		void setAt(const int x, const int y, const board_t bv) {
 			assert(x < dim && x >= 0);
 			assert(y < dim && y >= 0);
 			int v = y * dim + x;
+
+			hash ^= getHashForField(v);
 			b[v] = bv;
+			hash ^= getHashForField(v);
+		}
+
+		uint64_t getHash() const {
+			return hash;
 		}
 };
 
@@ -319,7 +381,7 @@ std::tuple<Board *, player_t, int> stringToPosition(const std::string & in)
 {
 	auto parts = split(in, " ");
 
-	Board   *b      = new Board(parts.at(0));
+	Board   *b      = new Board(&z, parts.at(0));
 
 	player_t player = parts.at(1) == "b" || parts.at(1) == "B" ? P_BLACK : P_WHITE;
 
@@ -341,7 +403,7 @@ Board stringToBoard(const std::string & in)
 	auto work = merge(templines, "\n");
 
 	const int dim = work.find("\n");
-	Board b(dim);
+	Board b(&z, dim);
 
 	int v = 0;
 
@@ -1243,7 +1305,7 @@ int search(const Board & b, const player_t & p, int alpha, const int beta, const
 		bco++;
 #endif
 
-		Board work(b);
+		Board work(&z, b);
 
 		play(&work, stone, p);
 
@@ -1304,7 +1366,7 @@ struct CompareCrossesSortHelper {
 	}
 
 	int getScore(const int move) {
-		Board work(b);
+		Board work(&z, b);
 
 		play(&work, { move, dim }, p);
 
@@ -1388,7 +1450,7 @@ void selectAlphaBeta(const Board & b, const ChainMap & cm, const std::vector<cha
 								break;
 							}
 
-							Board work(b);
+							Board work(&z, b);
 
 							play(&work, { v.value(), dim }, p);
 
@@ -1487,7 +1549,7 @@ void selectAlphaBeta(const Board & b, const ChainMap & cm, const std::vector<cha
 
 std::tuple<double, double, int> playout(const Board & in, const double komi, player_t p)
 {
-	Board b(in);
+	Board b(&z, in);
 
 	// find chains of stones
 	ChainMap cm(b.getDim());
@@ -1604,7 +1666,7 @@ void selectPlayout(const Board & b, const ChainMap & cm, const std::vector<chain
 						double current_score = local_results.at(v).second > 0 ? local_results.at(v).first / local_results.at(v).second : 1000000.;
 
 						if (current_score >= score_threshold) {
-							Board work(b);
+							Board work(&z, b);
 
 							play(&work, *lib_it, p);
 
@@ -1831,7 +1893,7 @@ double benchmark_3(const Board & in, const unsigned ms)
 	srand(101);
 
 	do {
-		Board work(dim);
+		Board work(&z, dim);
 
 		int nstones = (rand() % dimsq) + 1;
 
@@ -1875,7 +1937,7 @@ Board loadSgfFile(const std::string & filename)
 	if (!sfh) {
 		send(false, "# Cannot open %s", filename.c_str());
 
-		return Board(9);
+		return Board(&z, 9);
 	}
 
 	char buffer[65536];
@@ -1887,7 +1949,7 @@ Board loadSgfFile(const std::string & filename)
 	if (SZ)
 		dim = atoi(SZ + 3);
 
-	Board b(dim);
+	Board b(&z, dim);
 
 	const char *AB = strstr(buffer, "AB[");
 	if (AB)
@@ -1912,7 +1974,7 @@ Board loadSgf(const std::string & in)
 	if (SZ)
 		dim = atoi(SZ + 3);
 
-	Board b(dim);
+	Board b(&z, dim);
 
 	size_t o = 0;
 
@@ -2158,6 +2220,36 @@ void test(const bool verbose)
 		purgeChains(&chainsBlack);
 		purgeChains(&chainsWhite);
 	}
+
+	// zobrist hashing
+	Board b(&z, 9);
+
+	uint64_t startHash = b.getHash();
+	if (startHash)
+		printf("initial hash (%lx) invalid\n", startHash);
+
+	b.setAt(3, 3, B_BLACK);
+	uint64_t firstHash = b.getHash();
+
+	if (firstHash == 0)
+		printf("hash did not change\n");
+
+	b.setAt(3, 3, B_WHITE);
+	uint64_t secondHash = b.getHash();
+
+	if (secondHash == firstHash)
+		printf("hash (%lx) did not change for type\n", secondHash);
+
+	if (secondHash == 0)
+		printf("hash became initial\n");
+
+	b.setAt(3, 3, B_EMPTY);
+	uint64_t thirdHash = b.getHash();
+
+	if (thirdHash)
+		printf("hash (%lx) did not reset\n", thirdHash);
+
+	printf("--- unittest end ---\n");
 }
 
 int getNEmpty(const Board & b, const player_t p)
@@ -2176,7 +2268,7 @@ int getNEmpty(const Board & b, const player_t p)
 	return liberties.size();
 }
 
-uint64_t perft(const Board & b, const player_t p, const int depth, const bool pass, const int verbose, const bool top)
+uint64_t perft(const Board & b, std::set<uint64_t> *const seen, const player_t p, const int depth, const bool pass, const int verbose, const bool top)
 {
 	const int      dim        = b.getDim();
 
@@ -2211,23 +2303,31 @@ uint64_t perft(const Board & b, const player_t p, const int depth, const bool pa
 	}
 
 	for(auto & cross : liberties) {
-		Board new_board(b);
+		Board new_board(&z, b);
 
 		if (verbose == 2)
 			send(true, "%d %s %s", depth, v2t(cross).c_str(), dumpToString(new_board, p, pass).c_str());
 
 		play(&new_board, cross, p);
 
-		uint64_t cur_count = perft(new_board, new_player, new_depth, false, verbose, false);
+		uint64_t hash = new_board.getHash();
 
-		total += cur_count;
+		if (seen->find(hash) == seen->end()) {
+			seen->insert(hash);
 
-		if (verbose == 1 && top)
-			send(true, "%s: %ld", v2t(cross).c_str(), cur_count);
+			uint64_t cur_count = perft(new_board, seen, new_player, new_depth, false, verbose, false);
+
+			total += cur_count;
+
+			if (verbose == 1 && top)
+				send(true, "%s: %ld", v2t(cross).c_str(), cur_count);
+
+			seen->erase(hash);
+		}
 	}
 
 	if (!pass) {
-		uint64_t cur_count = perft(b, new_player, new_depth, true, verbose, false);
+		uint64_t cur_count = perft(b, seen, new_player, new_depth, true, verbose, false);
 
 		total += cur_count;
 
@@ -2268,7 +2368,7 @@ int main(int argc, char *argv[])
 
 	srand(time(nullptr));
 
-	Board   *b    = new Board(dim);
+	Board   *b    = new Board(&z, dim);
 
 	player_t p    = P_BLACK;
 	
@@ -2313,7 +2413,7 @@ int main(int argc, char *argv[])
 			send(false, "=%s 0.1", id.c_str());
 		else if (parts.at(0) == "boardsize" && parts.size() == 2) {
 			delete b;
-			b = new Board(atoi(parts.at(1).c_str()));
+			b = new Board(&z, atoi(parts.at(1).c_str()));
 
 			send(false, "=%s", id.c_str());
 		}
@@ -2321,7 +2421,7 @@ int main(int argc, char *argv[])
 			int dim = b->getDim();
 
 			delete b;
-			b = new Board(dim);
+			b = new Board(&z, dim);
 
 			p    = P_BLACK;
 			pass = 0;
@@ -2445,7 +2545,7 @@ int main(int argc, char *argv[])
 			test(parts.size() == 2 ? parts.at(1) == "-v" : false);
 		else if (parts.at(0) == "loadsgf") {
 			delete b;
-			b = new Board(loadSgfFile(parts.at(1)));
+			b = new Board(&z, loadSgfFile(parts.at(1)));
 
 			p    = P_BLACK;
 			pass = 0;
@@ -2454,7 +2554,7 @@ int main(int argc, char *argv[])
 		}
 		else if (parts.at(0) == "setsgf") {
 			delete b;
-			b = new Board(loadSgf(parts.at(1)));
+			b = new Board(&z, loadSgf(parts.at(1)));
 
 			p    = P_BLACK;
 			pass = 0;
@@ -2559,8 +2659,10 @@ int main(int argc, char *argv[])
 
 			int      verbose = parts.size() == 3 ? atoi(parts.at(2).c_str()) : 0;
 
+			std::set<uint64_t> seen;
+
 			uint64_t start_t = get_ts_ms();
-			uint64_t total   = perft(*b, p, depth, pass, verbose, true);
+			uint64_t total   = perft(*b, &seen, p, depth, pass, verbose, true);
 			uint64_t diff_t  = std::max(uint64_t(1), get_ts_ms() - start_t);
 
 			send(true, "# Total perft for %c and %d passes with depth %d: %lu (%.1f moves per second, %.3f seconds)", p == P_BLACK ? 'B' : 'W', pass, depth, total, total * 1000. / diff_t, diff_t / 1000.);
