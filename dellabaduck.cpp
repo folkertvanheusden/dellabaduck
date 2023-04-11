@@ -2310,7 +2310,7 @@ uint64_t perft(const Board & b, std::set<uint64_t> *const seen, const player_t p
 		Board new_board(&z, b);
 
 		if (verbose == 2)
-			send(true, "%d %s %s", depth, v2t(cross).c_str(), dumpToString(new_board, p, pass).c_str());
+			send(true, "%d %s %s %lx", depth, v2t(cross).c_str(), dumpToString(new_board, p, pass).c_str(), new_board.getHash());
 
 		play(&new_board, cross, p);
 
@@ -2340,7 +2340,7 @@ uint64_t perft(const Board & b, std::set<uint64_t> *const seen, const player_t p
 	}
 
 	if (verbose == 2)
-		send(true, "%d pass %s", depth, dumpToString(b, p, pass).c_str());
+		send(true, "%d pass %s %lx", depth, dumpToString(b, p, pass).c_str(), b.getHash());
 
 	if (verbose == 1 && top)
 		send(true, "total: %ld", total);
@@ -2454,6 +2454,8 @@ int main(int argc, char *argv[])
 			sgf += myformat(";%c[%s]", p == P_BLACK ? 'B' : 'W', parts.at(2).c_str());
 
 			send(true, "# %s)", sgf.c_str());
+
+			p = getOpponent(p);
 		}
 		else if (parts.at(0) == "debug") {
 			dump(*b);
