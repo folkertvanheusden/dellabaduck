@@ -71,7 +71,7 @@ double uct_node::get_score()
 
 	double UCTj = score / visited;
 
-	constexpr double sqrt_2 = sqrt(2.0);
+	const double sqrt_2 = sqrt(2.0);
 
 	UCTj += sqrt_2 * sqrt(log(parent->get_visit_count()) / visited);
 
