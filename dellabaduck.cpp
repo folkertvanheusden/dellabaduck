@@ -34,6 +34,7 @@
 #include "score.h"
 #include "str.h"
 #include "time.h"
+#include "uct.h"
 #include "vertex.h"
 #include "zobrist.h"
 
@@ -483,7 +484,7 @@ void selectAlphaBeta(const Board & b, const ChainMap & cm, const std::vector<cha
 	delete [] valid;
 }
 
-std::tuple<double, double, int> playout(const Board & in, const double komi, player_t p)
+std::tuple<double, double, int, player_t> playout(const Board & in, const double komi, player_t p)
 {
 	Board b(&z, in);
 
@@ -543,78 +544,19 @@ std::tuple<double, double, int> playout(const Board & in, const double komi, pla
 
 	auto s = score(b, komi);
 
-	return std::tuple<double, double, int>(s.first, s.second, mc);
+	return std::tuple<double, double, int, player_t>(s.first, s.second, mc, p);
 }
 
 void playoutThread(std::vector<std::pair<double, uint32_t> > *const all_results, std::mutex *const all_results_lock, const uint64_t h_end_t, const uint64_t end_t, const std::unordered_set<Vertex, Vertex::HashFunction> *const liberties, const player_t p, const double komi, const Board *const b)
 {
-	const int dim   = b->getDim();
-	const int dimsq = dim * dim;
+	auto rc = calculate_move(*b, p, h_end_t - get_ts_ms());
 
-	const player_t opponent = getOpponent(p);
-
-	bool   halfway_trigger = false;
-	double score_threshold = -1000.;
-
-	std::vector<std::pair<double, uint32_t> > local_results;
-	local_results.resize(dimsq);
-
-	auto lib_it = liberties->begin();
-
-	for(;;) {
-		uint64_t now = get_ts_ms();
-
-		if (now >= end_t)
-			break;
-
-		if (now >= h_end_t && halfway_trigger == false) {
-			halfway_trigger = true;
-
-			double total_scores = 0.;
-			int    total_count  = 0;
-
-			for(int i=0; i<dimsq; i++) {
-				total_scores += local_results.at(i).first;
-				total_count  += local_results.at(i).second;
-			}
-
-			score_threshold = total_scores / total_count;
-
-			// printf("set threshold to %f\n", score_threshold);
-		}
-
-		int    v             = lib_it->getV();
-
-		// when never played, try get it played
-		double current_score = local_results.at(v).second > 0 ? local_results.at(v).first / local_results.at(v).second : 1000000.;
-
-		if (current_score >= score_threshold) {
-			Board work(&z, *b);
-
-			play(&work, *lib_it, p);
-
-			auto rc = playout(work, komi, opponent);
-
-			double score = p == P_BLACK ? std::get<0>(rc) - std::get<1>(rc) : std::get<1>(rc) - std::get<0>(rc);
-
-			local_results.at(v).first += score;
-			local_results.at(v).second++;
-		}
-
-		lib_it++;
-
-		if (lib_it == liberties->end())
-			lib_it = liberties->begin();
-	}
+	int  v  = rc.getV();
 
 	std::unique_lock<std::mutex> lck(*all_results_lock);
 
-	for(int i=0; i<dimsq; i++) {
-		if (local_results.at(i).second) {
-			all_results->at(i).first  += local_results.at(i).first;  // score
-			all_results->at(i).second += local_results.at(i).second;  // count
-		}
-	}
+	all_results->at(v).first  += 8;  // score
+	all_results->at(v).second += 1;  // count
 }
 
 void selectPlayout(const Board & b, const ChainMap & cm, const std::vector<chain_t *> & chainsWhite, const std::vector<chain_t *> & chainsBlack, const std::unordered_set<Vertex, Vertex::HashFunction> & liberties, const player_t & p, std::vector<eval_t> *const evals, const double useTime, const double komi, const int nThreads)
@@ -757,36 +699,9 @@ std::optional<Vertex> genMove(Board *const b, const player_t & p, const bool doP
 	return v;
 }
 
-double benchmark_1(const Board & in, const unsigned ms, const double komi)
+double benchmark_1(const Board & in, const unsigned ms)
 {
-	send(true, "# starting benchmark 1: duration: %.3fs, board dimensions: %d, komi: %g", ms / 1000.0, in.getDim(), komi);
-
-	uint64_t start = get_ts_ms();
-	uint64_t end   = 0;
-	uint64_t n     = 0;
-	uint64_t total_puts = 0;
-
-	do {
-		auto result = playout(in, komi, P_BLACK);
-
-		total_puts += std::get<2>(result);
-
-		n++;
-
-		end = get_ts_ms();
-	}
-	while(end - start < ms);
-
-	double td         = (end - start) / 1000.;
-	double n_playouts = n / td;
-	send(true, "# playouts (total: %lu) per second: %f (%.1f stones on average (total: %lu) or %f stones per second)", n, n_playouts, total_puts / double(n), total_puts, total_puts / td);
-
-	return n_playouts;
-}
-
-double benchmark_2(const Board & in, const unsigned ms)
-{
-	send(true, "# starting benchmark 2: duration: %.3fs, board dimensions: %d", ms / 1000.0, in.getDim());
+	send(true, "# starting benchmark 1: duration: %.3fs, board dimensions: %d", ms / 1000.0, in.getDim());
 
 	uint64_t start = get_ts_ms();
 	uint64_t end = 0;
@@ -813,9 +728,9 @@ double benchmark_2(const Board & in, const unsigned ms)
 	return pops;
 }
 
-double benchmark_3(const Board & in, const unsigned ms)
+double benchmark_2(const Board & in, const unsigned ms)
 {
-	send(true, "# starting benchmark 3: duration: %.3fs, board dimensions: %d", ms / 1000.0, in.getDim());
+	send(true, "# starting benchmark 2: duration: %.3fs, board dimensions: %d", ms / 1000.0, in.getDim());
 
 	int      dim    = in.getDim();
 	int      dimsq  = dim * dim;
@@ -1436,11 +1351,9 @@ int main(int argc, char *argv[])
 
 			// play outs per second
 			if (parts.at(2) == "1")
-				pops = benchmark_1(*b, atoi(parts.at(1).c_str()), komi);
+				pops = benchmark_1(*b, atoi(parts.at(1).c_str()));
 			else if (parts.at(2) == "2")
 				pops = benchmark_2(*b, atoi(parts.at(1).c_str()));
-			else if (parts.at(2) == "3")
-				pops = benchmark_3(*b, atoi(parts.at(1).c_str()));
 
 			send(false, "=%s %f", id.c_str(), pops);
 		}

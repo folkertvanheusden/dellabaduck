@@ -313,7 +313,9 @@ void findChains(const Board & b, std::vector<chain_t *> *const chainsWhite, std:
 			else if (curChain->type == B_BLACK)
 				chainsBlack->push_back(curChain);
 			else {
-				send(false, "# INTERNAL ERROR: %d is not valid for a stone type", curChain->type);
+				send(false, "# INTERNAL ERROR: %d is not valid for a stone type (2)", curChain->type);
+				char *p = nullptr;
+				*p = 123;
 				exit(1);
 			}
 		}
@@ -539,7 +541,7 @@ void connect(Board *const b, ChainMap *const cm, std::vector<chain_t *> *const c
 		else if (what == B_BLACK)
 			chainsBlack->push_back(curChain);
 		else {
-			send(false, "# INTERNAL ERROR: %d is not valid for a stone type", what);
+			send(false, "# INTERNAL ERROR: %d is not valid for a stone type (1)", what);
 			exit(1);
 		}
 

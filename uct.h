@@ -1,4 +1,5 @@
 #include <optional>
+#include <unordered_set>
 #include <vector>
 
 #include "board.h"
@@ -10,12 +11,15 @@ class uct_node
 private:
 	uct_node                 *const parent    { nullptr };
 	Board                           position;
+	const player_t                  player;
 	const std::optional<Vertex>     causing_move;
 
 	std::vector<std::pair<Vertex, uct_node *> > children;
-	std::vector<Vertex>             unvisited;
+	std::unordered_set<Vertex, Vertex::HashFunction> unvisited;
 	uint64_t                        visited   { 0 };
 	double                          score     { 0. };
+
+	bool                            game_over { false };
 
 	uct_node *add_child(const Vertex & m);
 
@@ -26,11 +30,15 @@ private:
 	void      backpropagate(uct_node *const node, double result);
 	bool      fully_expanded();
 	double    get_score();
-	Board playout(const uct_node *const leaf);
+	double    playout(const uct_node *const leaf);
 
 public:
-	uct_node(uct_node *const parent, const Board & position, const std::optional<Vertex> & causing_move);
+	uct_node(uct_node *const parent, const Board & position, const player_t player, const std::optional<Vertex> & causing_move);
 	virtual ~uct_node();
+
+	bool         is_game_over() const { return game_over; }
+
+	player_t     get_player() const { return player; }
 
 	void         monte_carlo_tree_search();
 
@@ -45,3 +53,5 @@ public:
 	uint64_t     get_visit_count();
 	double       get_score_count();
 };
+
+Vertex calculate_move(const Board & b, const player_t p, const unsigned think_time);

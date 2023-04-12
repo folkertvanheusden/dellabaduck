@@ -1,43 +1,37 @@
-// written by folkert van heusden <mail@vanheusden.com>
-// this code is public domain
 #include <algorithm>
+#include <assert.h>
 #include <cfloat>
 #include <random>
 #include <mutex>
 
+#include "board.h"
+#include "helpers.h"
+#include "main.h"
+#include "random.h"
+#include "time.h"
 #include "uct.h"
 
 
-auto produce_seed()
-{
-	std::vector<unsigned int> random_data(std::mt19937::state_size);
-
-	std::random_device source;
-	std::generate(std::begin(random_data), std::end(random_data), [&](){return source();});
-
-	return std::seed_seq(std::begin(random_data), std::end(random_data));
-}
-
-thread_local auto mt_seed = produce_seed();
-thread_local std::mt19937_64 gen { mt_seed };
-
-uct_node::uct_node(uct_node *const parent, const Board & position, const std::optional<Vertex> & causing_move) :
+uct_node::uct_node(uct_node *const parent, const Board & position, const player_t player, const std::optional<Vertex> & causing_move) :
 	parent(parent),
 	position(position),
+	player(player),
 	causing_move(causing_move)
 {
 	if (causing_move.has_value())
-		this->position.makemove(causing_move.value());
+		play(&this->position, causing_move.value(), player);
 
-	unvisited = this->position.legal_moves();
+        ChainMap cm(position.getDim());
 
-	if (!unvisited.empty()) {
-		std::sort(unvisited.begin(), unvisited.end(), [position](Vertex & a, Vertex & b) {
-				auto score_a = position.count_captures(a) + a.is_single();
-				auto score_b = position.count_captures(b) + b.is_single();
-				return score_a < score_b;  // best move at end of vector
-				});
-	}
+        std::vector<chain_t *> chainsWhite, chainsBlack;
+        findChains(position, &chainsWhite, &chainsBlack, &cm);
+
+        findLiberties(cm, &unvisited, playerToStone(player));
+
+	game_over = unvisited.empty();
+
+	purgeChains(&chainsBlack);
+	purgeChains(&chainsWhite);
 }
 
 uct_node::~uct_node()
@@ -48,7 +42,7 @@ uct_node::~uct_node()
 
 uct_node *uct_node::add_child(const Vertex & m)
 {
-	uct_node *new_node = new uct_node(this, position, m);
+	uct_node *new_node = new uct_node(this, position, getOpponent(player), m);
 
 	children.push_back({ m, new_node });
 
@@ -89,12 +83,11 @@ uct_node *uct_node::pick_unvisited()
 	if (unvisited.empty())
 		return nullptr;
 
-	uct_node *new_node = add_child(unvisited.back());
+	auto first = unvisited.begin();
 
-	unvisited.pop_back();
+	uct_node *new_node = add_child(*first);
 
-	if (unvisited.empty())
-		unvisited.shrink_to_fit();
+	unvisited.erase(first);
 
 	return new_node;
 }
@@ -136,7 +129,7 @@ uct_node *uct_node::traverse()
 
 	uct_node *chosen = node;
 
-	if (node && node->get_position().is_gameover() == false)
+	if (node && node->is_game_over() == false)
 		chosen = node->pick_unvisited();
 
 	return chosen;
@@ -183,39 +176,28 @@ const Board uct_node::get_position() const
 	return position;
 }
 
-Board uct_node::playout(const uct_node *const leaf)
+double uct_node::playout(const uct_node *const leaf)
 {
-	Board position = leaf->get_position();
+	auto rc = ::playout(leaf->get_position(), 0., leaf->get_player());
 
-	while(!position.is_gameover()) {
-		auto moves = position.legal_moves();
+	if (std::get<3>(rc) == P_BLACK && std::get<0>(rc) > std::get<1>(rc))
+		return 1.;
+	else if (std::get<3>(rc) == P_WHITE && std::get<0>(rc) < std::get<1>(rc))
+		return 1.;
+	else if (std::get<3>(rc) == P_BLACK && std::get<0>(rc) < std::get<1>(rc))
+		return 0.;
+	else if (std::get<3>(rc) == P_WHITE && std::get<0>(rc) > std::get<1>(rc))
+		return 0.;
 
-		std::uniform_int_distribution<> rng(0, moves.size() - 1);
-
-		position.makemove(moves.at(rng(gen)));
-	}
-
-	return position;
+	// should not compare doubles with ==
+	return 0.5;
 }
 
 void uct_node::monte_carlo_tree_search()
 {
 	uct_node *leaf = traverse();
 
-	auto playout_terminal_position = playout(leaf);
-
-	libataxx::Side side = playout_terminal_position.get_turn();
-
-	libataxx::Result result = playout_terminal_position.get_result();
-
-	assert(result != libataxx::Result::None);
-
-	double simulation_result = 0.;
-
-	if ((result == libataxx::Result::BlackWin && side == libataxx::Side::Black) || (result == libataxx::Result::WhiteWin && side == libataxx::Side::White))
-		simulation_result = 1.0;
-	else if (result == libataxx::Result::Draw)
-		simulation_result = 0.5;
+	auto simulation_result = playout(leaf);
 
 	backpropagate(leaf, 1. - simulation_result);
 }
@@ -228,4 +210,29 @@ const Vertex uct_node::get_causing_move() const
 const std::vector<std::pair<Vertex, uct_node *> > & uct_node::get_children() const
 {
 	return children;
+}
+
+Vertex calculate_move(const Board & b, const player_t p, const unsigned think_time)
+{
+	uct_node *root     = new uct_node(nullptr, b, p, { });
+
+	uint64_t  start_ts = get_ts_ms();
+
+	uint64_t  n_played = 0;
+
+	for(;;) {
+		root->monte_carlo_tree_search();
+
+		n_played++;
+
+		if (get_ts_ms() - start_ts >= think_time) {
+			auto best_move = root->best_child()->get_causing_move();
+
+			delete root;
+
+			fprintf(stderr, "# n played/s: %.2f\n", n_played * 1000.0 / think_time);
+
+			return best_move;
+		}
+	}
 }
