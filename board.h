@@ -29,7 +29,7 @@ private:
 public:
 	Board(const Zobrist *const z, const int dim);
 	Board(const Zobrist *const z, const std::string & str);
-	Board(const Zobrist *const z, const Board & bIn);
+	Board(const Board & bIn);
 	~Board();
 
 	int getDim() const;
