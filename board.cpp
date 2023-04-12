@@ -55,7 +55,7 @@ Board::Board(const Zobrist *const z, const std::string & str) : z(z)
 	}
 }
 
-Board::Board(const Zobrist *const z, const Board & bIn) : z(z), dim(bIn.getDim()), b(new board_t[dim * dim])
+Board::Board(const Board & bIn) : dim(bIn.getDim()), b(new board_t[dim * dim]), z(bIn.z)
 {
 	assert(dim & 1);
 

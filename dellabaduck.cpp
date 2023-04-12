@@ -242,7 +242,7 @@ int search(const Board & b, const player_t & p, int alpha, const int beta, const
 		bco++;
 #endif
 
-		Board work(&z, b);
+		Board work(b);
 
 		play(&work, stone, p);
 
@@ -303,7 +303,7 @@ struct CompareCrossesSortHelper {
 	}
 
 	int getScore(const int move) {
-		Board work(&z, b);
+		Board work(b);
 
 		play(&work, { move, dim }, p);
 
@@ -387,7 +387,7 @@ void selectAlphaBeta(const Board & b, const ChainMap & cm, const std::vector<cha
 								break;
 							}
 
-							Board work(&z, b);
+							Board work(b);
 
 							play(&work, { v.value(), dim }, p);
 
@@ -486,7 +486,7 @@ void selectAlphaBeta(const Board & b, const ChainMap & cm, const std::vector<cha
 
 std::tuple<double, double, int, player_t> playout(const Board & in, const double komi, player_t p)
 {
-	Board b(&z, in);
+	Board b(in);
 
 	// find chains of stones
 	ChainMap cm(b.getDim());
@@ -1158,7 +1158,7 @@ uint64_t perft(const Board & b, std::set<uint64_t> *const seen, const player_t p
 	}
 
 	for(auto & cross : liberties) {
-		Board new_board(&z, b);
+		Board new_board(b);
 
 		if (verbose == 2)
 			send(true, "%d %s %s %lx", depth, v2t(cross).c_str(), dumpToString(new_board, p, pass).c_str(), new_board.getHash());
@@ -1201,14 +1201,8 @@ uint64_t perft(const Board & b, std::set<uint64_t> *const seen, const player_t p
 
 int main(int argc, char *argv[])
 {
-	{
-	Board b(&z, 9);
-	calculate_move(b, P_BLACK, 1000);
-
-	return 0;
-	}
-
-	int nThreads = std::thread::hardware_concurrency();
+	// uct object is not threadsafe yet
+	int nThreads = 1; // std::thread::hardware_concurrency();
 
 	int dim = 9;
 
@@ -1216,8 +1210,8 @@ int main(int argc, char *argv[])
 	while((c = getopt(argc, argv, "vt:5")) != -1) {
 		if (c == 'v')  // console
 			setVerbose(true);
-		else if (c == 't')
-			nThreads = atoi(optarg);
+//		else if (c == 't')
+//			nThreads = atoi(optarg);
 		else if (c == '5')
 			dim = 5;
 	}
@@ -1404,7 +1398,7 @@ int main(int argc, char *argv[])
 			test(parts.size() == 2 ? parts.at(1) == "-v" : false);
 		else if (parts.at(0) == "loadsgf") {
 			delete b;
-			b = new Board(&z, loadSgfFile(parts.at(1)));
+			b = new Board(loadSgfFile(parts.at(1)));
 
 			p    = P_BLACK;
 			pass = 0;
@@ -1413,7 +1407,7 @@ int main(int argc, char *argv[])
 		}
 		else if (parts.at(0) == "setsgf") {
 			delete b;
-			b = new Board(&z, loadSgf(parts.at(1)));
+			b = new Board(loadSgf(parts.at(1)));
 
 			p    = P_BLACK;
 			pass = 0;
