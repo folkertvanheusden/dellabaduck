@@ -1201,6 +1201,13 @@ uint64_t perft(const Board & b, std::set<uint64_t> *const seen, const player_t p
 
 int main(int argc, char *argv[])
 {
+	{
+	Board b(&z, 9);
+	calculate_move(b, P_BLACK, 1000);
+
+	return 0;
+	}
+
 	int nThreads = std::thread::hardware_concurrency();
 
 	int dim = 9;
