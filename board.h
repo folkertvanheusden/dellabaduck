@@ -19,16 +19,16 @@ const char *board_t_name(const board_t v);
 
 class Board {
 private:
-	const Zobrist *const z { nullptr };
-	int            dim     { 0       };
-	board_t       *b       { nullptr };
-	uint64_t       hash    { 0       };
+	Zobrist *const z    { nullptr };
+	int            dim  { 0       };
+	board_t       *b    { nullptr };
+	uint64_t       hash { 0       };
 
 	uint64_t getHashForField(const int v);
 
 public:
-	Board(const Zobrist *const z, const int dim);
-	Board(const Zobrist *const z, const std::string & str);
+	Board(Zobrist *const z, const int dim);
+	Board(Zobrist *const z, const std::string & str);
 	Board(const Board & bIn);
 	~Board();
 

@@ -23,17 +23,21 @@ uint64_t Board::getHashForField(const int v)
 	return z->get(v, stone == B_BLACK);
 }
 
-Board::Board(const Zobrist *const z, const int dim) : z(z), dim(dim), b(new board_t[dim * dim]())
+Board::Board(Zobrist *const z, const int dim) : z(z), dim(dim), b(new board_t[dim * dim]())
 {
 	assert(dim & 1);
+
+	z->setDim(dim);
 }
 
-Board::Board(const Zobrist *const z, const std::string & str) : z(z)
+Board::Board(Zobrist *const z, const std::string & str) : z(z)
 {
 	auto slash = str.find('/');
 
 	dim = slash;
 	b = new board_t[dim * dim]();
+
+	z->setDim(dim);
 
 	int str_o = 0;
 
