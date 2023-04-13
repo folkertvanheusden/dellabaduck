@@ -1234,10 +1234,13 @@ int getNEmpty(const Board & b, const player_t p)
 	return liberties.size();
 }
 
-uint64_t perft(const Board & b, std::set<uint64_t> *const seen, const player_t p, const int depth, const bool pass, const int verbose, const bool top)
+uint64_t perft(const Board & b, std::set<uint64_t> *const seen, const player_t p, const int depth, const int pass, const int verbose, const bool top)
 {
 	if (depth == 0)
 		return 1;
+
+	if (pass >= 2)
+		return 0;
 
 	const int      dim        = b.getDim();
 
@@ -1271,7 +1274,7 @@ uint64_t perft(const Board & b, std::set<uint64_t> *const seen, const player_t p
 
 			seen->insert(hash);
 
-			uint64_t cur_count = perft(new_board, seen, new_player, new_depth, false, verbose, false);
+			uint64_t cur_count = perft(new_board, seen, new_player, new_depth, 0, verbose, false);
 
 			total += cur_count;
 
@@ -1282,8 +1285,8 @@ uint64_t perft(const Board & b, std::set<uint64_t> *const seen, const player_t p
 		}
 	}
 
-	if (!pass) {
-		uint64_t cur_count = perft(b, seen, new_player, new_depth, true, verbose, false);
+	if (pass < 2) {
+		uint64_t cur_count = perft(b, seen, new_player, new_depth, pass + 1, verbose, false);
 
 		total += cur_count;
 
