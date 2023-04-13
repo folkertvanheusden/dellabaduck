@@ -589,7 +589,7 @@ void playoutThread(std::vector<std::pair<double, uint32_t> > *const all_results,
 		double current_score = local_results.at(v).second > 0 ? local_results.at(v).first / local_results.at(v).second : 1000000.;
 
 		if (current_score >= score_threshold) {
-			Board work(&z, *b);
+			Board work(*b);
 
 			play(&work, *lib_it, p);
 
