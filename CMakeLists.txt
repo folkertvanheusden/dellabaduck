@@ -4,11 +4,21 @@ cmake_minimum_required(VERSION 3.2)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
 
+add_compile_options(-Wall -pedantic)
+
 add_executable(
   dellabaduck
+  board.cpp
   dellabaduck.cpp
+  dump.cpp
+  helpers.cpp
+  io.cpp
+  random.cpp
+  score.cpp
   str.cpp
   time.cpp
+  vertex.cpp
+  zobrist.cpp
 )
 
 set(CMAKE_BUILD_TYPE RelWithDebInfo)
