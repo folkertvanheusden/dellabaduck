@@ -55,7 +55,7 @@ Board::Board(const Zobrist *const z, const std::string & str) : z(z)
 	}
 }
 
-Board::Board(const Board & bIn) : dim(bIn.getDim()), b(new board_t[dim * dim]), z(bIn.z)
+Board::Board(const Board & bIn) : z(bIn.z), dim(bIn.getDim()), b(new board_t[dim * dim])
 {
 	assert(dim & 1);
 
@@ -371,6 +371,33 @@ void findLiberties(const ChainMap & cm, std::unordered_set<Vertex, Vertex::HashF
 					auto p = cm.getAt({ x, y + 1, dim });
 
 					ok |= p == nullptr || (p != nullptr && p->type == for_whom && p->liberties.size() > 1);
+				}
+			}
+
+			if (ok == false) {
+				if (x > 0) {
+					auto p = cm.getAt({ x - 1, y, dim });
+
+					ok |= p == nullptr || (p != nullptr && p->type != for_whom && p->liberties.size() == 1);
+				}
+
+				if (x < dim - 1) {
+					auto p = cm.getAt({ x + 1, y, dim });
+
+					ok |= p == nullptr || (p != nullptr && p->type != for_whom && p->liberties.size() == 1);
+				}
+
+				if (y > 0) {
+					Vertex v(x, y - 1, dim);
+					auto p = cm.getAt({ x, y - 1, dim });
+
+					ok |= p == nullptr || (p != nullptr && p->type != for_whom && p->liberties.size() == 1);
+				}
+
+				if (y < dim - 1) {
+					auto p = cm.getAt({ x, y + 1, dim });
+
+					ok |= p == nullptr || (p != nullptr && p->type != for_whom && p->liberties.size() == 1);
 				}
 			}
 
