@@ -1218,6 +1218,9 @@ int getNEmpty(const Board & b, const player_t p)
 
 uint64_t perft(const Board & b, std::set<uint64_t> *const seen, const player_t p, const int depth, const bool pass, const int verbose, const bool top)
 {
+	if (depth == 0)
+		return 1;
+
 	const int      dim        = b.getDim();
 
 	const int      new_depth  = depth - 1;
@@ -1237,30 +1240,17 @@ uint64_t perft(const Board & b, std::set<uint64_t> *const seen, const player_t p
 	purgeChains(&chainsBlack);
 	purgeChains(&chainsWhite);
 	
-	if (depth == 1) {
-		if (verbose == 1 && top) {
-			for(auto & cross : liberties)
-				send(true, "%s: 1", v2t(cross).c_str());
-
-			send(true, "PASS: 1");
-		}
-
-		// +1 == pass
-
-		return liberties.size() + 1;
-	}
-
 	for(auto & cross : liberties) {
 		Board new_board(b);
-
-		if (verbose == 2)
-			send(true, "%d %s %s %lx", depth, v2t(cross).c_str(), dumpToString(new_board, p, pass).c_str(), new_board.getHash());
 
 		play(&new_board, cross, p);
 
 		uint64_t hash = new_board.getHash();
 
 		if (seen->find(hash) == seen->end()) {
+			if (verbose == 2)
+				send(true, "%d %s %s %lx", depth, v2t(cross).c_str(), dumpToString(b, p, pass).c_str(), b.getHash());
+
 			seen->insert(hash);
 
 			uint64_t cur_count = perft(new_board, seen, new_player, new_depth, false, verbose, false);
@@ -1328,6 +1318,8 @@ int main(int argc, char *argv[])
 
 	std::string sgf = init_sgf(b->getDim());
 
+	std::set<uint64_t> seen;
+
 	for(;;) {
 		char buffer[4096] { 0 };
 		if (!fgets(buffer, sizeof buffer, stdin))
@@ -1368,6 +1360,8 @@ int main(int argc, char *argv[])
 			delete b;
 			b = new Board(&z, dim);
 
+			seen.clear();
+
 			p    = P_BLACK;
 			pass = 0;
 
@@ -1398,6 +1392,8 @@ int main(int argc, char *argv[])
 			sgf += myformat(";%c[%s]", p == P_BLACK ? 'B' : 'W', parts.at(2).c_str());
 
 			send(true, "# %s)", sgf.c_str());
+
+			seen.insert(b->getHash());
 
 			p = getOpponent(p);
 		}
@@ -1494,6 +1490,9 @@ int main(int argc, char *argv[])
 			delete b;
 			b = new Board(loadSgfFile(parts.at(1)));
 
+			seen.clear();
+			seen.insert(b->getHash());
+
 			p    = P_BLACK;
 			pass = 0;
 
@@ -1502,6 +1501,9 @@ int main(int argc, char *argv[])
 		else if (parts.at(0) == "setsgf") {
 			delete b;
 			b = new Board(loadSgf(parts.at(1)));
+
+			seen.clear();
+			seen.insert(b->getHash());
 
 			p    = P_BLACK;
 			pass = 0;
@@ -1606,8 +1608,6 @@ int main(int argc, char *argv[])
 
 			int      verbose = parts.size() == 3 ? atoi(parts.at(2).c_str()) : 0;
 
-			std::set<uint64_t> seen;
-
 			uint64_t start_t = get_ts_ms();
 			uint64_t total   = perft(*b, &seen, p, depth, pass, verbose, true);
 			uint64_t diff_t  = std::max(uint64_t(1), get_ts_ms() - start_t);
@@ -1629,6 +1629,8 @@ int main(int argc, char *argv[])
 			b    = std::get<0>(new_position);
 			p    = std::get<1>(new_position);
 			pass = std::get<2>(new_position);
+
+			seen.insert(b->getHash());
 
 			sgf  = dumpToSgf(*b, komi, false);
 		}
