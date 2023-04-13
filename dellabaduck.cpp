@@ -1396,6 +1396,8 @@ int main(int argc, char *argv[])
 			seen.insert(b->getHash());
 
 			p = getOpponent(p);
+
+			send(true, "# %s", dumpToString(*b, p, 0).c_str());
 		}
 		else if (parts.at(0) == "debug") {
 			dump(*b);
@@ -1588,6 +1590,8 @@ int main(int argc, char *argv[])
 			send(true, "# took %.3fs for %s", (end_ts - start_ts) / 1000.0, v.has_value() ? v2t(v.value()).c_str() : "pass");
 
 			p = getOpponent(player);
+
+			send(true, "# %s", dumpToString(*b, p, 0).c_str());
 		}
 		else if (parts.at(0) == "cputime") {
 			struct rusage ru { 0 };
