@@ -199,7 +199,7 @@ void uct_node::monte_carlo_tree_search()
 
 	auto simulation_result = playout(leaf);
 
-	backpropagate(leaf, 1. - simulation_result);
+	backpropagate(leaf, simulation_result);
 }
 
 const Vertex uct_node::get_causing_move() const
