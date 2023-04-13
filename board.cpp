@@ -361,7 +361,6 @@ void findLiberties(const ChainMap & cm, std::unordered_set<Vertex, Vertex::HashF
 				}
 
 				if (y > 0) {
-					Vertex v(x, y - 1, dim);
 					auto p = cm.getAt({ x, y - 1, dim });
 
 					ok |= p == nullptr || (p != nullptr && p->type == for_whom && p->liberties.size() > 1);
@@ -388,7 +387,6 @@ void findLiberties(const ChainMap & cm, std::unordered_set<Vertex, Vertex::HashF
 				}
 
 				if (y > 0) {
-					Vertex v(x, y - 1, dim);
 					auto p = cm.getAt({ x, y - 1, dim });
 
 					ok |= p == nullptr || (p != nullptr && p->type != for_whom && p->liberties.size() == 1);
