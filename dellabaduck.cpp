@@ -48,7 +48,7 @@ std::string init_sgf(const int dim)
 	return "(;AP[DellaBaduck]SZ[" + myformat("%d", dim) + "]";
 }
 
-std::string dumpToSgf(const Board & b, const double komi)
+std::string dumpToSgf(const Board & b, const double komi, const bool with_end)
 {
 	int         dim = b.getDim();
 	std::string sgf = init_sgf(dim);
@@ -68,7 +68,7 @@ std::string dumpToSgf(const Board & b, const double komi)
 		}
 	}
 
-	return sgf + ")";
+	return sgf + (with_end ? ")" : "");
 }
 
 typedef struct {
@@ -796,7 +796,15 @@ Board loadSgfFile(const std::string & filename)
 	}
 
 	char buffer[65536];
-	fread(buffer, 1, sizeof buffer, sfh);
+	int rc = fread(buffer, 1, sizeof buffer - 1, sfh);
+
+	if (rc == -1) {
+		send(false, "# Cannot read from sgf file\n");
+		fclose(sfh);
+		return Board(&z, 9);
+	}
+
+	buffer[rc] = 0x00;
 
 	int dim = 19;
 
@@ -1017,7 +1025,7 @@ void test(const bool verbose)
 		double test_score = temp_score.first - temp_score.second;
 
 		if (verbose)
-			printf("%s %f\n", dumpToSgf(brd, komi).c_str(), test_score);
+			printf("%s %f\n", dumpToSgf(brd, komi, true).c_str(), test_score);
 
 		if (test_score != b.score)
 			printf("expected score: %f, current: %f\n", b.score, test_score), ok = false;
@@ -1520,6 +1528,9 @@ int main(int argc, char *argv[])
 
 			send(true, "# Total perft for %c and %d passes with depth %d: %lu (%.1f moves per second, %.3f seconds)", p == P_BLACK ? 'B' : 'W', pass, depth, total, total * 1000. / diff_t, diff_t / 1000.);
 		}
+		else if (parts.at(0) == "dumpsgf") {
+			send(true, "# %s)", sgf.c_str());
+		}
 		else if (parts.at(0) == "dumpstr") {
 			auto out = dumpToString(*b, P_BLACK, 0);
 
@@ -1532,6 +1543,8 @@ int main(int argc, char *argv[])
 			b    = std::get<0>(new_position);
 			p    = std::get<1>(new_position);
 			pass = std::get<2>(new_position);
+
+			sgf  = dumpToSgf(*b, komi, false);
 		}
 		else {
 			send(false, "?");
