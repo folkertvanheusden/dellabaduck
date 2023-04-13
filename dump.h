@@ -8,7 +8,7 @@
 
 void dump(const player_t p);
 void dump(const std::set<Vertex> & set);
-void dump(const std::unordered_set<Vertex, Vertex::HashFunction> & set);
+void dump(const std::vector<Vertex> & set);
 void dump(const chain_t & chain);
 void dump(const std::vector<chain_t *> & chains);
 void dump(const Board & b);

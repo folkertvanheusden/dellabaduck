@@ -328,7 +328,7 @@ void findChains(const Board & b, std::vector<chain_t *> *const chainsWhite, std:
 	delete [] scanned;
 }
 
-void findLiberties(const ChainMap & cm, std::unordered_set<Vertex, Vertex::HashFunction> *const empties, const board_t for_whom)
+void findLiberties(const ChainMap & cm, std::vector<Vertex> *const empties, const board_t for_whom)
 {
 	const int dim = cm.getDim();
 
@@ -355,25 +355,25 @@ void findLiberties(const ChainMap & cm, std::unordered_set<Vertex, Vertex::HashF
 				if (x > 0) {
 					auto p = cm.getAt({ x - 1, y, dim });
 
-					ok |= p == nullptr || (p != nullptr && p->type == for_whom && p->liberties.size() > 1);
+					ok |= p != nullptr && p->type == for_whom && p->liberties.size() > 1;
 				}
 
 				if (x < dim - 1) {
 					auto p = cm.getAt({ x + 1, y, dim });
 
-					ok |= p == nullptr || (p != nullptr && p->type == for_whom && p->liberties.size() > 1);
+					ok |= p != nullptr && p->type == for_whom && p->liberties.size() > 1;
 				}
 
 				if (y > 0) {
 					auto p = cm.getAt({ x, y - 1, dim });
 
-					ok |= p == nullptr || (p != nullptr && p->type == for_whom && p->liberties.size() > 1);
+					ok |= p != nullptr && p->type == for_whom && p->liberties.size() > 1;
 				}
 
 				if (y < dim - 1) {
 					auto p = cm.getAt({ x, y + 1, dim });
 
-					ok |= p == nullptr || (p != nullptr && p->type == for_whom && p->liberties.size() > 1);
+					ok |= p != nullptr && p->type == for_whom && p->liberties.size() > 1;
 				}
 			}
 
@@ -381,30 +381,30 @@ void findLiberties(const ChainMap & cm, std::unordered_set<Vertex, Vertex::HashF
 				if (x > 0) {
 					auto p = cm.getAt({ x - 1, y, dim });
 
-					ok |= p == nullptr || (p != nullptr && p->type != for_whom && p->liberties.size() == 1);
+					ok |= p != nullptr && p->type != for_whom && p->liberties.size() == 1;
 				}
 
 				if (x < dim - 1) {
 					auto p = cm.getAt({ x + 1, y, dim });
 
-					ok |= p == nullptr || (p != nullptr && p->type != for_whom && p->liberties.size() == 1);
+					ok |= p != nullptr && p->type != for_whom && p->liberties.size() == 1;
 				}
 
 				if (y > 0) {
 					auto p = cm.getAt({ x, y - 1, dim });
 
-					ok |= p == nullptr || (p != nullptr && p->type != for_whom && p->liberties.size() == 1);
+					ok |= p != nullptr && p->type != for_whom && p->liberties.size() == 1;
 				}
 
 				if (y < dim - 1) {
 					auto p = cm.getAt({ x, y + 1, dim });
 
-					ok |= p == nullptr || (p != nullptr && p->type != for_whom && p->liberties.size() == 1);
+					ok |= p != nullptr && p->type != for_whom && p->liberties.size() == 1;
 				}
 			}
 
 			if (ok)
-				empties->insert({ x, y, dim });
+				empties->push_back({ x, y, dim });
 		}
 	}
 }
@@ -633,13 +633,8 @@ void play(Board *const b, const Vertex & v, const player_t & p)
 
 	for(auto chain : scan) {
 		if (chain->liberties.empty()) {
-			for(auto ve : chain->chain) {
+			for(auto ve : chain->chain)
 				b->setAt(ve, B_EMPTY);
-#if !defined(NDEBUG)
-#warning DEBUG enabled
-				send(true, "# purge %s", v2t(ve).c_str());
-#endif
-			}
 		}
 	}
 

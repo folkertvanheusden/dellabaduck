@@ -77,7 +77,7 @@ void findChainsScan(std::queue<std::pair<unsigned, unsigned> > *const work_queue
 void pickEmptyAround(const ChainMap & cm, const Vertex & v, std::set<Vertex> *const target);
 void pickEmptyAround(const Board & b, const Vertex & v, std::set<Vertex> *const target);
 void findChains(const Board & b, std::vector<chain_t *> *const chainsWhite, std::vector<chain_t *> *const chainsBlack, ChainMap *const cm);
-void findLiberties(const ChainMap & cm, std::unordered_set<Vertex, Vertex::HashFunction> *const empties, const board_t for_whom);
+void findLiberties(const ChainMap & cm, std::vector<Vertex> *const empties, const board_t for_whom);
 void scanEnclosed(const Board & b, ChainMap *const cm, const board_t myType);
 void purgeChains(std::vector<chain_t *> *const chains);
 void connect(Board *const b, ChainMap *const cm, std::vector<chain_t *> *const chainsWhite, std::vector<chain_t *> *const chainsBlack, const board_t what, const int x, const int y);

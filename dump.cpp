@@ -1,6 +1,5 @@
 #include <set>
 #include <string>
-#include <unordered_set>
 #include <vector>
 
 #include "board.h"
@@ -24,7 +23,7 @@ void dump(const std::set<Vertex> & set)
 	send(true, line.c_str());
 }
 
-void dump(const std::unordered_set<Vertex, Vertex::HashFunction> & set)
+void dump(const std::vector<Vertex> & set)
 {
 	send(true, "# Vertex set");
 

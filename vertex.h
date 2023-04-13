@@ -6,7 +6,8 @@
 class Vertex
 {
 private:
-	const int v, dim;
+	int v   { 0 };
+	int dim { 0 };
 
 public:
 	Vertex(const int v, const int dim);
