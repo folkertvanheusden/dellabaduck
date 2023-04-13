@@ -626,14 +626,6 @@ std::optional<Vertex> genMove(Board *const b, const player_t & p, const bool doP
 	std::unordered_set<Vertex, Vertex::HashFunction> liberties;
 	findLiberties(cm, &liberties, playerToStone(p));
 
-	// no valid liberties? return "pass".
-	if (liberties.empty()) {
-		purgeChains(&chainsBlack);
-		purgeChains(&chainsWhite);
-
-		return { };
-	}
-
 	dump(cm);
 
 	dump(chainsBlack);
@@ -642,6 +634,14 @@ std::optional<Vertex> genMove(Board *const b, const player_t & p, const bool doP
 	dump(liberties);
 	purgeKO(*b, p, seen, &liberties);
 	dump(liberties);
+
+	// no valid liberties? return "pass".
+	if (liberties.empty()) {
+		purgeChains(&chainsBlack);
+		purgeChains(&chainsWhite);
+
+		return { };
+	}
 
 	send(true, "# useTime: %f", useTime);
 
