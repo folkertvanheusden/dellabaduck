@@ -23,23 +23,29 @@ uint64_t Board::getHashForField(const int v)
 	return z->get(v, stone == B_BLACK);
 }
 
-Board::Board(const Zobrist *const z, const int dim) : z(z), dim(dim), b(new board_t[dim * dim]())
+Board::Board(Zobrist *const z, const int dim) : z(z), dim(dim), b(new board_t[dim * dim]())
 {
 	assert(dim & 1);
+
+	z->setDim(dim);
 }
 
-Board::Board(const Zobrist *const z, const std::string & str) : z(z)
+Board::Board(Zobrist *const z, const std::string & str) : z(z)
 {
 	auto slash = str.find('/');
 
 	dim = slash;
 	b = new board_t[dim * dim]();
 
-	int o = 0;
+	z->setDim(dim);
+
+	int str_o = 0;
 
 	for(int y=dim - 1; y >= 0; y--) {
 		for(int x=0; x<dim; x++) {
-			char c = str[o];
+			char c = str[str_o];
+
+			int  o = y * dim + x;
 
 			if (c == 'w' || c == 'W')
 				setAt(x, y, B_WHITE), hash ^= z->get(o, false);
@@ -48,10 +54,10 @@ Board::Board(const Zobrist *const z, const std::string & str) : z(z)
 			else
 				assert(c == '.');
 
-			o++;
+			str_o++;
 		}
 
-		o++;  // skip slash
+		str_o++;  // skip slash
 	}
 }
 
@@ -361,7 +367,6 @@ void findLiberties(const ChainMap & cm, std::unordered_set<Vertex, Vertex::HashF
 				}
 
 				if (y > 0) {
-					Vertex v(x, y - 1, dim);
 					auto p = cm.getAt({ x, y - 1, dim });
 
 					ok |= p == nullptr || (p != nullptr && p->type == for_whom && p->liberties.size() > 1);
@@ -388,7 +393,6 @@ void findLiberties(const ChainMap & cm, std::unordered_set<Vertex, Vertex::HashF
 				}
 
 				if (y > 0) {
-					Vertex v(x, y - 1, dim);
 					auto p = cm.getAt({ x, y - 1, dim });
 
 					ok |= p == nullptr || (p != nullptr && p->type != for_whom && p->liberties.size() == 1);
