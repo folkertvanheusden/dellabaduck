@@ -35,11 +35,13 @@ Board::Board(const Zobrist *const z, const std::string & str) : z(z)
 	dim = slash;
 	b = new board_t[dim * dim]();
 
-	int o = 0;
+	int str_o = 0;
 
 	for(int y=dim - 1; y >= 0; y--) {
 		for(int x=0; x<dim; x++) {
-			char c = str[o];
+			char c = str[str_o];
+
+			int  o = y * dim + x;
 
 			if (c == 'w' || c == 'W')
 				setAt(x, y, B_WHITE), hash ^= z->get(o, false);
@@ -48,10 +50,10 @@ Board::Board(const Zobrist *const z, const std::string & str) : z(z)
 			else
 				assert(c == '.');
 
-			o++;
+			str_o++;
 		}
 
-		o++;  // skip slash
+		str_o++;  // skip slash
 	}
 }
 
