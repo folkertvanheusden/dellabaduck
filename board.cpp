@@ -482,7 +482,8 @@ void eraseLiberty(std::vector<Vertex> *const liberties, const Vertex & v)
 	const size_t n_liberties = liberties->size();
 	for(size_t i=0; i<n_liberties; i++) {
 		if (liberties->at(i) == v) {
-			liberties->erase(liberties->begin() + i);
+			liberties->at(i) = liberties->back();
+			liberties->pop_back();
 			break;
 		}
 	}
