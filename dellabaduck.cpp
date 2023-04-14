@@ -719,12 +719,14 @@ std::optional<Vertex> genMove(Board *const b, const player_t & p, const bool doP
 	double bestScore = -32767.;
 	for(int i=0; i<p2dim; i++) {
 		if (evals.at(i).score > bestScore && evals.at(i).valid) {
-			v = { i, dim };
+			Vertex temp { i, dim };
 
-			if (std::find(liberties.begin(), liberties.end(), v) == liberties.end())
-				send(true, "# invalid move %s detected", v2t(v.value()).c_str());
-			else
+			if (std::find(liberties.begin(), liberties.end(), temp) == liberties.end())
+				send(true, "# invalid move %s detected", v2t(temp).c_str());
+			else {
 				bestScore = evals.at(i).score;
+				v = temp;
+			}
 		}
 	}
 
