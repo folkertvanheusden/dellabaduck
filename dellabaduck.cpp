@@ -667,6 +667,9 @@ std::optional<Vertex> genMove(Board *const b, const player_t & p, const bool doP
 {
 	dump(*b);
 
+	if (useTime == 0)
+		return { };
+
 	const int dim = b->getDim();
 	const int p2dim = dim * dim;
 
