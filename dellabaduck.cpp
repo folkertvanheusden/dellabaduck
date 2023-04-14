@@ -486,14 +486,14 @@ std::tuple<double, double, int> playout(const Board & in, const double komi, pla
 	std::vector<chain_t *> chainsWhite, chainsBlack;
 	findChains(b, &chainsWhite, &chainsBlack, &cm);
 
+	std::vector<Vertex> liberties;
+	findLiberties(cm, &liberties, playerToStone(p));
+
 	int  mc      { 0     };
 
 	bool pass[2] { false };
 
 	while(++mc < 250) {
-		std::vector<Vertex> liberties;
-		findLiberties(cm, &liberties, playerToStone(p));
-
 		// no valid liberties? return "pass".
 		if (liberties.empty()) {
 			pass[p] = true;
@@ -522,7 +522,7 @@ std::tuple<double, double, int> playout(const Board & in, const double komi, pla
 		const int y = liberties.at(r).getY();
 
 		// TODO: pass liberties[] (for each color) to connect
-		connect(&b, &cm, &chainsWhite, &chainsBlack, playerToStone(p), x, y);
+		connect(&b, &cm, &chainsWhite, &chainsBlack, &liberties, playerToStone(p), x, y);
 
 		p = getOpponent(p);
 	}
@@ -1260,7 +1260,7 @@ void test(const bool verbose)
 		std::vector<Vertex> liberties1;
 		findLiberties(cm1, &liberties1, playerToStone(P_BLACK));
 
-		connect(&brd2, &cm2, &chainsWhite2, &chainsBlack2, playerToStone(P_BLACK), move.getX(), move.getY());
+		connect(&brd2, &cm2, &chainsWhite2, &chainsBlack2, &liberties2, playerToStone(P_BLACK), move.getX(), move.getY());
 
 		if (brd2.getHash() != brd1.getHash())
 			printf("boards mismatch\n"), ok = false;
