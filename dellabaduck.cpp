@@ -997,19 +997,31 @@ bool compareChain(const std::set<Vertex> & a, const std::set<Vertex> & b)
 	return true;
 }
 
-typedef enum { fc_stones, fc_liberties } fc_search_t;
+bool compareChain(const std::vector<Vertex> & a, const std::vector<Vertex> & b)
+{
+	for(auto v : a) {
+		if (std::find(b.begin(), b.end(), v) == b.end())
+			return false;
+	}
 
-bool findChain(const std::vector<chain_t *> & chains, const std::set<Vertex> & search_for, const fc_search_t & type)
+	return true;
+}
+
+bool findChain(const std::vector<chain_t *> & chains, const std::vector<Vertex> & search_for)
 {
 	for(auto c : chains) {
-		if (type == fc_stones) {
-			if (compareChain(c->chain, search_for))
-				return true;
-		}
-		else if (type == fc_liberties) {
-			if (compareChain(c->liberties, search_for))
-				return true;
-		}
+		if (compareChain(c->chain, search_for))
+			return true;
+	}
+
+	return false;
+}
+
+bool findChain(const std::vector<chain_t *> & chains, const std::set<Vertex> & search_for)
+{
+	for(auto c : chains) {
+		if (compareChain(c->liberties, search_for))
+			return true;
 	}
 
 	return false;
@@ -1141,28 +1153,28 @@ void test(const bool verbose)
 		for(auto ch : b.white_chains) {
 			auto white_stones = stringToChain(ch.first, brd.getDim());
 
-			if (findChain(chainsWhite, white_stones, fc_stones) == false)
+			if (findChain(chainsWhite, white_stones) == false)
 				printf("white stones mismatch\n"), ok = false;
 		}
 
 		for(auto ch : b.white_chains) {
 			auto white_liberties = stringToChain(ch.second, brd.getDim());
 
-			if (findChain(chainsWhite, white_liberties, fc_liberties) == false)
+			if (findChain(chainsWhite, white_liberties) == false)
 				printf("white liberties mismatch for %s\n", ch.second.c_str()), ok = false;
 		}
 
 		for(auto ch : b.black_chains) {
 			auto black_stones = stringToChain(ch.first, brd.getDim());
 
-			if (findChain(chainsBlack, black_stones, fc_stones) == false)
+			if (findChain(chainsBlack, black_stones) == false)
 				printf("black stones mismatch\n"), ok = false;
 		}
 
 		for(auto ch : b.black_chains) {
 			auto black_liberties = stringToChain(ch.second, brd.getDim());
 
-			if (findChain(chainsBlack, black_liberties, fc_liberties) == false)
+			if (findChain(chainsBlack, black_liberties) == false)
 				printf("black liberties mismatch for %s\n", ch.second.c_str()), ok = false;
 		}
 
