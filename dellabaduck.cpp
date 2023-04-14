@@ -625,7 +625,7 @@ std::optional<Vertex> genMove(Board *const b, const player_t & p, const bool doP
 {
 	dump(*b);
 
-	if (useTime == 0)
+	if (useTime <= 0.001)
 		return { };
 
 	const int dim = b->getDim();
