@@ -1467,7 +1467,8 @@ int main(int argc, char *argv[])
 	
 	int      pass = 0;
 
-	double timeLeft = -1;
+	double timeLeftB = -1;
+	double timeLeftW = -1;
 
 	double komi = 0.;
 
@@ -1532,7 +1533,9 @@ int main(int argc, char *argv[])
 			moves_executed = 0;
 			// not /2: assuming that some stones are regained during the game
 			moves_total    = dim * dim;
-			timeLeft       = -1;
+
+			timeLeftW      = -1;
+			timeLeftB      = -1;
 
 			sgf = init_sgf(dim);
 		}
@@ -1623,7 +1626,12 @@ int main(int argc, char *argv[])
 			send(false, "=%s", id.c_str());  // TODO
 		}
 		else if (parts.at(0) == "time_left" && parts.size() >= 3) {
-			timeLeft = atof(parts.at(2).c_str());
+			player_t player = (parts.at(1) == "b" || parts.at(1) == "black") ? P_BLACK : P_WHITE;
+
+			if (player == P_BLACK)
+				timeLeftB = atof(parts.at(2).c_str());
+			else
+				timeLeftW = atof(parts.at(2).c_str());
 
 			send(false, "=%s", id.c_str());  // TODO
 		}
@@ -1721,6 +1729,8 @@ int main(int argc, char *argv[])
 		}
 		else if (parts.at(0) == "genmove" || parts.at(0) == "reg_genmove") {
 			player_t player = (parts.at(1) == "b" || parts.at(1) == "black") ? P_BLACK : P_WHITE;
+
+			double timeLeft = player == P_BLACK ? timeLeftB : timeLeftW;
 
 			if (timeLeft < 0)
 				timeLeft = 5.0;
