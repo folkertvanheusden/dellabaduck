@@ -1426,6 +1426,10 @@ int main(int argc, char *argv[])
 		if (!fgets(buffer, sizeof buffer, stdin))
 			break;
 
+		char *cr = strchr(buffer, '\r');
+		if (cr)
+			*cr = 0x00;
+
 		char *lf = strchr(buffer, '\n');
 		if (lf)
 			*lf = 0x00;
