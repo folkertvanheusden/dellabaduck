@@ -117,7 +117,7 @@ void selectExtendChains(const Board & b, const ChainMap & cm, const std::vector<
 
 	for(auto chain : scan) {
 		for(auto chainStone : chain->chain) {
-			std::set<Vertex> empties;
+			std::unordered_set<Vertex, Vertex::HashFunction> empties;
 			pickEmptyAround(cm, chainStone, &empties);
 
 			for(auto cross : empties) {
@@ -1015,6 +1015,26 @@ bool compareChain(const std::set<Vertex> & a, const std::set<Vertex> & b)
 	return true;
 }
 
+bool compareChain(const std::unordered_set<Vertex, Vertex::HashFunction> & a, const std::unordered_set<Vertex, Vertex::HashFunction> & b)
+{
+	for(auto v : a) {
+		if (b.find(v) == b.end())
+			return false;
+	}
+
+	return true;
+}
+
+bool compareChain(const std::unordered_set<Vertex, Vertex::HashFunction> & a, const std::set<Vertex> & b)
+{
+	for(auto v : a) {
+		if (b.find(v) == b.end())
+			return false;
+	}
+
+	return true;
+}
+
 bool compareChain(const std::vector<Vertex> & a, const std::vector<Vertex> & b)
 {
 	for(auto v : a) {
@@ -1029,6 +1049,16 @@ bool findChain(const std::vector<chain_t *> & chains, const std::vector<Vertex> 
 {
 	for(auto c : chains) {
 		if (compareChain(c->chain, search_for))
+			return true;
+	}
+
+	return false;
+}
+
+bool findChain(const std::vector<chain_t *> & chains, const std::unordered_set<Vertex, Vertex::HashFunction> & search_for)
+{
+	for(auto c : chains) {
+		if (compareChain(c->liberties, search_for))
 			return true;
 	}
 

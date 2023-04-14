@@ -47,7 +47,7 @@ public:
 typedef struct {
 	board_t type;
 	std::vector<Vertex> chain;
-	std::set<Vertex> liberties;
+	std::unordered_set<Vertex, Vertex::HashFunction> liberties;
 } chain_t;
 
 class ChainMap {
@@ -74,8 +74,8 @@ public:
 };
 
 void findChainsScan(std::queue<std::pair<unsigned, unsigned> > *const work_queue, const Board & b, unsigned x, unsigned y, const int dx, const int dy, const board_t type, bool *const scanned);
-void pickEmptyAround(const ChainMap & cm, const Vertex & v, std::set<Vertex> *const target);
-void pickEmptyAround(const Board & b, const Vertex & v, std::set<Vertex> *const target);
+void pickEmptyAround(const ChainMap & cm, const Vertex & v, std::unordered_set<Vertex, Vertex::HashFunction> *const target);
+void pickEmptyAround(const Board & b, const Vertex & v, std::unordered_set<Vertex, Vertex::HashFunction> *const target);
 void findChains(const Board & b, std::vector<chain_t *> *const chainsWhite, std::vector<chain_t *> *const chainsBlack, ChainMap *const cm);
 void findLiberties(const ChainMap & cm, std::vector<Vertex> *const empties, const board_t for_whom);
 void scanEnclosed(const Board & b, ChainMap *const cm, const board_t myType);
