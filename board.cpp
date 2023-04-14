@@ -497,7 +497,18 @@ int countLiberties(const Board & b, const int x, const int y)
 	return n;
 }
 
-void connect(Board *const b, ChainMap *const cm, std::vector<chain_t *> *const chainsWhite, std::vector<chain_t *> *const chainsBlack, std::vector<Vertex> *const liberties, const board_t what, const int x, const int y)
+void eraseLiberty(std::vector<Vertex> *const liberties, const Vertex & v)
+{
+	const size_t n_liberties = liberties->size();
+	for(size_t i=0; i<n_liberties; i++) {
+		if (liberties->at(i) == v) {
+			liberties->erase(liberties->begin() + i);
+			break;
+		}
+	}
+}
+
+void connect(Board *const b, ChainMap *const cm, std::vector<chain_t *> *const chainsWhite, std::vector<chain_t *> *const chainsBlack, std::vector<Vertex> *const libertiesWhite, std::vector<Vertex> *const libertiesBlack, const board_t what, const int x, const int y)
 {
 	const int dim = b->getDim();
 
@@ -511,13 +522,9 @@ void connect(Board *const b, ChainMap *const cm, std::vector<chain_t *> *const c
 	Vertex v(x, y, dim);
 
 	// update liberties
-	const size_t n_liberties = liberties->size();
-	for(size_t i=0; i<n_liberties; i++) {
-		if (liberties->at(i) == v) {
-			liberties->erase(liberties->begin() + i);
-			break;
-		}
-	}
+	eraseLiberty(libertiesWhite, v);
+
+	eraseLiberty(libertiesBlack, v);
 
 	// find chains to merge
 	std::set<chain_t *> toMergeTemp;
@@ -622,8 +629,11 @@ void connect(Board *const b, ChainMap *const cm, std::vector<chain_t *> *const c
 				b->setAt(ve, B_EMPTY);  // remove part of the chain
 				cm->setAt(ve, nullptr);
 
-				if (checkLiberty(*cm, ve.getX(), ve.getY(), what))
-					liberties->push_back(ve);
+				if (checkLiberty(*cm, ve.getX(), ve.getY(), B_WHITE))
+					libertiesWhite->push_back(ve);
+
+				if (checkLiberty(*cm, ve.getX(), ve.getY(), B_BLACK))
+					libertiesBlack->push_back(ve);
 			}
 
 			delete *chain;

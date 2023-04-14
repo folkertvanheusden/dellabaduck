@@ -489,8 +489,11 @@ std::tuple<double, double, int> playout(const Board & in, const double komi, pla
 	std::vector<chain_t *> chainsWhite, chainsBlack;
 	findChains(b, &chainsWhite, &chainsBlack, &cm);
 
-	std::vector<Vertex> liberties;
-	findLiberties(cm, &liberties, playerToStone(p));
+	std::vector<Vertex> libertiesWhite;
+	findLiberties(cm, &libertiesWhite, B_WHITE);
+
+	std::vector<Vertex> libertiesBlack;
+	findLiberties(cm, &libertiesBlack, B_BLACK);
 
 	std::unordered_set<uint64_t> seen;
 	seen.insert(b.getHash());
@@ -500,6 +503,8 @@ std::tuple<double, double, int> playout(const Board & in, const double komi, pla
 	bool pass[2] { false };
 
 	while(++mc < dim * dim * dim) {
+		auto & liberties = p == P_BLACK ? libertiesBlack : libertiesWhite;
+
 		// no valid liberties? return "pass".
 		if (liberties.empty()) {
 			pass[p] = true;
@@ -525,7 +530,7 @@ std::tuple<double, double, int> playout(const Board & in, const double komi, pla
 			const int x = liberties.at(r).getX();
 			const int y = liberties.at(r).getY();
 
-			connect(&b, &cm, &chainsWhite, &chainsBlack, &liberties, playerToStone(p), x, y);
+			connect(&b, &cm, &chainsWhite, &chainsBlack, &libertiesWhite, &libertiesBlack, playerToStone(p), x, y);
 
 			uint64_t new_hash = b.getHash();
 
@@ -1259,20 +1264,24 @@ void test(const bool verbose)
 		ChainMap cm2(brd2.getDim());
 		std::vector<chain_t *> chainsWhite2, chainsBlack2;
 		findChains(brd2, &chainsWhite2, &chainsBlack2, &cm2);
-		std::vector<Vertex> liberties2;
-		findLiberties(cm2, &liberties2, playerToStone(P_BLACK));
 
-		auto move = liberties2.at(0);
+		std::vector<Vertex> liberties2W, liberties2B;
+		findLiberties(cm2, &liberties2W, B_WHITE);
+		findLiberties(cm2, &liberties2B, B_BLACK);
+
+		auto move = liberties2B.at(0);
 
 		play(&brd1, move, P_BLACK);
 
 		ChainMap cm1(brd1.getDim());
 		std::vector<chain_t *> chainsWhite1, chainsBlack1;
 		findChains(brd1, &chainsWhite1, &chainsBlack1, &cm1);
-		std::vector<Vertex> liberties1;
-		findLiberties(cm1, &liberties1, playerToStone(P_BLACK));
 
-		connect(&brd2, &cm2, &chainsWhite2, &chainsBlack2, &liberties2, playerToStone(P_BLACK), move.getX(), move.getY());
+		std::vector<Vertex> liberties1W, liberties1B;
+		findLiberties(cm1, &liberties1W, B_WHITE);
+		findLiberties(cm1, &liberties1B, B_BLACK);
+
+		connect(&brd2, &cm2, &chainsWhite2, &chainsBlack2, &liberties2W, &liberties2B, playerToStone(P_BLACK), move.getX(), move.getY());
 
 		if (brd2.getHash() != brd1.getHash())
 			printf("boards mismatch\n"), ok = false;
@@ -1283,8 +1292,11 @@ void test(const bool verbose)
 		if (compareChainT(chainsBlack1, chainsBlack2) == false)
 			printf("chainsBlack mismatch\n"), ok = false;
 
-		if (compareChain(liberties1, liberties2) == false)
-			printf("liberties mismatch\n"), ok = false;
+		if (compareChain(liberties1W, liberties2W) == false)
+			printf("liberties white mismatch\n"), ok = false;
+
+		if (compareChain(liberties1B, liberties2B) == false)
+			printf("liberties black mismatch\n"), ok = false;
 
 		if (!ok) {
 			send(true, " * boards\n");
