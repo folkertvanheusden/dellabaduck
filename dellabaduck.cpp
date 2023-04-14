@@ -518,22 +518,20 @@ std::tuple<double, double, int> playout(const Board & in, const double komi, pla
 
 		size_t chainSize = liberties.size();
 
-		if (chainSize > 1) {
-			std::uniform_int_distribution<> rng(0, chainSize - 2);
+		std::uniform_int_distribution<> rng(0, chainSize);
+		r = rng(gen);
 
-			r = rng(gen);
+		if (r < chainSize) {  // pass
+			const int x = liberties.at(r).getX();
+			const int y = liberties.at(r).getY();
+
+			connect(&b, &cm, &chainsWhite, &chainsBlack, &liberties, playerToStone(p), x, y);
+
+			uint64_t new_hash = b.getHash();
+
+			if (seen.insert(new_hash).second == false)
+				break;
 		}
-
-		const int x = liberties.at(r).getX();
-		const int y = liberties.at(r).getY();
-
-		// TODO: pass liberties[] (for each color) to connect
-		connect(&b, &cm, &chainsWhite, &chainsBlack, &liberties, playerToStone(p), x, y);
-
-		uint64_t new_hash = b.getHash();
-
-		if (seen.insert(new_hash).second == false)
-			break;
 
 		p = getOpponent(p);
 	}
