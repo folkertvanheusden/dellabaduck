@@ -1025,6 +1025,19 @@ bool findChain(const std::vector<chain_t *> & chains, const std::set<Vertex> & s
 	return false;
 }
 
+bool compareChainT(const std::vector<chain_t *> & chains1, const std::vector<chain_t *> & chains2)
+{
+	for(auto & c : chains1) {
+		if (findChain(chains2, c->chain) == false)
+			return false;
+
+		if (findChain(chains2, c->liberties) == false)
+			return false;
+	}
+
+	return true;
+}
+
 void test(const bool verbose)
 {
 	struct test_data {
@@ -1183,7 +1196,7 @@ void test(const bool verbose)
 
 			dump(chainsWhite);
 
-			printf("---\n");
+			send(true, "---\n");
 		}
 
 		purgeChains(&chainsBlack);
@@ -1217,6 +1230,70 @@ void test(const bool verbose)
 
 	if (thirdHash)
 		printf("hash (%lx) did not reset\n", thirdHash);
+
+	// "connect()"
+	for(auto b : boards) {
+		bool ok = true;
+
+		Board brd1 = stringToBoard(b.b);
+		Board brd2(brd1);
+
+		dump(brd1);
+
+		assert(brd2.getHash() == brd1.getHash());  // sanity check
+
+		ChainMap cm2(brd2.getDim());
+		std::vector<chain_t *> chainsWhite2, chainsBlack2;
+		findChains(brd2, &chainsWhite2, &chainsBlack2, &cm2);
+		std::vector<Vertex> liberties2;
+		findLiberties(cm2, &liberties2, playerToStone(P_BLACK));
+
+		auto move = liberties2.at(0);
+
+		play(&brd1, move, P_BLACK);
+
+		ChainMap cm1(brd1.getDim());
+		std::vector<chain_t *> chainsWhite1, chainsBlack1;
+		findChains(brd1, &chainsWhite1, &chainsBlack1, &cm1);
+		std::vector<Vertex> liberties1;
+		findLiberties(cm1, &liberties1, playerToStone(P_BLACK));
+
+		connect(&brd2, &cm2, &chainsWhite2, &chainsBlack2, playerToStone(P_BLACK), move.getX(), move.getY());
+
+		if (brd2.getHash() != brd1.getHash())
+			printf("boards mismatch\n"), ok = false;
+
+		if (compareChainT(chainsWhite1, chainsWhite2) == false)
+			printf("chainsWhite mismatch\n"), ok = false;
+
+		if (compareChainT(chainsBlack1, chainsBlack2) == false)
+			printf("chainsBlack mismatch\n"), ok = false;
+
+		if (compareChain(liberties1, liberties2) == false)
+			printf("liberties mismatch\n"), ok = false;
+
+		if (!ok) {
+			send(true, " * boards\n");
+			dump(brd1);
+			dump(brd2);
+
+			send(true, " * chains black\n");
+			dump(chainsBlack1);
+			dump(chainsBlack2);
+
+			send(true, " * chains white\n");
+			dump(chainsWhite1);
+			dump(chainsWhite2);
+
+			send(true, "---\n");
+		}
+
+		purgeChains(&chainsBlack2);
+		purgeChains(&chainsWhite2);
+
+		purgeChains(&chainsBlack1);
+		purgeChains(&chainsWhite1);
+	}
 
 	printf("--- unittest end ---\n");
 }
