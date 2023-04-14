@@ -480,6 +480,7 @@ int countLiberties(const Board & b, const int x, const int y)
 void eraseLiberty(std::vector<Vertex> *const liberties, const Vertex & v)
 {
 	const size_t n_liberties = liberties->size();
+
 	for(size_t i=0; i<n_liberties; i++) {
 		if (liberties->at(i) == v) {
 			liberties->at(i) = liberties->back();
