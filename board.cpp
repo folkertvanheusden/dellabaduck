@@ -223,7 +223,7 @@ void findChainsScan(std::queue<std::pair<unsigned, unsigned> > *const work_queue
 	}
 }
 
-void pickEmptyAround(const ChainMap & cm, const Vertex & v, std::set<Vertex> *const target)
+void pickEmptyAround(const ChainMap & cm, const Vertex & v, std::unordered_set<Vertex, Vertex::HashFunction> *const target)
 {
 	const int x = v.getX();
 	const int y = v.getY();
@@ -242,7 +242,7 @@ void pickEmptyAround(const ChainMap & cm, const Vertex & v, std::set<Vertex> *co
 		target->insert({ x, y + 1, dim });
 }
 
-void pickEmptyAround(const Board & b, const Vertex & v, std::set<Vertex> *const target)
+void pickEmptyAround(const Board & b, const Vertex & v, std::unordered_set<Vertex, Vertex::HashFunction> *const target)
 {
 	const int x = v.getX();
 	const int y = v.getY();
