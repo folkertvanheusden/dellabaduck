@@ -15,7 +15,7 @@ private:
 	const std::optional<Vertex>     causing_move;
 
 	std::vector<std::pair<Vertex, uct_node *> > children;
-	std::unordered_set<Vertex, Vertex::HashFunction> unvisited;
+	std::vector<Vertex>             unvisited;
 	uint64_t                        visited   { 0 };
 	double                          score     { 0. };
 
