@@ -1446,15 +1446,22 @@ int main(int argc, char *argv[])
 
 	int dim = 9;
 
+	std::string logfile;
+
 	int c = -1;
-	while((c = getopt(argc, argv, "vt:5")) != -1) {
+	while((c = getopt(argc, argv, "l:vt:5")) != -1) {
 		if (c == 'v')  // console
 			setVerbose(true);
 		else if (c == 't')
 			nThreads = atoi(optarg);
 		else if (c == '5')
 			dim = 5;
+		else if (c == 'l')
+			logfile = optarg;
 	}
+
+	if (logfile.empty() == false)
+		startLog(logfile);
 
 	setbuf(stdout, nullptr);
 	setbuf(stderr, nullptr);
