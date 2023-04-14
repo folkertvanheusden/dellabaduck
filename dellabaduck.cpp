@@ -20,6 +20,7 @@
 #include <time.h>
 #include <tuple>
 #include <unistd.h>
+#include <unordered_set>
 #include <vector>
 #include <sys/resource.h>
 #include <sys/time.h>
@@ -491,7 +492,7 @@ std::tuple<double, double, int> playout(const Board & in, const double komi, pla
 	std::vector<Vertex> liberties;
 	findLiberties(cm, &liberties, playerToStone(p));
 
-	std::set<uint64_t> seen;
+	std::unordered_set<uint64_t> seen;
 	seen.insert(b.getHash());
 
 	int  mc      { 0     };
@@ -531,10 +532,8 @@ std::tuple<double, double, int> playout(const Board & in, const double komi, pla
 
 		uint64_t new_hash = b.getHash();
 
-		if (seen.find(new_hash) != seen.end())
+		if (seen.insert(new_hash).second == false)
 			break;
-
-		seen.insert(new_hash);
 
 		p = getOpponent(p);
 	}
