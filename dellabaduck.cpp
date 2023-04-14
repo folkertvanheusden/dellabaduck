@@ -491,11 +491,14 @@ std::tuple<double, double, int> playout(const Board & in, const double komi, pla
 	std::vector<Vertex> liberties;
 	findLiberties(cm, &liberties, playerToStone(p));
 
+	std::set<uint64_t> seen;
+	seen.insert(b.getHash());
+
 	int  mc      { 0     };
 
 	bool pass[2] { false };
 
-	while(++mc < dim * dim * 3) {
+	while(++mc < dim * dim * dim) {
 		// no valid liberties? return "pass".
 		if (liberties.empty()) {
 			pass[p] = true;
@@ -525,6 +528,13 @@ std::tuple<double, double, int> playout(const Board & in, const double komi, pla
 
 		// TODO: pass liberties[] (for each color) to connect
 		connect(&b, &cm, &chainsWhite, &chainsBlack, &liberties, playerToStone(p), x, y);
+
+		uint64_t new_hash = b.getHash();
+
+		if (seen.find(new_hash) != seen.end())
+			break;
+
+		seen.insert(new_hash);
 
 		p = getOpponent(p);
 	}
