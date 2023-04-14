@@ -481,8 +481,10 @@ std::tuple<double, double, int> playout(const Board & in, const double komi, pla
 {
 	Board b(in);
 
+	const int dim = b.getDim();
+
 	// find chains of stones
-	ChainMap cm(b.getDim());
+	ChainMap cm(dim);
 	std::vector<chain_t *> chainsWhite, chainsBlack;
 	findChains(b, &chainsWhite, &chainsBlack, &cm);
 
@@ -493,7 +495,7 @@ std::tuple<double, double, int> playout(const Board & in, const double komi, pla
 
 	bool pass[2] { false };
 
-	while(++mc < 250) {
+	while(++mc < dim * dim * 3) {
 		// no valid liberties? return "pass".
 		if (liberties.empty()) {
 			pass[p] = true;
