@@ -33,9 +33,9 @@ void send(const bool is_verbose, const char *fmt, ...)
 	va_start(ap, fmt);
 	(void)vasprintf(&str, fmt, ap);
 	va_end(ap);
-	fflush(fh);
 
-	fprintf(fh, "%s%s\n", ts_str, str);
+	if (fh)
+		fprintf(fh, "%s%s\n", ts_str, str);
 
 	if (is_verbose) {
 		if (verbose)
@@ -45,7 +45,8 @@ void send(const bool is_verbose, const char *fmt, ...)
 		printf("%s\n", str);
 	}
 
-	fflush(fh);
+	if (fh)
+		fflush(fh);
 
 	free(str);
 	free(ts_str);
