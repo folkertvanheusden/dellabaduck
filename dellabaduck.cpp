@@ -1644,17 +1644,17 @@ int main(int argc, char *argv[])
 		}
 		else if (parts.at(0) == "list_commands") {
 			send(false, "=%s name", id.c_str());
-			send(false, "=%s version", id.c_str());
-			send(false, "=%s boardsize", id.c_str());
-			send(false, "=%s clear_board", id.c_str());
-			send(false, "=%s play", id.c_str());
-			send(false, "=%s genmove", id.c_str());
-			send(false, "=%s komi", id.c_str());
-			send(false, "=%s quit", id.c_str());
-			send(false, "=%s loadsgf", id.c_str());
-			send(false, "=%s final_score", id.c_str());
-			send(false, "=%s time_settings", id.c_str());
-			send(false, "=%s time_left", id.c_str());
+			send(false, "version");
+			send(false, "boardsize");
+			send(false, "clear_board");
+			send(false, "play");
+			send(false, "genmove");
+			send(false, "komi");
+			send(false, "quit");
+			send(false, "loadsgf");
+			send(false, "final_score");
+			send(false, "time_settings");
+			send(false, "time_left");
 		}
 		else if (parts.at(0) == "final_score") {
 			auto final_score = score(*b, komi);
