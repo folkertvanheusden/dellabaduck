@@ -521,18 +521,21 @@ void connect(Board *const b, ChainMap *const cm, std::vector<chain_t *> *const c
 	for(auto & chain : toMergeTemp)
 		toMerge.push_back(chain);
 
+	Vertex v(x, y, dim);
+
+	// first remove this liberty of all chains
+	for(auto & chain : *chainsWhite)
+		chain->liberties.erase(v);
+
+	for(auto & chain : *chainsBlack)
+		chain->liberties.erase(v);
+
 	// add new piece to (existing) first chain (of the set of chains found to be merged)
 	if (toMerge.empty() == false) {
-		Vertex v(x, y, dim);
-
 		// add to chain
 		toMerge.at(0)->chain.push_back(v);
 		// update board->chain map
 		cm->setAt(x, y, toMerge.at(0));
-
-		// first remove this liberty
-		for(auto & chain : toMerge)
-			chain->liberties.erase(v);
 
 		// merge
 		auto cleanChainSet = what == B_WHITE ? chainsWhite : chainsBlack;
