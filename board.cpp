@@ -503,7 +503,7 @@ void eraseLiberty(std::vector<Vertex> *const liberties, const Vertex & v)
 
 	for(size_t i=0; i<n_liberties; i++) {
 		if (liberties->at(i) == v) {
-			liberties->at(i) = liberties->back();
+			liberties->at(i) = std::move(liberties->back());
 			liberties->pop_back();
 			break;
 		}

@@ -666,7 +666,8 @@ void purgeKO(const Board & b, const player_t p, std::set<uint64_t> *const seen, 
                 play(&temp, *it, p);
 
                 if (seen->find(temp.getHash()) != seen->end()) {
-			*it = liberties->back();
+			*it = std::move(liberties->back());
+
 			liberties->pop_back();
 		}
                 else {
