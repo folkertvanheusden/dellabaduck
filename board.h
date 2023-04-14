@@ -46,7 +46,7 @@ public:
 
 typedef struct {
 	board_t type;
-	std::set<Vertex> chain;
+	std::vector<Vertex> chain;
 	std::set<Vertex> liberties;
 } chain_t;
 

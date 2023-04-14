@@ -301,7 +301,7 @@ void findChains(const Board & b, std::vector<chain_t *> *const chainsWhite, std:
 
 					cm->setAt(x, y, curChain);
 
-					curChain->chain.insert({ int(x), int(y), int(dim) });
+					curChain->chain.push_back({ int(x), int(y), int(dim) });
 
 					findChainsScan(&work_queue, b, x, y, 0, -1, cur_bv, scanned);
 					findChainsScan(&work_queue, b, x, y, 0, +1, cur_bv, scanned);
@@ -526,7 +526,7 @@ void connect(Board *const b, ChainMap *const cm, std::vector<chain_t *> *const c
 		Vertex v(x, y, dim);
 
 		// add to chain
-		toMerge.at(0)->chain.insert(v);
+		toMerge.at(0)->chain.push_back(v);
 		// update board->chain map
 		cm->setAt(x, y, toMerge.at(0));
 
@@ -538,7 +538,7 @@ void connect(Board *const b, ChainMap *const cm, std::vector<chain_t *> *const c
 		auto cleanChainSet = what == B_WHITE ? chainsWhite : chainsBlack;
 
 		for(size_t i=1; i<toMerge.size(); i++) {
-			toMerge.at(0)->chain.merge(toMerge.at(i)->chain);  // add stones
+			toMerge.at(0)->chain.insert(toMerge.at(0)->chain.end(), std::make_move_iterator(toMerge.at(i)->chain.begin()), std::make_move_iterator(toMerge.at(i)->chain.end()));  // add stones
 
 			toMerge.at(0)->liberties.merge(toMerge.at(i)->liberties);  // add empty crosses surrounding the chain
 
@@ -563,7 +563,7 @@ void connect(Board *const b, ChainMap *const cm, std::vector<chain_t *> *const c
 		// this is a new chain
 		chain_t *curChain = new chain_t;
 		curChain->type = what;
-		curChain->chain.insert({ x, y, dim });
+		curChain->chain.push_back({ x, y, dim });
 
 		if (what == B_WHITE)
 			chainsWhite->push_back(curChain);
