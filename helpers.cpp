@@ -101,3 +101,86 @@ std::set<Vertex> stringToChain(const std::string & in, const int dim)
 
 	return out;
 }
+
+bool compareChain(const std::set<Vertex> & a, const std::set<Vertex> & b)
+{
+	for(auto v : a) {
+		if (b.find(v) == b.end())
+			return false;
+	}
+
+	return true;
+}
+
+bool compareChain(const std::unordered_set<Vertex, Vertex::HashFunction> & a, const std::unordered_set<Vertex, Vertex::HashFunction> & b)
+{
+	for(auto v : a) {
+		if (b.find(v) == b.end())
+			return false;
+	}
+
+	return true;
+}
+
+bool compareChain(const std::unordered_set<Vertex, Vertex::HashFunction> & a, const std::set<Vertex> & b)
+{
+	for(auto v : a) {
+		if (b.find(v) == b.end())
+			return false;
+	}
+
+	return true;
+}
+
+bool compareChain(const std::vector<Vertex> & a, const std::vector<Vertex> & b)
+{
+	for(auto v : a) {
+		if (std::find(b.begin(), b.end(), v) == b.end())
+			return false;
+	}
+
+	return true;
+}
+
+bool findChain(const std::vector<chain_t *> & chains, const std::vector<Vertex> & search_for)
+{
+	for(auto c : chains) {
+		if (compareChain(c->chain, search_for))
+			return true;
+	}
+
+	return false;
+}
+
+bool findChain(const std::vector<chain_t *> & chains, const std::unordered_set<Vertex, Vertex::HashFunction> & search_for)
+{
+	for(auto c : chains) {
+		if (compareChain(c->liberties, search_for))
+			return true;
+	}
+
+	return false;
+}
+
+bool findChain(const std::vector<chain_t *> & chains, const std::set<Vertex> & search_for)
+{
+	for(auto c : chains) {
+		if (compareChain(c->liberties, search_for))
+			return true;
+	}
+
+	return false;
+}
+
+bool compareChainT(const std::vector<chain_t *> & chains1, const std::vector<chain_t *> & chains2)
+{
+	for(auto & c : chains1) {
+		if (findChain(chains2, c->chain) == false)
+			return false;
+
+		if (findChain(chains2, c->liberties) == false)
+			return false;
+	}
+
+	return true;
+}

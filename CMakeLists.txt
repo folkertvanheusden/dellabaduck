@@ -17,6 +17,7 @@ add_executable(
   score.cpp
   str.cpp
   time.cpp
+  unittest.cpp
   vertex.cpp
   zobrist.cpp
 )
