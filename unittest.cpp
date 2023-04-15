@@ -19,8 +19,6 @@ bool test_connect_play(const Board & b, const bool verbose)
 	Board brd1(b);
 	Board brd2(brd1);
 
-	dump(b);
-
 	assert(brd1.getHash() == b   .getHash());  // sanity check
 	assert(brd2.getHash() == brd1.getHash());  // sanity check
 
@@ -35,7 +33,11 @@ bool test_connect_play(const Board & b, const bool verbose)
 	findLiberties(cm2, &liberties2B, B_BLACK);
 
 	if (liberties2B.empty() == false) {
+		dump(b);
+
 		auto move = liberties2B.at(0);
+
+		send(verbose, "# move: %s", v2t(move).c_str());
 
 		play(&brd1, move, P_BLACK);
 
@@ -77,6 +79,18 @@ bool test_connect_play(const Board & b, const bool verbose)
 			send(true, " * chains white");
 			dump(chainsWhite1);
 			dump(chainsWhite2);
+
+			send(true, " * liberties black");
+			send(true, "# play(1)");
+			dump(liberties1B);
+			send(true, "# connect(2)");
+			dump(liberties2B);
+
+			send(true, " * liberties white");
+			send(true, "# play(1)");
+			dump(liberties1W);
+			send(true, "# connect(2)");
+			dump(liberties2W);
 
 			send(true, "---");
 		}
