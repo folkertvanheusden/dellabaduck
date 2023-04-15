@@ -33,11 +33,7 @@ bool test_connect_play(const Board & b, const bool verbose)
 	findLiberties(cm2, &liberties2B, B_BLACK);
 
 	if (liberties2B.empty() == false) {
-		dump(b);
-
 		auto move = liberties2B.at(0);
-
-		send(verbose, "# move: %s", v2t(move).c_str());
 
 		play(&brd1, move, P_BLACK);
 
@@ -67,6 +63,12 @@ bool test_connect_play(const Board & b, const bool verbose)
 
 		if (!ok) {
 			send(true, "# test failed");
+
+			dump(b);
+
+			send(verbose, "# %s", dumpToString(b, P_BLACK, 0).c_str());
+
+			send(verbose, "# move: %s", v2t(move).c_str());
 
 			send(true, " * boards");
 			dump(brd1);
