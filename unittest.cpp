@@ -49,34 +49,36 @@ bool test_connect_play(const Board & b, const bool verbose)
 		connect(&brd2, &cm2, &chainsWhite2, &chainsBlack2, &liberties2W, &liberties2B, playerToStone(P_BLACK), move.getX(), move.getY());
 
 		if (brd2.getHash() != brd1.getHash())
-			printf("boards mismatch\n"), ok = false;
+			send(verbose, "boards mismatch"), ok = false;
 
 		if (compareChainT(chainsWhite1, chainsWhite2) == false)
-			printf("chainsWhite mismatch\n"), ok = false;
+			send(verbose, "chainsWhite mismatch"), ok = false;
 
 		if (compareChainT(chainsBlack1, chainsBlack2) == false)
-			printf("chainsBlack mismatch\n"), ok = false;
+			send(verbose, "chainsBlack mismatch"), ok = false;
 
 		if (compareChain(liberties1W, liberties2W) == false)
-			printf("liberties white mismatch\n"), ok = false;
+			send(verbose, "liberties white mismatch"), ok = false;
 
 		if (compareChain(liberties1B, liberties2B) == false)
-			printf("liberties black mismatch\n"), ok = false;
+			send(verbose, "liberties black mismatch"), ok = false;
 
 		if (!ok) {
-			send(true, " * boards\n");
+			send(true, "# test failed");
+
+			send(true, " * boards");
 			dump(brd1);
 			dump(brd2);
 
-			send(true, " * chains black\n");
+			send(true, " * chains black");
 			dump(chainsBlack1);
 			dump(chainsBlack2);
 
-			send(true, " * chains white\n");
+			send(true, " * chains white");
 			dump(chainsWhite1);
 			dump(chainsWhite2);
 
-			send(true, "---\n");
+			send(true, "---");
 		}
 	}
 
@@ -198,7 +200,7 @@ void test(const bool verbose)
 			printf("%s %f\n", dumpToSgf(brd, komi, true).c_str(), test_score);
 
 		if (test_score != b.score)
-			printf("expected score: %f, current: %f\n", b.score, test_score), ok = false;
+			send(verbose, "expected score: %f, current: %f", b.score, test_score), ok = false;
 
 		ChainMap cm(brd.getDim());
 		std::vector<chain_t *> chainsWhite, chainsBlack;
@@ -207,37 +209,37 @@ void test(const bool verbose)
 		scanEnclosed(brd, &cm, playerToStone(P_WHITE));
 
 		if (b.white_chains.size() != chainsWhite.size())
-			printf("white: number of chains mismatch\n"), ok = false;
+			send(verbose, "white: number of chains mismatch"), ok = false;
 
 		if (b.black_chains.size() != chainsBlack.size())
-			printf("black: number of chains mismatch\n"), ok = false;
+			send(verbose, "black: number of chains mismatch"), ok = false;
 
 		for(auto ch : b.white_chains) {
 			auto white_stones = stringToChain(ch.first, brd.getDim());
 
 			if (findChain(chainsWhite, white_stones) == false)
-				printf("white stones mismatch\n"), ok = false;
+				send(verbose, "white stones mismatch"), ok = false;
 		}
 
 		for(auto ch : b.white_chains) {
 			auto white_liberties = stringToChain(ch.second, brd.getDim());
 
 			if (findChain(chainsWhite, white_liberties) == false)
-				printf("white liberties mismatch for %s\n", ch.second.c_str()), ok = false;
+				send(verbose, "white liberties mismatch for %s", ch.second.c_str()), ok = false;
 		}
 
 		for(auto ch : b.black_chains) {
 			auto black_stones = stringToChain(ch.first, brd.getDim());
 
 			if (findChain(chainsBlack, black_stones) == false)
-				printf("black stones mismatch\n"), ok = false;
+				send(verbose, "black stones mismatch"), ok = false;
 		}
 
 		for(auto ch : b.black_chains) {
 			auto black_liberties = stringToChain(ch.second, brd.getDim());
 
 			if (findChain(chainsBlack, black_liberties) == false)
-				printf("black liberties mismatch for %s\n", ch.second.c_str()), ok = false;
+				send(verbose, "black liberties mismatch for %s", ch.second.c_str()), ok = false;
 		}
 
 		if (!ok) {
@@ -247,7 +249,7 @@ void test(const bool verbose)
 
 			dump(chainsWhite);
 
-			send(true, "---\n");
+			send(true, "---");
 		}
 
 		purgeChains(&chainsBlack);
@@ -260,37 +262,43 @@ void test(const bool verbose)
 
 	uint64_t startHash = b.getHash();
 	if (startHash)
-		printf("initial hash (%lx) invalid\n", startHash);
+		send(verbose, "initial hash (%lx) invalid", startHash);
 
 	b.setAt(3, 3, B_BLACK);
 	uint64_t firstHash = b.getHash();
 
 	if (firstHash == 0)
-		printf("hash did not change\n");
+		send(verbose, "hash did not change");
 
 	b.setAt(3, 3, B_WHITE);
 	uint64_t secondHash = b.getHash();
 
 	if (secondHash == firstHash)
-		printf("hash (%lx) did not change for type\n", secondHash);
+		send(verbose, "hash (%lx) did not change for type", secondHash);
 
 	if (secondHash == 0)
-		printf("hash became initial\n");
+		send(verbose, "hash became initial");
 
 	b.setAt(3, 3, B_EMPTY);
 	uint64_t thirdHash = b.getHash();
 
 	if (thirdHash)
-		printf("hash (%lx) did not reset\n", thirdHash);
+		send(verbose, "hash (%lx) did not reset", thirdHash);
 
 	// "connect()"
 	for(auto b : boards)
 		test_connect_play(stringToBoard(b.b), verbose);
 
-	for(int i=0; i<1000; i++) {
+	int ok = 0;
+	constexpr int n_to_do = 1024;
+
+	for(int i=0; i<n_to_do; i++) {
+		send(true, "# ===== test %d =====", i);
+
 		int dim = 9;
 		Board b(&z, dim);
 
+		// gen
 		std::uniform_int_distribution<> rng(0, dim * dim);
 		int n = rng(gen);
 
@@ -306,8 +314,20 @@ void test(const bool verbose)
 				b.setAt(x, y, rngcol(gen) ? B_BLACK : B_WHITE);
 		}
 
-		test_connect_play(b, verbose);
+		// purge chains with no liberties
+		std::vector<chain_t *> chainsWhite, chainsBlack;
+
+		ChainMap cm(b.getDim());
+		findChains(b, &chainsWhite, &chainsBlack, &cm);
+
+		purgeChainsWithoutLiberties(&b, chainsWhite);
+		purgeChainsWithoutLiberties(&b, chainsBlack);
+
+		// test
+		ok += test_connect_play(b, verbose);
 	}
 
-	printf("--- unittest end ---\n");
+	send(verbose, "%.1f%% ok (%d)", ok * 100. / n_to_do, ok);
+
+	send(verbose, "--- unittest end ---");
 }

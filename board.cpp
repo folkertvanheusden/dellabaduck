@@ -633,6 +633,16 @@ void connect(Board *const b, ChainMap *const cm, std::vector<chain_t *> *const c
 	}
 }
 
+void purgeChainsWithoutLiberties(Board *const b, const std::vector<chain_t *> & chains)
+{
+	for(auto chain : chains) {
+		if (chain->liberties.empty()) {
+			for(auto ve : chain->chain)
+				b->setAt(ve, B_EMPTY);
+		}
+	}
+}
+
 void play(Board *const b, const Vertex & v, const player_t & p)
 {
 	board_t stone_type = playerToStone(p);
@@ -647,12 +657,7 @@ void play(Board *const b, const Vertex & v, const player_t & p)
 
 	std::vector<chain_t *> & scan = p == P_BLACK ? chainsWhite : chainsBlack;
 
-	for(auto chain : scan) {
-		if (chain->liberties.empty()) {
-			for(auto ve : chain->chain)
-				b->setAt(ve, B_EMPTY);
-		}
-	}
+	purgeChainsWithoutLiberties(b, scan);
 
 	purgeChains(&chainsBlack);
 	purgeChains(&chainsWhite);
