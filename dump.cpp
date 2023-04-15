@@ -138,14 +138,14 @@ void dump(const ChainMap & cm)
 		for(int x=0; x<dim; x++) {
 			auto p = cm.getAt(y * dim + x);
 
-			if (p->type == B_BLACK)
-				line += 'B';
-			else if (p->type == B_WHITE)
-				line += 'W';
-			else if (p->type == B_EMPTY)
+			if (p == nullptr)
 				line += '.';
+			else if (p->type == B_BLACK)
+				line += 'x';
+			else if (p->type == B_WHITE)
+				line += 'o';
 			else
-				line += '?';
+				line += '!';
 		}
 
 		send(true, "%s", line.c_str());
