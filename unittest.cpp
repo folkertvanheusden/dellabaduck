@@ -12,6 +12,63 @@
 #include "vertex.h"
 
 
+void verifyChainsAndMap(const std::vector<chain_t *> & chainsW, const std::vector<chain_t *> & chainsB, const std::string & name, const ChainMap & cm, const bool verbose)
+{
+	bool ok = true;
+
+	for(auto chain : chainsW) {
+		for(auto & stone : chain->chain) {
+			if (cm.getAt(stone) != chain) {
+				auto p = cm.getAt(stone);
+				send(verbose, "# (%s) stone %s not in map. map: %s, chain: %s", name.c_str(), v2t(stone).c_str(), p ? board_t_name(p->type) : ".", board_t_name(chain->type));
+				ok = false;
+			}
+		}
+	}
+
+	for(auto chain : chainsB) {
+		for(auto & stone : chain->chain) {
+			if (cm.getAt(stone) != chain) {
+				auto p = cm.getAt(stone);
+				send(verbose, "# (%s) stone %s not in map. map: %s, chain: %s", name.c_str(), v2t(stone).c_str(), p ? board_t_name(p->type) : ".", board_t_name(chain->type));
+				ok = false;
+			}
+		}
+	}
+
+	const int dim = cm.getDim();
+
+	for(int y=0; y<dim; y++) {
+		for(int x=0; x<dim; x++) {
+			Vertex v(x, y, dim);
+
+			auto p = cm.getAt(v);
+			if (!p)
+				continue;
+
+			auto it = std::find(chainsW.begin(), chainsW.end(), p);
+			if (it == chainsW.end())
+				it = std::find(chainsB.begin(), chainsB.end(), p);
+
+			if (it == chainsB.end()) {
+				send(verbose, "# %s not in either chain", v2t(v).c_str());
+				ok = false;
+			}
+			else {
+				auto it2 = std::find((*it)->chain.begin(), (*it)->chain.end(), v);
+
+				if (it2 == (*it)->chain.end()) {
+					send(verbose, "# %s not in mapped chain", v2t(v).c_str());
+					ok = false;
+				}
+			}
+		}
+	}
+
+	if (ok)
+		send(verbose, "# verifyChainsAndMap ok for %s", name.c_str());
+}
+
 bool test_connect_play(const Board & b, const bool verbose)
 {
 	bool ok = true;
@@ -28,6 +85,8 @@ bool test_connect_play(const Board & b, const bool verbose)
 	ChainMap cm2(brd2.getDim());
 	findChains(brd2, &chainsWhite2, &chainsBlack2, &cm2);
 
+	verifyChainsAndMap(chainsWhite2, chainsBlack2, "2A", cm2, verbose);
+
 	std::vector<Vertex> liberties2W, liberties2B;
 	findLiberties(cm2, &liberties2W, B_WHITE);
 	findLiberties(cm2, &liberties2B, B_BLACK);
@@ -40,14 +99,21 @@ bool test_connect_play(const Board & b, const bool verbose)
 		ChainMap cm1(brd1.getDim());
 		findChains(brd1, &chainsWhite1, &chainsBlack1, &cm1);
 
+		verifyChainsAndMap(chainsWhite1, chainsBlack1, "1B", cm1, verbose);
+
 		std::vector<Vertex> liberties1W, liberties1B;
 		findLiberties(cm1, &liberties1W, B_WHITE);
 		findLiberties(cm1, &liberties1B, B_BLACK);
 
 		connect(&brd2, &cm2, &chainsWhite2, &chainsBlack2, &liberties2W, &liberties2B, playerToStone(P_BLACK), move.getX(), move.getY());
 
+		verifyChainsAndMap(chainsWhite2, chainsBlack2, "2B", cm2, verbose);
+
 		if (brd2.getHash() != brd1.getHash())
 			send(verbose, "boards mismatch"), ok = false;
+
+		if (brd1.getHash() == b   .getHash())
+			send(verbose, "boards did not change"), ok = false;
 
 		if (compareChainT(chainsWhite1, chainsWhite2) == false)
 			send(verbose, "chainsWhite mismatch"), ok = false;
@@ -304,6 +370,10 @@ void test(const bool verbose)
 	// "connect()"
 	for(auto b : boards)
 		test_connect_play(stringToBoard(b.b), verbose);
+
+	send(true, "# TEST TEST");
+	test_connect_play(Board(&z, "b..w..wb./ww.b..www/b....b.bw/........./..ww..w../w.b..ww.w/.w......./wwb.b.b../.b.b..b.b b 0"), verbose);
+	return;
 
 	int ok = 0;
 	constexpr int n_to_do = 1024;
