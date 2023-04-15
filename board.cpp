@@ -263,6 +263,9 @@ void findChains(const Board & b, std::vector<chain_t *> *const chainsWhite, std:
 {
 	const unsigned dim = b.getDim();
 
+	assert(chainsWhite->empty());
+	assert(chainsBlack->empty());
+
 	bool *scanned = new bool[dim * dim]();
 
 	for(unsigned y=0; y<dim; y++) {
@@ -625,12 +628,18 @@ void connect(Board *const b, ChainMap *const cm, std::vector<chain_t *> *const c
 	// remove chains without liberties
 	auto purgeChainSet = what == B_WHITE ? chainsBlack : chainsWhite;
 
+	for(auto & chain : toClean) {
+		if (chain->liberties.empty()) {
+			for(auto ve : chain->chain) {
+				b->setAt(ve, B_EMPTY);  // remove part of the chain
+				cm->setAt(ve, nullptr);
+			}
+		}
+	}
+
 	for(auto chain=toClean.begin(); chain!=toClean.end();) {
 		if ((*chain)->liberties.empty()) {
 			for(auto ve : (*chain)->chain) {
-				b->setAt(ve, B_EMPTY);  // remove part of the chain
-				cm->setAt(ve, nullptr);
-
 				if (checkLiberty(*cm, ve.getX(), ve.getY(), B_WHITE))
 					libertiesWhite->push_back(ve);
 
