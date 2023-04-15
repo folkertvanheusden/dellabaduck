@@ -17,9 +17,11 @@ bool verbose = false;
 
 void closeLog()
 {
-	fclose(fh);
+	if (fh) {
+		fclose(fh);
 
-	fh = nullptr;
+		fh = nullptr;
+	}
 }
 
 void startLog(const std::string & filename)
