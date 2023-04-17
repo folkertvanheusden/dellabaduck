@@ -543,10 +543,6 @@ void test(const bool verbose, const bool with_perft)
 	for(auto b : boards)
 		test_connect_play(stringToBoard(b.b), verbose);
 
-//	send(true, "# TEST TEST");
-	test_connect_play(Board(&z, "b..w..wb./ww.b..www/b....b.bw/........./..ww..w../w.b..ww.w/.w......./wwb.b.b../.b.b..b.b b 0"), verbose);
-//	return;
-
 	int ok = 0;
 	constexpr int n_to_do = 1024;
 
@@ -580,6 +576,9 @@ void test(const bool verbose, const bool with_perft)
 
 		purgeChainsWithoutLiberties(&b, chainsWhite);
 		purgeChainsWithoutLiberties(&b, chainsBlack);
+
+		purgeChains(&chainsWhite);
+		purgeChains(&chainsBlack);
 
 		// test
 		ok += test_connect_play(b, verbose);
