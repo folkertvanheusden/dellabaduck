@@ -11,6 +11,72 @@
 #include "score.h"
 #include "vertex.h"
 
+#if 0
+void checkLibertyPrint(const ChainMap & cm, const int x, const int y, const board_t for_whom)
+{
+	const int dim = cm.getDim();
+
+	if (x > 0)
+		printf("A %d\n", cm.getAt({ x - 1, y, dim }) == nullptr);
+
+	if (x < dim - 1)
+		printf("B %d\n", cm.getAt({ x + 1, y, dim }) == nullptr);
+
+	if (y > 0)
+		printf("C %d\n", cm.getAt({ x, y - 1, dim }) == nullptr);
+
+	if (y < dim - 1)
+		printf("D %d\n", cm.getAt({ x, y + 1, dim }) == nullptr);
+
+	if (x > 0) {
+		auto p = cm.getAt({ x - 1, y, dim });
+
+		printf("E %d\n", p != nullptr && p->type == for_whom && p->liberties.size() > 1);
+	}
+
+	if (x < dim - 1) {
+		auto p = cm.getAt({ x + 1, y, dim });
+
+		printf("F %d\n", p != nullptr && p->type == for_whom && p->liberties.size() > 1);
+	}
+
+	if (y > 0) {
+		auto p = cm.getAt({ x, y - 1, dim });
+
+		printf("G %d\n", p != nullptr && p->type == for_whom && p->liberties.size() > 1);
+	}
+
+	if (y < dim - 1) {
+		auto p = cm.getAt({ x, y + 1, dim });
+
+		printf("H %d\n", p != nullptr && p->type == for_whom && p->liberties.size() > 1);
+	}
+
+	if (x > 0) {
+		auto p = cm.getAt({ x - 1, y, dim });
+
+		printf("I %d\n", p != nullptr && p->type != for_whom && p->liberties.size() == 1);
+	}
+
+	if (x < dim - 1) {
+		auto p = cm.getAt({ x + 1, y, dim });
+
+		printf("J %d\n", p != nullptr && p->type != for_whom && p->liberties.size() == 1);
+	}
+
+	if (y > 0) {
+		auto p = cm.getAt({ x, y - 1, dim });
+
+		printf("K %d\n", p != nullptr && p->type != for_whom && p->liberties.size() == 1);
+	}
+
+	if (y < dim - 1) {
+		auto p = cm.getAt({ x, y + 1, dim });
+
+		printf("L %d\n", p != nullptr && p->type != for_whom && p->liberties.size() == 1);
+	}
+}
+#endif
 
 void verifyChainsAndMap(const std::vector<chain_t *> & chainsW, const std::vector<chain_t *> & chainsB, const std::string & name, const ChainMap & cm, const bool verbose)
 {
@@ -84,6 +150,14 @@ bool test_connect_play(const Board & b, const bool verbose)
 
 	ChainMap cm2(brd2.getDim());
 	findChains(brd2, &chainsWhite2, &chainsBlack2, &cm2);
+	// cm2 now contains state before move
+
+#if 0
+	printf("white 2\n");
+	checkLibertyPrint(cm2, 2, 0, B_WHITE);
+	printf("black 2\n");
+	checkLibertyPrint(cm2, 2, 0, B_BLACK);
+#endif
 
 	verifyChainsAndMap(chainsWhite2, chainsBlack2, "2A", cm2, verbose);
 
@@ -98,6 +172,14 @@ bool test_connect_play(const Board & b, const bool verbose)
 
 		ChainMap cm1(brd1.getDim());
 		findChains(brd1, &chainsWhite1, &chainsBlack1, &cm1);
+		// cm1 contains state after move
+
+#if 0
+		printf("white 1\n");
+		checkLibertyPrint(cm1, 2, 0, B_WHITE);
+		printf("black 1\n");
+		checkLibertyPrint(cm1, 2, 0, B_BLACK);
+#endif
 
 		verifyChainsAndMap(chainsWhite1, chainsBlack1, "1B", cm1, verbose);
 
@@ -106,6 +188,7 @@ bool test_connect_play(const Board & b, const bool verbose)
 		findLiberties(cm1, &liberties1B, B_BLACK);
 
 		connect(&brd2, &cm2, &chainsWhite2, &chainsBlack2, &liberties2W, &liberties2B, playerToStone(P_BLACK), move.getX(), move.getY());
+		// cm2 contains state after move
 
 		verifyChainsAndMap(chainsWhite2, chainsBlack2, "2B", cm2, verbose);
 
@@ -416,4 +499,73 @@ void test(const bool verbose)
 	send(verbose, "%.1f%% ok (%d)", ok * 100. / n_to_do, ok);
 
 	send(verbose, "--- unittest end ---");
+}
+
+uint64_t perft(const Board & b, std::set<uint64_t> *const seen, const player_t p, const int depth, const int pass, const int verbose, const bool top)
+{
+	if (depth == 0)
+		return 1;
+
+	if (pass >= 2)
+		return 0;
+
+	const int      dim        = b.getDim();
+
+	const int      new_depth  = depth - 1;
+	const player_t new_player = getOpponent(p);
+
+	uint64_t       total      = 0;
+
+	// find chains of stones
+	ChainMap cm(dim);
+	std::vector<chain_t *> chainsWhite, chainsBlack;
+	findChains(b, &chainsWhite, &chainsBlack, &cm);
+
+	// find the liberties -> the "moves"
+	std::vector<Vertex> liberties;
+	findLiberties(cm, &liberties, playerToStone(p));
+
+	purgeChains(&chainsBlack);
+	purgeChains(&chainsWhite);
+	
+	for(auto & cross : liberties) {
+		Board new_board(b);
+
+		play(&new_board, cross, p);
+
+		uint64_t hash = new_board.getHash();
+
+		if (seen->find(hash) == seen->end()) {
+			if (verbose == 2)
+				send(true, "%d %s %s %lx", depth, v2t(cross).c_str(), dumpToString(b, p, pass).c_str(), b.getHash());
+
+			seen->insert(hash);
+
+			uint64_t cur_count = perft(new_board, seen, new_player, new_depth, 0, verbose, false);
+
+			total += cur_count;
+
+			if (verbose == 1 && top)
+				send(true, "%s: %ld", v2t(cross).c_str(), cur_count);
+
+			seen->erase(hash);
+		}
+	}
+
+	if (pass < 2) {
+		uint64_t cur_count = perft(b, seen, new_player, new_depth, pass + 1, verbose, false);
+
+		total += cur_count;
+
+		if (verbose == 1 && top)
+			send(true, "pass: %ld", cur_count);
+	}
+
+	if (verbose == 2)
+		send(true, "%d pass %s %lx", depth, dumpToString(b, p, pass).c_str(), b.getHash());
+
+	if (verbose == 1 && top)
+		send(true, "total: %ld", total);
+
+	return total;
 }
