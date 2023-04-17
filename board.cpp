@@ -337,8 +337,11 @@ void findChains(const Board & b, std::vector<chain_t *> *const chainsWhite, std:
 
 bool checkLiberty(const ChainMap & cm, const int x, const int y, const board_t for_whom)
 {
-	bool      ok  = false;
-	const int dim = cm.getDim();
+	bool      ok    = false;
+	const int dim   = cm.getDim();
+	const int dimm1 = dim - 1;
+
+	std::vector<chain_t *> crosses;
 
 	if (x > 0) {
 		const auto p = cm.getAt({ x - 1, y, dim });
@@ -543,7 +546,7 @@ void connect(Board *const b, ChainMap *const cm, std::vector<chain_t *> *const c
 		// add to chain
 		toMerge.at(0)->chain.push_back(v);
 		// update board->chain map
-		cm->setAt(x, y, toMerge.at(0));
+		cm->setAt(v, toMerge.at(0));
 
 		// merge
 		auto cleanChainSet = what == B_WHITE ? chainsWhite : chainsBlack;
@@ -566,6 +569,9 @@ void connect(Board *const b, ChainMap *const cm, std::vector<chain_t *> *const c
 			for(auto & stone : workOn->chain)
 				cm->setAt(stone, workOn);
 		}
+
+		// remove liberty
+		toMerge.at(0)->liberties.erase(v);
 
 		// add any new liberties
 		pickEmptyAround(*cm, v, &toMerge.at(0)->liberties);
@@ -593,7 +599,8 @@ void connect(Board *const b, ChainMap *const cm, std::vector<chain_t *> *const c
 		pickEmptyAround(*cm, v, &curChain->liberties);
 	}
 
-	// find surrounding opponent chains
+	// find surrounding opponent chains of the current position to remove them
+	// if they're now dead
 	std::set<chain_t *> toClean;
 
 	if (y > 0 && cm->getAt(x, y - 1) && cm->getAt(x, y - 1)->type != what)
