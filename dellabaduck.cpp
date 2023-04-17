@@ -1217,8 +1217,9 @@ int main(int argc, char *argv[])
 
 			send(false, "=%s %s", id.c_str(), scoreStr(final_score).c_str());
 		}
-		else if (parts.at(0) == "unittest")
-			test(parts.size() == 2 ? parts.at(1) == "-v" : false);
+		else if (parts.at(0) == "unittest") {
+			test(std::find(parts.begin() + 1, parts.end(), "-v") != parts.end(), std::find(parts.begin() + 1, parts.end(), "-p") != parts.end());
+		}
 		else if (parts.at(0) == "loadsgf") {
 			delete b;
 			b = new Board(loadSgfFile(parts.at(1)));
