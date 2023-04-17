@@ -333,70 +333,48 @@ void findChains(const Board & b, std::vector<chain_t *> *const chainsWhite, std:
 
 bool checkLiberty(const ChainMap & cm, const int x, const int y, const board_t for_whom)
 {
-	bool      ok  = false;
-	const int dim = cm.getDim();
+	bool      ok    = false;
+	const int dim   = cm.getDim();
+	const int dimm1 = dim - 1;
+
+	std::vector<chain_t *> crosses;
 
 	if (x > 0)
-		ok |= cm.getAt({ x - 1, y, dim }) == nullptr;
+		crosses.push_back(cm.getAt({ x - 1, y, dim }));
 
-	if (x < dim - 1)
-		ok |= cm.getAt({ x + 1, y, dim }) == nullptr;
+	if (x < dimm1)
+		crosses.push_back(cm.getAt({ x + 1, y, dim }));
 
 	if (y > 0)
-		ok |= cm.getAt({ x, y - 1, dim }) == nullptr;
+		crosses.push_back(cm.getAt({ x, y - 1, dim }));
 
-	if (y < dim - 1)
-		ok |= cm.getAt({ x, y + 1, dim }) == nullptr;
+	if (y < dimm1)
+		crosses.push_back(cm.getAt({ x, y + 1, dim }));
 
-	if (ok == false) {
-		if (x > 0) {
-			auto p = cm.getAt({ x - 1, y, dim });
-
-			ok |= p != nullptr && p->type == for_whom && p->liberties.size() > 1;
-		}
-
-		if (x < dim - 1) {
-			auto p = cm.getAt({ x + 1, y, dim });
-
-			ok |= p != nullptr && p->type == for_whom && p->liberties.size() > 1;
-		}
-
-		if (y > 0) {
-			auto p = cm.getAt({ x, y - 1, dim });
-
-			ok |= p != nullptr && p->type == for_whom && p->liberties.size() > 1;
-		}
-
-		if (y < dim - 1) {
-			auto p = cm.getAt({ x, y + 1, dim });
-
-			ok |= p != nullptr && p->type == for_whom && p->liberties.size() > 1;
+	for(auto & c: crosses) {
+		if (c == nullptr) {
+			ok = true;
+			break;
 		}
 	}
 
-	if (ok == false) {
-		if (x > 0) {
-			auto p = cm.getAt({ x - 1, y, dim });
+	if (!ok) {
+		for(auto & c: crosses) {
+			ok = c != nullptr && c->type == for_whom && c->liberties.size() > 1;
 
-			ok |= p != nullptr && p->type != for_whom && p->liberties.size() == 1;
+			if (ok)
+				break;
 		}
 
-		if (x < dim - 1) {
-			auto p = cm.getAt({ x + 1, y, dim });
+		if (!ok) {
+			Vertex target(x, y, dim);
 
-			ok |= p != nullptr && p->type != for_whom && p->liberties.size() == 1;
-		}
-
-		if (y > 0) {
-			auto p = cm.getAt({ x, y - 1, dim });
-
-			ok |= p != nullptr && p->type != for_whom && p->liberties.size() == 1;
-		}
-
-		if (y < dim - 1) {
-			auto p = cm.getAt({ x, y + 1, dim });
-
-			ok |= p != nullptr && p->type != for_whom && p->liberties.size() == 1;
+			for(auto & c: crosses) {
+				if (c && c->type != for_whom) {
+					ok = (c->liberties.size() > 1 ||
+					      (c->liberties.size() == 1 && *c->liberties.begin() == target));
+				}
+			}
 		}
 	}
 
@@ -562,7 +540,7 @@ void connect(Board *const b, ChainMap *const cm, std::vector<chain_t *> *const c
 		// add to chain
 		toMerge.at(0)->chain.push_back(v);
 		// update board->chain map
-		cm->setAt(x, y, toMerge.at(0));
+		cm->setAt(v, toMerge.at(0));
 
 		// merge
 		auto cleanChainSet = what == B_WHITE ? chainsWhite : chainsBlack;
@@ -586,6 +564,9 @@ void connect(Board *const b, ChainMap *const cm, std::vector<chain_t *> *const c
 				cm->setAt(stone, workOn);
 		}
 
+		// remove liberty
+		toMerge.at(0)->liberties.erase(v);
+
 		// add any new liberties
 		pickEmptyAround(*cm, v, &toMerge.at(0)->liberties);
 	}
@@ -593,7 +574,7 @@ void connect(Board *const b, ChainMap *const cm, std::vector<chain_t *> *const c
 		// this is a new chain
 		chain_t *curChain = new chain_t;
 		curChain->type = what;
-		curChain->chain.push_back({ x, y, dim });
+		curChain->chain.push_back(v);
 
 		if (what == B_WHITE)
 			chainsWhite->push_back(curChain);
@@ -607,10 +588,11 @@ void connect(Board *const b, ChainMap *const cm, std::vector<chain_t *> *const c
 		cm->setAt(x, y, curChain);
 
 		// find any liberties around it
-		pickEmptyAround(*cm, Vertex(x, y, dim), &curChain->liberties);
+		pickEmptyAround(*cm, v, &curChain->liberties);
 	}
 
-	// find surrounding opponent chains
+	// find surrounding opponent chains of the current position to remove them
+	// if they're now dead
 	std::set<chain_t *> toClean;
 
 	if (y > 0 && cm->getAt(x, y - 1) && cm->getAt(x, y - 1)->type != what)
