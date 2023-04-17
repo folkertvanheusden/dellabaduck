@@ -256,7 +256,96 @@ bool test_connect_play(const Board & b, const bool verbose)
 	return ok;
 }
 
-void test(const bool verbose)
+uint64_t perft(const Board & b, std::set<uint64_t> *const seen, const player_t p, const int depth, const int pass, const int verbose, const bool top)
+{
+	if (depth == 0)
+		return 1;
+
+	if (pass >= 2)
+		return 0;
+
+	const int      dim        = b.getDim();
+
+	const int      new_depth  = depth - 1;
+	const player_t new_player = getOpponent(p);
+
+	uint64_t       total      = 0;
+
+	// find chains of stones
+	ChainMap cm(dim);
+	std::vector<chain_t *> chainsWhite, chainsBlack;
+	findChains(b, &chainsWhite, &chainsBlack, &cm);
+
+	// find the liberties -> the "moves"
+	std::vector<Vertex> liberties;
+	findLiberties(cm, &liberties, playerToStone(p));
+
+	purgeChains(&chainsBlack);
+	purgeChains(&chainsWhite);
+	
+	for(auto & cross : liberties) {
+		Board new_board(b);
+
+		play(&new_board, cross, p);
+
+		uint64_t hash = new_board.getHash();
+
+		if (seen->find(hash) == seen->end()) {
+			if (verbose == 2)
+				send(true, "%d %s %s %lx", depth, v2t(cross).c_str(), dumpToString(b, p, pass).c_str(), b.getHash());
+
+			seen->insert(hash);
+
+			uint64_t cur_count = perft(new_board, seen, new_player, new_depth, 0, verbose, false);
+
+			total += cur_count;
+
+			if (verbose == 1 && top)
+				send(true, "%s: %ld", v2t(cross).c_str(), cur_count);
+
+			seen->erase(hash);
+		}
+	}
+
+	if (pass < 2) {
+		uint64_t cur_count = perft(b, seen, new_player, new_depth, pass + 1, verbose, false);
+
+		total += cur_count;
+
+		if (verbose == 1 && top)
+			send(true, "pass: %ld", cur_count);
+	}
+
+	if (verbose == 2)
+		send(true, "%d pass %s %lx", depth, dumpToString(b, p, pass).c_str(), b.getHash());
+
+	if (verbose == 1 && top)
+		send(true, "total: %ld", total);
+
+	return total;
+}
+
+void test_perft(const bool verbose, const int dim, const uint64_t *const counts, const size_t n_counts)
+{
+	send(verbose, "# perft: %zu for %d", n_counts, dim);
+
+	Zobrist z(dim);
+
+	Board b(&z, dim);
+
+	for(size_t i=0; i<n_counts; i++) {
+		std::set<uint64_t> seen;
+
+		send(verbose, "# testing depth %zu for %d", i + 1, dim);
+
+		uint64_t count = perft(b, &seen, P_BLACK, i + 1, false, verbose, true);
+
+		if (counts[i] != count)
+			send(verbose, "# FAIL depth %zu for %d: expecting %lu, got %lu\n", i + 1, dim, counts[i], count);
+	}
+}
+
+void test(const bool verbose, const bool with_perft)
 {
 	struct test_data {
 		std::string b;
@@ -365,7 +454,7 @@ void test(const bool verbose)
 			printf("%s %f\n", dumpToSgf(brd, komi, true).c_str(), test_score);
 
 		if (test_score != b.score)
-			send(verbose, "expected score: %f, current: %f", b.score, test_score), ok = false;
+			send(verbose, "FAIL expected score: %f, current: %f", b.score, test_score), ok = false;
 
 		ChainMap cm(brd.getDim());
 		std::vector<chain_t *> chainsWhite, chainsBlack;
@@ -374,37 +463,37 @@ void test(const bool verbose)
 		scanEnclosed(brd, &cm, playerToStone(P_WHITE));
 
 		if (b.white_chains.size() != chainsWhite.size())
-			send(verbose, "white: number of chains mismatch"), ok = false;
+			send(verbose, "FAIL white: number of chains mismatch"), ok = false;
 
 		if (b.black_chains.size() != chainsBlack.size())
-			send(verbose, "black: number of chains mismatch"), ok = false;
+			send(verbose, "FAIL black: number of chains mismatch"), ok = false;
 
 		for(auto ch : b.white_chains) {
 			auto white_stones = stringToChain(ch.first, brd.getDim());
 
 			if (findChain(chainsWhite, white_stones) == false)
-				send(verbose, "white stones mismatch"), ok = false;
+				send(verbose, "FAIL white stones mismatch"), ok = false;
 		}
 
 		for(auto ch : b.white_chains) {
 			auto white_liberties = stringToChain(ch.second, brd.getDim());
 
 			if (findChain(chainsWhite, white_liberties) == false)
-				send(verbose, "white liberties mismatch for %s", ch.second.c_str()), ok = false;
+				send(verbose, "FAIL white liberties mismatch for %s", ch.second.c_str()), ok = false;
 		}
 
 		for(auto ch : b.black_chains) {
 			auto black_stones = stringToChain(ch.first, brd.getDim());
 
 			if (findChain(chainsBlack, black_stones) == false)
-				send(verbose, "black stones mismatch"), ok = false;
+				send(verbose, "FAIL black stones mismatch"), ok = false;
 		}
 
 		for(auto ch : b.black_chains) {
 			auto black_liberties = stringToChain(ch.second, brd.getDim());
 
 			if (findChain(chainsBlack, black_liberties) == false)
-				send(verbose, "black liberties mismatch for %s", ch.second.c_str()), ok = false;
+				send(verbose, "FAIL black liberties mismatch for %s", ch.second.c_str()), ok = false;
 		}
 
 		if (!ok) {
@@ -427,36 +516,36 @@ void test(const bool verbose)
 
 	uint64_t startHash = b.getHash();
 	if (startHash)
-		send(verbose, "initial hash (%lx) invalid", startHash);
+		send(verbose, "FAIL initial hash (%lx) invalid", startHash);
 
 	b.setAt(3, 3, B_BLACK);
 	uint64_t firstHash = b.getHash();
 
 	if (firstHash == 0)
-		send(verbose, "hash did not change");
+		send(verbose, "FAIL hash did not change");
 
 	b.setAt(3, 3, B_WHITE);
 	uint64_t secondHash = b.getHash();
 
 	if (secondHash == firstHash)
-		send(verbose, "hash (%lx) did not change for type", secondHash);
+		send(verbose, "FAIL hash (%lx) did not change for type", secondHash);
 
 	if (secondHash == 0)
-		send(verbose, "hash became initial");
+		send(verbose, "FAIL hash became initial");
 
 	b.setAt(3, 3, B_EMPTY);
 	uint64_t thirdHash = b.getHash();
 
 	if (thirdHash)
-		send(verbose, "hash (%lx) did not reset", thirdHash);
+		send(verbose, "FAIL hash (%lx) did not reset", thirdHash);
 
 	// "connect()"
 	for(auto b : boards)
 		test_connect_play(stringToBoard(b.b), verbose);
 
-	send(true, "# TEST TEST");
+//	send(true, "# TEST TEST");
 	test_connect_play(Board(&z, "b..w..wb./ww.b..www/b....b.bw/........./..ww..w../w.b..ww.w/.w......./wwb.b.b../.b.b..b.b b 0"), verbose);
-	return;
+//	return;
 
 	int ok = 0;
 	constexpr int n_to_do = 1024;
@@ -498,74 +587,17 @@ void test(const bool verbose)
 
 	send(verbose, "%.1f%% ok (%d)", ok * 100. / n_to_do, ok);
 
+	if (with_perft) {
+		constexpr uint64_t b3x3[] = { 10, 91, 738, 5281, 33384, 179712, 842696, 3271208 };
+		constexpr size_t n_b3x3 = sizeof(b3x3) / sizeof(b3x3[0]);
+
+		test_perft(verbose, 3, b3x3, n_b3x3);
+
+		constexpr uint64_t b5x5[] = { 26, 651, 15650, 361041, 7984104 };
+		constexpr size_t n_b5x5 = sizeof(b5x5) / sizeof(b5x5[0]);
+
+		test_perft(verbose, 5, b5x5, n_b5x5);
+	}
+
 	send(verbose, "--- unittest end ---");
-}
-
-uint64_t perft(const Board & b, std::set<uint64_t> *const seen, const player_t p, const int depth, const int pass, const int verbose, const bool top)
-{
-	if (depth == 0)
-		return 1;
-
-	if (pass >= 2)
-		return 0;
-
-	const int      dim        = b.getDim();
-
-	const int      new_depth  = depth - 1;
-	const player_t new_player = getOpponent(p);
-
-	uint64_t       total      = 0;
-
-	// find chains of stones
-	ChainMap cm(dim);
-	std::vector<chain_t *> chainsWhite, chainsBlack;
-	findChains(b, &chainsWhite, &chainsBlack, &cm);
-
-	// find the liberties -> the "moves"
-	std::vector<Vertex> liberties;
-	findLiberties(cm, &liberties, playerToStone(p));
-
-	purgeChains(&chainsBlack);
-	purgeChains(&chainsWhite);
-	
-	for(auto & cross : liberties) {
-		Board new_board(b);
-
-		play(&new_board, cross, p);
-
-		uint64_t hash = new_board.getHash();
-
-		if (seen->find(hash) == seen->end()) {
-			if (verbose == 2)
-				send(true, "%d %s %s %lx", depth, v2t(cross).c_str(), dumpToString(b, p, pass).c_str(), b.getHash());
-
-			seen->insert(hash);
-
-			uint64_t cur_count = perft(new_board, seen, new_player, new_depth, 0, verbose, false);
-
-			total += cur_count;
-
-			if (verbose == 1 && top)
-				send(true, "%s: %ld", v2t(cross).c_str(), cur_count);
-
-			seen->erase(hash);
-		}
-	}
-
-	if (pass < 2) {
-		uint64_t cur_count = perft(b, seen, new_player, new_depth, pass + 1, verbose, false);
-
-		total += cur_count;
-
-		if (verbose == 1 && top)
-			send(true, "pass: %ld", cur_count);
-	}
-
-	if (verbose == 2)
-		send(true, "%d pass %s %lx", depth, dumpToString(b, p, pass).c_str(), b.getHash());
-
-	if (verbose == 1 && top)
-		send(true, "total: %ld", total);
-
-	return total;
 }
