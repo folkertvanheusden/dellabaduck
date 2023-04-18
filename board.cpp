@@ -528,6 +528,7 @@ void connect(Board *const b, ChainMap *const cm, std::vector<chain_t *> *const c
 		toMerge.push_back(chain);
 
 	// first remove this cross (where the new stone is placed) of all chain-liberties
+	// TODO alleen de aangrenzenden, via cm
 	for(auto & chain : *chainsWhite)
 		chain->liberties.erase(v);
 
@@ -562,9 +563,6 @@ void connect(Board *const b, ChainMap *const cm, std::vector<chain_t *> *const c
 			for(auto & stone : workOn->chain)
 				cm->setAt(stone, workOn);
 		}
-
-		// remove liberty
-		toMerge.at(0)->liberties.erase(v);
 
 		// add any new liberties
 		pickEmptyAround(*cm, v, &toMerge.at(0)->liberties);
