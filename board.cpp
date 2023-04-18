@@ -485,7 +485,7 @@ void connect(Board *const b, ChainMap *const cm, std::vector<chain_t *> *const c
 
 	Vertex v(x, y, dim);
 
-	// update liberties
+	// update global liberties
 	eraseLiberty(libertiesWhite, v);
 
 	eraseLiberty(libertiesBlack, v);
@@ -578,75 +578,65 @@ void connect(Board *const b, ChainMap *const cm, std::vector<chain_t *> *const c
 	for(auto & v : adjacent) {
 		auto p = cm->getAt(v);
 
-		if (p && p->type != what) {
+		if (p) {
 			p->liberties.erase(v);
 
-			toClean.insert(p);
+			if (p->liberties.empty())
+				toClean.insert(p);
 		}
 	}
 
 	// - remove chains without liberties
 	// - find the chains that will receive the new liberties from the previous step
-	// - also update the liberties-vectors
-        auto purgeChainSet = what == B_WHITE ? chainsBlack : chainsWhite;
+        for(auto chain : toClean) {
+		for(auto ve : chain->chain) {
+			b->setAt(ve, B_EMPTY);
 
-	bool rescanLiberties = false;
+			cm->setAt(ve, nullptr);
 
-        for(auto chain=toClean.begin(); chain!=toClean.end();) {
-                if ((*chain)->liberties.empty()) {
-			rescanLiberties = true;
+			const int x = ve.getX();
+			const int y = ve.getY();
 
-                        for(auto ve : (*chain)->chain) {
-				b->setAt(ve, B_EMPTY);
-
-				cm->setAt(ve, nullptr);
-
-				const int x = ve.getX();
-				const int y = ve.getY();
-
-				if (x) {
-					auto p = cm->getAt(x - 1, y);
-					if (p)
-						p->liberties.insert(ve);
-				}
-
-				if (x < dimm1) {
-					auto p = cm->getAt(x + 1, y);
-					if (p)
-						p->liberties.insert(ve);
-				}
-
-				if (y) {
-					auto p = cm->getAt(x, y - 1);
-					if (p)
-						p->liberties.insert(ve);
-				}
-
-				if (y < dimm1) {
-					auto p = cm->getAt(x, y + 1);
-					if (p)
-						p->liberties.insert(ve);
-				}
+			if (x) {
+				auto p = cm->getAt(x - 1, y);
+				if (p)
+					p->liberties.insert(ve);
 			}
 
-                        delete *chain;
+			if (x < dimm1) {
+				auto p = cm->getAt(x + 1, y);
+				if (p)
+					p->liberties.insert(ve);
+			}
 
-                        purgeChainSet->erase(std::find(purgeChainSet->begin(), purgeChainSet->end(), *chain));
+			if (y) {
+				auto p = cm->getAt(x, y - 1);
+				if (p)
+					p->liberties.insert(ve);
+			}
 
-                        chain = toClean.erase(chain);
-                }
-                else {
-                        chain++;
-                }
+			if (y < dimm1) {
+				auto p = cm->getAt(x, y + 1);
+				if (p)
+					p->liberties.insert(ve);
+			}
+		}
+
+		if (chain->type == B_WHITE)
+			chainsWhite->erase(std::find(chainsWhite->begin(), chainsWhite->end(), chain));
+		else
+			chainsBlack->erase(std::find(chainsBlack->begin(), chainsBlack->end(), chain));
+
+		delete chain;
 	}
 
-//	if (rescanLiberties) {
+	if (toClean.empty() == false) {
 		libertiesWhite->clear();
 		findLiberties(*cm, libertiesWhite, B_WHITE);
 
 		libertiesBlack->clear();
 		findLiberties(*cm, libertiesBlack, B_BLACK);
-//	}
+	}
 }
 
 void purgeChainsWithoutLiberties(Board *const b, const std::vector<chain_t *> & chains)
