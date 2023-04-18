@@ -233,15 +233,15 @@ bool test_connect_play(const Board & b, const bool verbose)
 
 			send(true, " * liberties black");
 			send(true, "# play(1)");
-			dump(liberties1B);
+			dump(liberties1B, true);
 			send(true, "# connect(2)");
-			dump(liberties2B);
+			dump(liberties2B, true);
 
 			send(true, " * liberties white");
 			send(true, "# play(1)");
-			dump(liberties1W);
+			dump(liberties1W, true);
 			send(true, "# connect(2)");
-			dump(liberties2W);
+			dump(liberties2W, true);
 
 			send(true, "---");
 		}
