@@ -515,33 +515,38 @@ void connect(Board *const b, ChainMap *const cm, std::vector<chain_t *> *const c
 
 	eraseLiberty(libertiesBlack, v);
 
+	// determine the adjacent fields
+	std::vector<Vertex> adjacent;
+	if (y > 0)
+		adjacent.push_back({ x, y - 1, dim });
+
+	if (y < dimm1)
+		adjacent.push_back({ x, y + 1, dim });
+
+	if (x > 0)
+		adjacent.push_back({ x - 1, y, dim });
+
+	if (x < dimm1)
+		adjacent.push_back({ x + 1, y, dim });
+
 	// find chains to merge
+	// also remove the cross underneath the new stone of all 'our' chain-liberties
 	std::set<chain_t *> toMergeTemp;
 
-	if (y > 0 && cm->getAt(x, y - 1) && cm->getAt(x, y - 1)->type == what)
-		toMergeTemp.insert(cm->getAt(x, y - 1));
+	for(auto & v : adjacent) {
+		auto p = cm->getAt(v);
 
-	if (y < dimm1 && cm->getAt(x, y + 1) && cm->getAt(x, y + 1)->type == what)
-		toMergeTemp.insert(cm->getAt(x, y + 1));
+		if (p && p->type == what) {
+			p->liberties.erase(v);
 
-	if (x > 0 && cm->getAt(x - 1, y) && cm->getAt(x - 1, y)->type == what)
-		toMergeTemp.insert(cm->getAt(x - 1, y));
-
-	if (x < dimm1 && cm->getAt(x + 1, y) && cm->getAt(x + 1, y)->type == what)
-		toMergeTemp.insert(cm->getAt(x + 1, y));
+			toMergeTemp.insert(p);
+		}
+	}
 
 	// first in a set ^ to make sure no duplicates are in the vector
 	std::vector<chain_t *> toMerge;
 	for(auto & chain : toMergeTemp)
 		toMerge.push_back(chain);
-
-	// first remove this cross (where the new stone is placed) of all chain-liberties
-	// TODO alleen de aangrenzenden, via cm
-	for(auto & chain : *chainsWhite)
-		chain->liberties.erase(v);
-
-	for(auto & chain : *chainsBlack)
-		chain->liberties.erase(v);
 
 	// add new piece to (existing) first chain (of the set of chains found to be merged)
 	if (toMerge.empty() == false) {
@@ -587,13 +592,10 @@ void connect(Board *const b, ChainMap *const cm, std::vector<chain_t *> *const c
 			chainsWhite->push_back(curChain);
 		else // if (what == B_BLACK)
 			chainsBlack->push_back(curChain);
-<<<<<<< HEAD
 		else {
 			send(false, "# INTERNAL ERROR: %d is not valid for a stone type (1)", what);
 			exit(1);
 		}
-=======
->>>>>>> 7500736 (perform a full liberty rescan when a chain has been purged)
 
 		cm->setAt(v, curChain);
 
@@ -605,17 +607,15 @@ void connect(Board *const b, ChainMap *const cm, std::vector<chain_t *> *const c
 	// if they're now dead
 	std::set<chain_t *> toClean;
 
-	if (y > 0 && cm->getAt(x, y - 1) && cm->getAt(x, y - 1)->type != what)
-		toClean.insert(cm->getAt(x, y - 1));
+	for(auto & v : adjacent) {
+		auto p = cm->getAt(v);
 
-	if (y < dimm1 && cm->getAt(x, y + 1) && cm->getAt(x, y + 1)->type != what)
-		toClean.insert(cm->getAt(x, y + 1));
+		if (p && p->type != what) {
+			p->liberties.erase(v);
 
-	if (x > 0 && cm->getAt(x - 1, y) && cm->getAt(x - 1, y)->type != what)
-		toClean.insert(cm->getAt(x - 1, y));
-
-	if (x < dimm1 && cm->getAt(x + 1, y) && cm->getAt(x + 1, y)->type != what)
-		toClean.insert(cm->getAt(x + 1, y));
+			toClean.insert(p);
+		}
+	}
 
 	// - remove chains without liberties
 	// - find the chains that will receive the new liberties from the previous step
@@ -672,13 +672,13 @@ void connect(Board *const b, ChainMap *const cm, std::vector<chain_t *> *const c
                 }
 	}
 
-	if (rescanLiberties) {
+//	if (rescanLiberties) {
 		libertiesWhite->clear();
 		findLiberties(*cm, libertiesWhite, B_WHITE);
 
 		libertiesBlack->clear();
 		findLiberties(*cm, libertiesBlack, B_BLACK);
-	}
+//	}
 }
 
 void purgeChainsWithoutLiberties(Board *const b, const std::vector<chain_t *> & chains)
