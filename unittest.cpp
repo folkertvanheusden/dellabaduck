@@ -1,4 +1,5 @@
 #include <assert.h>
+#include <limits.h>
 #include <random>
 #include <stdio.h>
 #include <vector>
@@ -78,7 +79,7 @@ void checkLibertyPrint(const ChainMap & cm, const int x, const int y, const boar
 }
 #endif
 
-void verifyChainsAndMap(const std::vector<chain_t *> & chainsW, const std::vector<chain_t *> & chainsB, const std::string & name, const ChainMap & cm, const bool verbose)
+bool verifyChainsAndMap(const std::vector<chain_t *> & chainsW, const std::vector<chain_t *> & chainsB, const std::string & name, const ChainMap & cm, const bool verbose)
 {
 	bool ok = true;
 
@@ -131,8 +132,7 @@ void verifyChainsAndMap(const std::vector<chain_t *> & chainsW, const std::vecto
 		}
 	}
 
-	if (ok)
-		send(verbose, "# verifyChainsAndMap ok for %s", name.c_str());
+	return ok;
 }
 
 bool test_connect_play(const Board & b, const bool verbose)
@@ -159,7 +159,8 @@ bool test_connect_play(const Board & b, const bool verbose)
 	checkLibertyPrint(cm2, 2, 0, B_BLACK);
 #endif
 
-	verifyChainsAndMap(chainsWhite2, chainsBlack2, "2A", cm2, verbose);
+	if (!verifyChainsAndMap(chainsWhite2, chainsBlack2, "2A", cm2, verbose))
+		ok = false;
 
 	std::vector<Vertex> liberties2W, liberties2B;
 	findLiberties(cm2, &liberties2W, B_WHITE);
@@ -181,7 +182,8 @@ bool test_connect_play(const Board & b, const bool verbose)
 		checkLibertyPrint(cm1, 2, 0, B_BLACK);
 #endif
 
-		verifyChainsAndMap(chainsWhite1, chainsBlack1, "1B", cm1, verbose);
+		if (!verifyChainsAndMap(chainsWhite1, chainsBlack1, "1B", cm1, verbose))
+			ok = false;
 
 		std::vector<Vertex> liberties1W, liberties1B;
 		findLiberties(cm1, &liberties1W, B_WHITE);
@@ -190,7 +192,8 @@ bool test_connect_play(const Board & b, const bool verbose)
 		connect(&brd2, &cm2, &chainsWhite2, &chainsBlack2, &liberties2W, &liberties2B, playerToStone(P_BLACK), move.getX(), move.getY());
 		// cm2 contains state after move
 
-		verifyChainsAndMap(chainsWhite2, chainsBlack2, "2B", cm2, verbose);
+		if (!verifyChainsAndMap(chainsWhite2, chainsBlack2, "2B", cm2, verbose))
+			ok = false;
 
 		if (brd2.getHash() != brd1.getHash())
 			send(verbose, "boards mismatch"), ok = false;
@@ -224,11 +227,15 @@ bool test_connect_play(const Board & b, const bool verbose)
 			dump(brd2);
 
 			send(true, " * chains black");
+			send(true, " * black: play");
 			dump(chainsBlack1);
+			send(true, " * black: connect");
 			dump(chainsBlack2);
 
 			send(true, " * chains white");
+			send(true, " * white: play");
 			dump(chainsWhite1);
+			send(true, " * white: connect");
 			dump(chainsWhite2);
 
 			send(true, " * liberties black");
@@ -347,6 +354,17 @@ void test_perft(const bool verbose, const int dim, const uint64_t *const counts,
 
 void test(const bool verbose, const bool with_perft)
 {
+#if 1
+	{
+		int dim = 5;
+		Zobrist z(dim);
+		Board b(&z, "...../...../...../wb.../.w... b 0");
+
+		printf("%d\n", test_connect_play(b, true));
+
+		return;
+	}
+#endif
 	struct test_data {
 		std::string b;
 		int         dim;
@@ -544,7 +562,8 @@ void test(const bool verbose, const bool with_perft)
 		test_connect_play(stringToBoard(b.b), verbose);
 
 	int ok = 0;
-	constexpr int n_to_do = 1024;
+	constexpr int n_to_do = 100000;
+	int smallest_n_stones = INT_MAX;
 
 	for(int i=0; i<n_to_do; i++) {
 		send(true, "# ===== test %d =====", i);
@@ -581,10 +600,18 @@ void test(const bool verbose, const bool with_perft)
 		purgeChains(&chainsBlack);
 
 		// test
-		ok += test_connect_play(b, verbose);
+		bool cur_ok = test_connect_play(b, verbose);
+
+		ok += cur_ok;
+
+		if (!cur_ok && n < smallest_n_stones) {
+			smallest_n_stones = n;
+
+			send(true, "# ---- test %d failed with %d stones ----", i, n);
+		}
 	}
 
-	send(verbose, "%.1f%% ok (%d)", ok * 100. / n_to_do, ok);
+	send(verbose, "%.1f%% ok (%d), min # stones: %d", ok * 100. / n_to_do, ok, smallest_n_stones);
 
 	if (with_perft) {
 		constexpr uint64_t b3x3[] = { 10, 91, 738, 5281, 33384, 179712, 842696, 3271208 };
