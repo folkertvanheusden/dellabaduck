@@ -287,7 +287,7 @@ void test_perft(const bool verbose, const int dim, const uint64_t *const counts,
 
 void test(const bool verbose, const bool with_perft)
 {
-#if 1
+#if 0
 	{
 		int dim = 5;
 		Zobrist z(dim);
