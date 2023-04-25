@@ -1,5 +1,6 @@
 #include <set>
 #include <string>
+#include <unordered_set>
 #include <vector>
 
 #include "board.h"
@@ -19,6 +20,16 @@ void dump(const std::set<Vertex> & set)
 
 	std::string line = "# ";
 	for(auto v : set)
+		line += myformat("%s ", v2t(v).c_str());
+	send(true, line.c_str());
+}
+
+void dump(const std::unordered_set<Vertex, Vertex::HashFunction> & uset)
+{
+	send(true, "# Vertex set");
+
+	std::string line = "# ";
+	for(auto v : uset)
 		line += myformat("%s ", v2t(v).c_str());
 	send(true, line.c_str());
 }
