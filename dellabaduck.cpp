@@ -300,7 +300,7 @@ void selectAlphaBeta(const Board & b, const ChainMap & cm, const std::vector<cha
 	std::vector<int> places_for_sort;
 
 	for(auto & v : liberties)
-		places_for_sort.push_back(v.getV()), n_work++;
+		places_for_sort.emplace_back(v.getV()), n_work++;
 
 	std::sort(places_for_sort.begin(), places_for_sort.end(), CompareCrossesSortHelper(b, p));
 
