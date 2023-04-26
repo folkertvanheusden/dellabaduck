@@ -312,7 +312,7 @@ void findChains(const Board & b, std::vector<chain_t *> *const chainsWhite, std:
 
 					cm->setAt(x, y, curChain);
 
-					curChain->chain.push_back({ int(x), int(y), int(dim) });
+					curChain->chain.emplace_back(int(x), int(y), int(dim));
 
 					findChainsScan(&work_queue, b, x, y, 0, -1, cur_bv, scanned);
 					findChainsScan(&work_queue, b, x, y, 0, +1, cur_bv, scanned);
@@ -326,9 +326,9 @@ void findChains(const Board & b, std::vector<chain_t *> *const chainsWhite, std:
 				pickEmptyAround(b, stone, &curChain->liberties);
 
 			if (curChain->type == B_WHITE)
-				chainsWhite->push_back(curChain);
+				chainsWhite->emplace_back(curChain);
 			else if (curChain->type == B_BLACK)
-				chainsBlack->push_back(curChain);
+				chainsBlack->emplace_back(curChain);
 			else {
 				send(false, "# INTERNAL ERROR: %d is not valid for a stone type (2)", curChain->type);
 				char *p = nullptr;
@@ -560,14 +560,14 @@ void connect(Board *const b, ChainMap *const cm, std::vector<chain_t *> *const c
 
 	std::vector<chain_t *> toMerge;
 	for(auto & chain : toMergeTemp)
-		toMerge.push_back(chain);
+		toMerge.emplace_back(chain);
 
 	bool rescanGlobalLiberties = false;
 
 	// add new piece to (existing) first chain (of the set of chains found to be merged)
 	if (toMerge.empty() == false) {
 		// add to chain
-		toMerge.at(0)->chain.push_back(v);
+		toMerge.at(0)->chain.emplace_back(v);
 		// update board->chain map
 		cm->setAt(v, toMerge.at(0));
 
@@ -602,16 +602,12 @@ void connect(Board *const b, ChainMap *const cm, std::vector<chain_t *> *const c
 		// this is a new chain
 		chain_t *curChain = new chain_t;
 		curChain->type = what;
-		curChain->chain.push_back(v);
+		curChain->chain.emplace_back(v);
 
 		if (what == B_WHITE)
-			chainsWhite->push_back(curChain);
+			chainsWhite->emplace_back(curChain);
 		else // if (what == B_BLACK)
-			chainsBlack->push_back(curChain);
-		else {
-			send(false, "# INTERNAL ERROR: %d is not valid for a stone type (1)", what);
-			exit(1);
-		}
+			chainsBlack->emplace_back(curChain);
 
 		cm->setAt(v, curChain);
 
