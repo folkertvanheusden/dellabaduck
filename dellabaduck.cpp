@@ -467,12 +467,6 @@ std::tuple<double, double, int> playout(const Board & in, const double komi, pla
 	std::vector<chain_t *> chainsWhite, chainsBlack;
 	findChains(b, &chainsWhite, &chainsBlack, &cm);
 
-	std::set<Vertex> libertiesWhite;
-	findLiberties(cm, &libertiesWhite, B_WHITE);
-
-	std::set<Vertex> libertiesBlack;
-	findLiberties(cm, &libertiesBlack, B_BLACK);
-
 	std::unordered_set<uint64_t> seen;
 	seen.insert(b.getHash());
 
@@ -481,7 +475,8 @@ std::tuple<double, double, int> playout(const Board & in, const double komi, pla
 	bool pass[2] { false };
 
 	while(++mc < dim * dim * dim) {
-		auto & liberties = p == P_BLACK ? libertiesBlack : libertiesWhite;
+		std::set<Vertex> liberties;
+		findLiberties(cm, &liberties, playerToStone(p));
 
 		// no valid liberties? return "pass".
 		if (liberties.empty()) {
@@ -513,11 +508,11 @@ std::tuple<double, double, int> playout(const Board & in, const double komi, pla
 			const int x = it->getX();
 			const int y = it->getY();
 
-			connect(&b, &cm, &chainsWhite, &chainsBlack, &libertiesWhite, &libertiesBlack, playerToStone(p), x, y);
+			connect(&b, &cm, &chainsWhite, &chainsBlack, playerToStone(p), x, y);
 
 			uint64_t new_hash = b.getHash();
 
-			if (seen.insert(new_hash).second == false)
+			if (seen.insert(new_hash).second == false)  // terminate loop if already in the set
 				break;
 		}
 
