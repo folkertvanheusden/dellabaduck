@@ -22,3 +22,4 @@ bool findChain(const std::vector<chain_t *> & chains, const std::vector<Vertex> 
 bool findChain(const std::vector<chain_t *> & chains, const std::unordered_set<Vertex, Vertex::HashFunction> & search_for);
 bool findChain(const std::vector<chain_t *> & chains, const std::set<Vertex> & search_for);
 bool compareChainT(const std::vector<chain_t *> & chains1, const std::vector<chain_t *> & chains2);
+std::vector<Vertex> getAdjacentVertexes(const int x, const int y, const int dim);

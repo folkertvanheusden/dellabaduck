@@ -1,5 +1,6 @@
 #include <assert.h>
 #include <limits.h>
+#include <optional>
 #include <random>
 #include <stdio.h>
 #include <vector>
@@ -68,7 +69,7 @@ bool verifyChainsAndMap(const std::vector<chain_t *> & chainsW, const std::vecto
 	return ok;
 }
 
-bool test_connect_play(const Board & b, const bool verbose)
+bool test_connect_play(const Board & b, const bool verbose, std::optional<Vertex> move)
 {
 	bool ok = true;
 
@@ -83,47 +84,44 @@ bool test_connect_play(const Board & b, const bool verbose)
 
 	ChainMap cm2(brd2.getDim());
 	findChains(brd2, &chainsWhite2, &chainsBlack2, &cm2);
-	// cm2 now contains state before move
-
-#if 0
-	printf("white 2\n");
-	checkLibertyPrint(cm2, 2, 0, B_WHITE);
-	printf("black 2\n");
-	checkLibertyPrint(cm2, 2, 0, B_BLACK);
-#endif
+	// cm2 now contains state before move, to be used by 'connect'
 
 	if (!verifyChainsAndMap(chainsWhite2, chainsBlack2, "2A", cm2, verbose))
 		ok = false;
 
-	std::vector<Vertex> liberties2W, liberties2B;
+	std::set<Vertex> liberties2W, liberties2B;
 	findLiberties(cm2, &liberties2W, B_WHITE);
 	findLiberties(cm2, &liberties2B, B_BLACK);
 
-	if (liberties2B.empty() == false) {
-		auto move = liberties2B.at(0);
+	printf("white liberties: ");
+	dump(liberties2W);
+	printf("black liberties: ");
+	dump(liberties2B);
 
-		play(&brd1, move, P_BLACK);
+	if (liberties2B.empty() == false) {
+		if (move.has_value() == false)
+			move = *liberties2B.begin();
+
+		play(&brd1, move.value(), P_BLACK);
 
 		ChainMap cm1(brd1.getDim());
 		findChains(brd1, &chainsWhite1, &chainsBlack1, &cm1);
-		// cm1 contains state after move
-
-#if 0
-		printf("white 1\n");
-		checkLibertyPrint(cm1, 2, 0, B_WHITE);
-		printf("black 1\n");
-		checkLibertyPrint(cm1, 2, 0, B_BLACK);
-#endif
+		// cm1 contains state after move, after 'play'
 
 		if (!verifyChainsAndMap(chainsWhite1, chainsBlack1, "1B", cm1, verbose))
 			ok = false;
 
-		std::vector<Vertex> liberties1W, liberties1B;
+		std::set<Vertex> liberties1W, liberties1B;
 		findLiberties(cm1, &liberties1W, B_WHITE);
 		findLiberties(cm1, &liberties1B, B_BLACK);
 
-		connect(&brd2, &cm2, &chainsWhite2, &chainsBlack2, &liberties2W, &liberties2B, playerToStone(P_BLACK), move.getX(), move.getY());
-		// cm2 contains state after move
+		connect(&brd2, &cm2, &chainsWhite2, &chainsBlack2, playerToStone(P_BLACK), move.value().getX(), move.value().getY());
+		// cm2 contains state after move, after 'connect'
+
+		liberties2W.clear();
+		findLiberties(cm2, &liberties2W, B_WHITE);
+		liberties2B.clear();
+		findLiberties(cm2, &liberties2B, B_BLACK);
 
 		if (!verifyChainsAndMap(chainsWhite2, chainsBlack2, "2B", cm2, verbose))
 			ok = false;
@@ -153,7 +151,7 @@ bool test_connect_play(const Board & b, const bool verbose)
 
 			send(verbose, "# %s", dumpToString(b, P_BLACK, 0).c_str());
 
-			send(verbose, "# move: %s", v2t(move).c_str());
+			send(verbose, "# move: %s", v2t(move.value()).c_str());
 
 			send(true, " * boards");
 			dump(brd1);
@@ -173,15 +171,15 @@ bool test_connect_play(const Board & b, const bool verbose)
 
 			send(true, " * liberties black");
 			send(true, "# play(1)");
-			dump(liberties1B, true);
+			dump(liberties1B);
 			send(true, "# connect(2)");
-			dump(liberties2B, true);
+			dump(liberties2B);
 
 			send(true, " * liberties white");
 			send(true, "# play(1)");
-			dump(liberties1W, true);
+			dump(liberties1W);
 			send(true, "# connect(2)");
-			dump(liberties2W, true);
+			dump(liberties2W);
 
 			send(true, "---");
 		}
@@ -217,7 +215,7 @@ uint64_t perft(const Board & b, std::set<uint64_t> *const seen, const player_t p
 	findChains(b, &chainsWhite, &chainsBlack, &cm);
 
 	// find the liberties -> the "moves"
-	std::vector<Vertex> liberties;
+	std::set<Vertex> liberties;
 	findLiberties(cm, &liberties, playerToStone(p));
 
 	purgeChains(&chainsBlack);
@@ -287,17 +285,27 @@ void test_perft(const bool verbose, const int dim, const uint64_t *const counts,
 
 void test(const bool verbose, const bool with_perft)
 {
-#if 0
-	{
-		int dim = 5;
-		Zobrist z(dim);
-		Board b(&z, "...../...../...../wb.../.w... b 0");
+	struct test_fens {
+		std::string fen;
+		std::string move;
+	};
 
-		printf("%d\n", test_connect_play(b, true));
+	Zobrist z(19);
 
-		return;
+	std::vector<test_fens> fens { 
+		{ "...../.b.../w..../.w.../w.... b 0", "B1" },
+		{ "...../...../.b.../b.b../bw... b 0", "C1" },
+	};
+
+	for(auto & data : fens) {
+		printf("Verify: %s with move %s\n", data.fen.c_str(), data.move.c_str());
+
+		Board b(&z, data.fen);
+
+		if (test_connect_play(b, true, t2v(data.move, b.getDim())) == 0)
+			printf("FAIL ^\n");
 	}
-#endif
+
 	struct test_data {
 		std::string b;
 		int         dim;
@@ -462,7 +470,6 @@ void test(const bool verbose, const bool with_perft)
 	}
 
 	// zobrist hashing
-	Zobrist z(9);
 	Board b(&z, 9);
 
 	uint64_t startHash = b.getHash();
@@ -492,7 +499,7 @@ void test(const bool verbose, const bool with_perft)
 
 	// "connect()"
 	for(auto b : boards)
-		test_connect_play(stringToBoard(b.b), verbose);
+		test_connect_play(stringToBoard(b.b), verbose, { });
 
 	std::vector<int> sizes { 5, 7, 9, 13, 19 };
 
@@ -536,7 +543,7 @@ void test(const bool verbose, const bool with_perft)
 			purgeChains(&chainsBlack);
 
 			// test
-			bool cur_ok = test_connect_play(b, verbose);
+			bool cur_ok = test_connect_play(b, verbose, { });
 
 			ok += cur_ok;
 
