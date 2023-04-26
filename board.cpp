@@ -582,7 +582,7 @@ void connect(Board *const b, ChainMap *const cm, std::vector<chain_t *> *const c
 		adjacent.push_back({ x + 1, y, dim });
 
 	// find chains to merge
-	// also remove the cross underneath the new stone of all 'our' chain-liberties
+	// also remove the cross underneath the new stone of all chain-liberties
 	std::set<chain_t *> toMergeTemp;
 
 	for(auto & vScan : adjacent) {
@@ -663,7 +663,7 @@ void connect(Board *const b, ChainMap *const cm, std::vector<chain_t *> *const c
 	for(auto & vScan : adjacent) {
 		auto p = cm->getAt(vScan);
 
-		if (!p || p->liberties.empty() == false)
+		if (!p || p->liberties.empty() == false || p->type == what)
 			continue;
 
 		rescanGlobalLiberties = true;
