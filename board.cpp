@@ -104,6 +104,11 @@ board_t Board::getAt(const int v) const
 	return b[v];
 }
 
+board_t Board::getAt(const Vertex & v) const
+{
+	return b[v.getV()];
+}
+
 board_t Board::getAt(const int x, const int y) const
 {
 	assert(x < dim && x >= 0);
@@ -338,22 +343,9 @@ void findChains(const Board & b, std::vector<chain_t *> *const chainsWhite, std:
 
 void getLiberty(const ChainMap & cm, const int x, const int y, const board_t for_whom, std::unordered_set<Vertex, Vertex::HashFunction> *const targetChain, std::set<Vertex> *const globalLiberties)
 {
-	bool      ok    = false;
 	const int dim   = cm.getDim();
-	const int dimm1 = dim - 1;
 
-	std::vector<Vertex> adjacent;
-	if (y > 0)
-		adjacent.push_back({ x, y - 1, dim });
-
-	if (y < dimm1)
-		adjacent.push_back({ x, y + 1, dim });
-
-	if (x > 0)
-		adjacent.push_back({ x - 1, y, dim });
-
-	if (x < dimm1)
-		adjacent.push_back({ x + 1, y, dim });
+	std::vector<Vertex> adjacent = getAdjacentVertexes(x, y, dim);
 
 	for(auto & v: adjacent) {
 		auto c = cm.getAt(v);
@@ -540,18 +532,7 @@ void connect(Board *const b, ChainMap *const cm, std::vector<chain_t *> *const c
 	auto globalLiberties = what == B_WHITE ? libertiesWhite : libertiesBlack;
 
 	// determine the adjacent fields
-	std::vector<Vertex> adjacent;
-	if (y > 0)
-		adjacent.push_back({ x, y - 1, dim });
-
-	if (y < dimm1)
-		adjacent.push_back({ x, y + 1, dim });
-
-	if (x > 0)
-		adjacent.push_back({ x - 1, y, dim });
-
-	if (x < dimm1)
-		adjacent.push_back({ x + 1, y, dim });
+	std::vector<Vertex> adjacent = getAdjacentVertexes(x, y, dim);
 
 	// find chains to merge
 	// also remove the cross underneath the new stone of all chain-liberties
@@ -568,12 +549,11 @@ void connect(Board *const b, ChainMap *const cm, std::vector<chain_t *> *const c
 		}
 	}
 
-	// first in a set ^ to make sure no duplicates are in the vector
 	std::vector<chain_t *> toMerge;
 	for(auto & chain : toMergeTemp)
 		toMerge.push_back(chain);
 
-	bool rescanGlobalLiberties = false;
+//	bool rescanGlobalLiberties = false;
 
 	// add new piece to (existing) first chain (of the set of chains found to be merged)
 	if (toMerge.empty() == false) {

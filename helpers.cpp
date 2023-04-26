@@ -196,3 +196,22 @@ bool compareChainT(const std::vector<chain_t *> & chains1, const std::vector<cha
 
 	return true;
 }
+
+std::vector<Vertex> getAdjacentVertexes(const int x, const int y, const int dim)
+{
+        std::vector<Vertex> adjacent;
+
+        if (y > 0)
+                adjacent.push_back({ x, y - 1, dim });
+
+        if (y < dim - 1)
+                adjacent.push_back({ x, y + 1, dim });
+
+        if (x > 0)
+                adjacent.push_back({ x - 1, y, dim });
+
+        if (x < dim - 1)
+                adjacent.push_back({ x + 1, y, dim });
+
+	return adjacent;
+}
