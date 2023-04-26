@@ -84,14 +84,7 @@ bool test_connect_play(const Board & b, const bool verbose, std::optional<Vertex
 
 	ChainMap cm2(brd2.getDim());
 	findChains(brd2, &chainsWhite2, &chainsBlack2, &cm2);
-	// cm2 now contains state before move
-
-#if 0
-	printf("white 2\n");
-	checkLibertyPrint(cm2, 2, 0, B_WHITE);
-	printf("black 2\n");
-	checkLibertyPrint(cm2, 2, 0, B_BLACK);
-#endif
+	// cm2 now contains state before move, to be used by 'connect'
 
 	if (!verifyChainsAndMap(chainsWhite2, chainsBlack2, "2A", cm2, verbose))
 		ok = false;
@@ -99,6 +92,11 @@ bool test_connect_play(const Board & b, const bool verbose, std::optional<Vertex
 	std::set<Vertex> liberties2W, liberties2B;
 	findLiberties(cm2, &liberties2W, B_WHITE);
 	findLiberties(cm2, &liberties2B, B_BLACK);
+
+	printf("white liberties: ");
+	dump(liberties2W);
+	printf("black liberties: ");
+	dump(liberties2B);
 
 	if (liberties2B.empty() == false) {
 		if (move.has_value() == false)
@@ -108,14 +106,7 @@ bool test_connect_play(const Board & b, const bool verbose, std::optional<Vertex
 
 		ChainMap cm1(brd1.getDim());
 		findChains(brd1, &chainsWhite1, &chainsBlack1, &cm1);
-		// cm1 contains state after move
-
-#if 0
-		printf("white 1\n");
-		checkLibertyPrint(cm1, 2, 0, B_WHITE);
-		printf("black 1\n");
-		checkLibertyPrint(cm1, 2, 0, B_BLACK);
-#endif
+		// cm1 contains state after move, after 'play'
 
 		if (!verifyChainsAndMap(chainsWhite1, chainsBlack1, "1B", cm1, verbose))
 			ok = false;
@@ -124,8 +115,13 @@ bool test_connect_play(const Board & b, const bool verbose, std::optional<Vertex
 		findLiberties(cm1, &liberties1W, B_WHITE);
 		findLiberties(cm1, &liberties1B, B_BLACK);
 
-		connect(&brd2, &cm2, &chainsWhite2, &chainsBlack2, &liberties2W, &liberties2B, playerToStone(P_BLACK), move.value().getX(), move.value().getY());
-		// cm2 contains state after move
+		connect(&brd2, &cm2, &chainsWhite2, &chainsBlack2, playerToStone(P_BLACK), move.value().getX(), move.value().getY());
+		// cm2 contains state after move, after 'connect'
+
+		liberties2W.clear();
+		findLiberties(cm2, &liberties2W, B_WHITE);
+		liberties2B.clear();
+		findLiberties(cm2, &liberties2B, B_BLACK);
 
 		if (!verifyChainsAndMap(chainsWhite2, chainsBlack2, "2B", cm2, verbose))
 			ok = false;
