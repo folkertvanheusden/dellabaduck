@@ -1,6 +1,7 @@
 #include <set>
 #include <string>
 #include <unordered_set>
+#include <utility>
 #include <vector>
 
 #include "board.h"
@@ -209,21 +210,6 @@ std::string dumpToSgf(const Board & b, const double komi, const bool with_end)
 	}
 
 	return sgf + (with_end ? ")" : "");
-}
-
-void dumpDifference(const std::vector<Vertex> & a, const std::vector<Vertex> & b)
-{
-	auto acopy = a;
-	auto bcopy = b;
-
-	std::vector<Vertex> difference;
-
-	std::sort(acopy.begin(), acopy.end());
-	std::sort(bcopy.begin(), bcopy.end());
-
-	std::set_difference(acopy.begin(), acopy.end(), bcopy.begin(), bcopy.end(), std::inserter(difference, difference.begin()));
-
-	dump(difference, false);
 }
 
 void dump(const Vertex & v)

@@ -64,7 +64,7 @@ bool isUsable(const ChainMap & cm, const std::vector<chain_t *> & liberties, con
 	return isValidMove(liberties, v) && cm.getEnclosed(v.getV()) == false;
 }
 
-void selectRandom(const Board & b, const ChainMap & cm, const std::vector<chain_t *> & chainsWhite, const std::vector<chain_t *> & chainsBlack, std::unordered_set<Vertex, Vertex::HashFunction> & liberties, const player_t & p, std::vector<eval_t> *const evals)
+void selectRandom(const Board & b, const ChainMap & cm, const std::vector<chain_t *> & chainsWhite, const std::vector<chain_t *> & chainsBlack, std::set<Vertex> & liberties, const player_t & p, std::vector<eval_t> *const evals)
 {
 	size_t chainSize = liberties.size();
 
@@ -87,7 +87,7 @@ void selectRandom(const Board & b, const ChainMap & cm, const std::vector<chain_
 	evals->at(v).valid = true;
 }
 
-void selectExtendChains(const Board & b, const ChainMap & cm, const std::vector<chain_t *> & chainsWhite, const std::vector<chain_t *> & chainsBlack, std::unordered_set<Vertex, Vertex::HashFunction> & liberties, const player_t & p, std::vector<eval_t> *const evals)
+void selectExtendChains(const Board & b, const ChainMap & cm, const std::vector<chain_t *> & chainsWhite, const std::vector<chain_t *> & chainsBlack, std::set<Vertex> & liberties, const player_t & p, std::vector<eval_t> *const evals)
 {
 	const std::vector<chain_t *> & scan = p == P_BLACK ? chainsWhite : chainsBlack;
 
@@ -109,7 +109,7 @@ void selectExtendChains(const Board & b, const ChainMap & cm, const std::vector<
 	}
 }
 
-void selectKillChains(const Board & b, const ChainMap & cm, const std::vector<chain_t *> & chainsWhite, const std::vector<chain_t *> & chainsBlack, std::unordered_set<Vertex, Vertex::HashFunction> & liberties, const player_t & p, std::vector<eval_t> *const evals)
+void selectKillChains(const Board & b, const ChainMap & cm, const std::vector<chain_t *> & chainsWhite, const std::vector<chain_t *> & chainsBlack, std::set<Vertex> & liberties, const player_t & p, std::vector<eval_t> *const evals)
 {
 	const std::vector<chain_t *> & scan = p == P_BLACK ? chainsBlack : chainsWhite;
 	const std::vector<chain_t *> & myLiberties = p == P_BLACK ? chainsBlack : chainsWhite;
@@ -127,7 +127,7 @@ void selectKillChains(const Board & b, const ChainMap & cm, const std::vector<ch
 	}
 }
 
-void selectAtLeastOne(const Board & b, const ChainMap & cm, const std::vector<chain_t *> & chainsWhite, const std::vector<chain_t *> & chainsBlack, std::unordered_set<Vertex, Vertex::HashFunction> & liberties, const player_t & p, std::vector<eval_t> *const evals)
+void selectAtLeastOne(const Board & b, const ChainMap & cm, const std::vector<chain_t *> & chainsWhite, const std::vector<chain_t *> & chainsBlack, std::set<Vertex> & liberties, const player_t & p, std::vector<eval_t> *const evals)
 {
 	const std::vector<chain_t *> & myLiberties = p == P_BLACK ? chainsBlack : chainsWhite;
 
@@ -187,7 +187,7 @@ int search(const Board & b, const player_t & p, int alpha, const int beta, const
 	std::vector<chain_t *> chainsWhite, chainsBlack;
 	findChains(b, &chainsWhite, &chainsBlack, &cm);
 
-	std::unordered_set<Vertex, Vertex::HashFunction> liberties;
+	std::set<Vertex> liberties;
 	findLiberties(cm, &liberties, playerToStone(p));
 
 	// no valid liberties? return score (eval)
@@ -289,7 +289,7 @@ struct CompareCrossesSortHelper {
 	}
 };
 
-void selectAlphaBeta(const Board & b, const ChainMap & cm, const std::vector<chain_t *> & chainsWhite, const std::vector<chain_t *> & chainsBlack, std::unordered_set<Vertex, Vertex::HashFunction> & liberties, const player_t & p, std::vector<eval_t> *const evals, const double useTime, const double komi, const int nThreads)
+void selectAlphaBeta(const Board & b, const ChainMap & cm, const std::vector<chain_t *> & chainsWhite, const std::vector<chain_t *> & chainsBlack, std::set<Vertex> & liberties, const player_t & p, std::vector<eval_t> *const evals, const double useTime, const double komi, const int nThreads)
 {
 	const int dim = b.getDim();
 
@@ -467,10 +467,10 @@ std::tuple<double, double, int> playout(const Board & in, const double komi, pla
 	std::vector<chain_t *> chainsWhite, chainsBlack;
 	findChains(b, &chainsWhite, &chainsBlack, &cm);
 
-	std::vector<Vertex> libertiesWhite;
+	std::set<Vertex> libertiesWhite;
 	findLiberties(cm, &libertiesWhite, B_WHITE);
 
-	std::vector<Vertex> libertiesBlack;
+	std::set<Vertex> libertiesBlack;
 	findLiberties(cm, &libertiesBlack, B_BLACK);
 
 	std::unordered_set<uint64_t> seen;
@@ -532,7 +532,7 @@ std::tuple<double, double, int> playout(const Board & in, const double komi, pla
 	return std::tuple<double, double, int>(s.first, s.second, mc);
 }
 
-void playoutThread(std::vector<std::pair<double, uint32_t> > *const all_results, std::mutex *const all_results_lock, const uint64_t h_end_t, const uint64_t end_t, const std::unordered_set<Vertex, Vertex::HashFunction> *const liberties, const player_t p, const double komi, const Board *const b)
+void playoutThread(std::vector<std::pair<double, uint32_t> > *const all_results, std::mutex *const all_results_lock, const uint64_t h_end_t, const uint64_t end_t, const std::set<Vertex> *const liberties, const player_t p, const double komi, const Board *const b)
 {
 	const int dim   = b->getDim();
 	const int dimsq = dim * dim;
@@ -603,7 +603,7 @@ void playoutThread(std::vector<std::pair<double, uint32_t> > *const all_results,
 	}
 }
 
-void selectPlayout(const Board & b, const ChainMap & cm, const std::vector<chain_t *> & chainsWhite, const std::vector<chain_t *> & chainsBlack, const std::unordered_set<Vertex, Vertex::HashFunction> & liberties, const player_t & p, std::vector<eval_t> *const evals, const double useTime, const double komi, const int nThreads)
+void selectPlayout(const Board & b, const ChainMap & cm, const std::vector<chain_t *> & chainsWhite, const std::vector<chain_t *> & chainsBlack, const std::set<Vertex> & liberties, const player_t & p, std::vector<eval_t> *const evals, const double useTime, const double komi, const int nThreads)
 {
 	uint64_t start_t = get_ts_ms();  // TODO: start of genMove()
 	uint64_t h_end_t = start_t + useTime * 450;
@@ -641,7 +641,7 @@ void selectPlayout(const Board & b, const ChainMap & cm, const std::vector<chain
 	}
 }
 
-void purgeKO(const Board & b, const player_t p, std::set<uint64_t> *const seen, std::unordered_set<Vertex, Vertex::HashFunction> *const liberties)
+void purgeKO(const Board & b, const player_t p, std::set<uint64_t> *const seen, std::set<Vertex> *const liberties)
 {
 	for(auto it = liberties->begin(); it != liberties->end();) {
 		Board temp(b);
@@ -670,7 +670,7 @@ std::optional<Vertex> genMove(Board *const b, const player_t & p, const bool doP
 	std::vector<chain_t *> chainsWhite, chainsBlack;
 	findChains(*b, &chainsWhite, &chainsBlack, &cm);
 
-	std::unordered_set<Vertex, Vertex::HashFunction> liberties;
+	std::set<Vertex> liberties;
 	findLiberties(cm, &liberties, playerToStone(p));
 
 	dump(cm);
@@ -722,7 +722,7 @@ std::optional<Vertex> genMove(Board *const b, const player_t & p, const bool doP
 				send(true, "# invalid move %s detected", v2t(temp).c_str());
 			else {
 				bestScore = evals.at(i).score;
-				v = temp;
+				v.emplace(temp);
 			}
 		}
 	}
@@ -991,7 +991,7 @@ int getNEmpty(const Board & b, const player_t p)
 	std::vector<chain_t *> chainsWhite, chainsBlack;
 	findChains(b, &chainsWhite, &chainsBlack, &cm);
 
-	std::unordered_set<Vertex, Vertex::HashFunction> liberties;
+	std::set<Vertex> liberties;
 	findLiberties(cm, &liberties, playerToStone(p));
 
 	purgeChains(&chainsBlack);
@@ -1151,7 +1151,7 @@ int main(int argc, char *argv[])
 				dump(chainsWhite);
 				dump(cm);
 
-				std::unordered_set<Vertex, Vertex::HashFunction> liberties;
+				std::set<Vertex> liberties;
 				findLiberties(cm, &liberties, s);
 				dump(liberties);
 

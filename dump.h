@@ -17,5 +17,4 @@ std::string dumpToString(const Board & b, const player_t next_player, const int 
 void dump(const ChainMap & cm);
 std::string init_sgf(const int dim);
 std::string dumpToSgf(const Board & b, const double komi, const bool with_end);
-void dumpDifference(const std::vector<Vertex> & a, const std::vector<Vertex> & b);
 void dump(const Vertex & v);

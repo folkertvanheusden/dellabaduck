@@ -95,12 +95,12 @@ bool test_connect_play(const Board & b, const bool verbose)
 	if (!verifyChainsAndMap(chainsWhite2, chainsBlack2, "2A", cm2, verbose))
 		ok = false;
 
-	std::vector<Vertex> liberties2W, liberties2B;
+	std::set<Vertex> liberties2W, liberties2B;
 	findLiberties(cm2, &liberties2W, B_WHITE);
 	findLiberties(cm2, &liberties2B, B_BLACK);
 
 	if (liberties2B.empty() == false) {
-		auto move = liberties2B.at(0);
+		auto move = *liberties2B.begin();
 
 		play(&brd1, move, P_BLACK);
 
@@ -118,7 +118,7 @@ bool test_connect_play(const Board & b, const bool verbose)
 		if (!verifyChainsAndMap(chainsWhite1, chainsBlack1, "1B", cm1, verbose))
 			ok = false;
 
-		std::vector<Vertex> liberties1W, liberties1B;
+		std::set<Vertex> liberties1W, liberties1B;
 		findLiberties(cm1, &liberties1W, B_WHITE);
 		findLiberties(cm1, &liberties1B, B_BLACK);
 
@@ -173,15 +173,15 @@ bool test_connect_play(const Board & b, const bool verbose)
 
 			send(true, " * liberties black");
 			send(true, "# play(1)");
-			dump(liberties1B, true);
+			dump(liberties1B);
 			send(true, "# connect(2)");
-			dump(liberties2B, true);
+			dump(liberties2B);
 
 			send(true, " * liberties white");
 			send(true, "# play(1)");
-			dump(liberties1W, true);
+			dump(liberties1W);
 			send(true, "# connect(2)");
-			dump(liberties2W, true);
+			dump(liberties2W);
 
 			send(true, "---");
 		}
@@ -217,7 +217,7 @@ uint64_t perft(const Board & b, std::set<uint64_t> *const seen, const player_t p
 	findChains(b, &chainsWhite, &chainsBlack, &cm);
 
 	// find the liberties -> the "moves"
-	std::vector<Vertex> liberties;
+	std::set<Vertex> liberties;
 	findLiberties(cm, &liberties, playerToStone(p));
 
 	purgeChains(&chainsBlack);
