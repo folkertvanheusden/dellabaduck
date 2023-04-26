@@ -1,5 +1,6 @@
 #include <assert.h>
 #include <limits.h>
+#include <optional>
 #include <random>
 #include <stdio.h>
 #include <vector>
@@ -68,7 +69,7 @@ bool verifyChainsAndMap(const std::vector<chain_t *> & chainsW, const std::vecto
 	return ok;
 }
 
-bool test_connect_play(const Board & b, const bool verbose)
+bool test_connect_play(const Board & b, const bool verbose, std::optional<Vertex> move)
 {
 	bool ok = true;
 
@@ -100,9 +101,10 @@ bool test_connect_play(const Board & b, const bool verbose)
 	findLiberties(cm2, &liberties2B, B_BLACK);
 
 	if (liberties2B.empty() == false) {
-		auto move = *liberties2B.begin();
+		if (move.has_value() == false)
+			move = *liberties2B.begin();
 
-		play(&brd1, move, P_BLACK);
+		play(&brd1, move.value(), P_BLACK);
 
 		ChainMap cm1(brd1.getDim());
 		findChains(brd1, &chainsWhite1, &chainsBlack1, &cm1);
@@ -122,7 +124,7 @@ bool test_connect_play(const Board & b, const bool verbose)
 		findLiberties(cm1, &liberties1W, B_WHITE);
 		findLiberties(cm1, &liberties1B, B_BLACK);
 
-		connect(&brd2, &cm2, &chainsWhite2, &chainsBlack2, &liberties2W, &liberties2B, playerToStone(P_BLACK), move.getX(), move.getY());
+		connect(&brd2, &cm2, &chainsWhite2, &chainsBlack2, &liberties2W, &liberties2B, playerToStone(P_BLACK), move.value().getX(), move.value().getY());
 		// cm2 contains state after move
 
 		if (!verifyChainsAndMap(chainsWhite2, chainsBlack2, "2B", cm2, verbose))
@@ -153,7 +155,7 @@ bool test_connect_play(const Board & b, const bool verbose)
 
 			send(verbose, "# %s", dumpToString(b, P_BLACK, 0).c_str());
 
-			send(verbose, "# move: %s", v2t(move).c_str());
+			send(verbose, "# move: %s", v2t(move.value()).c_str());
 
 			send(true, " * boards");
 			dump(brd1);
@@ -287,13 +289,13 @@ void test_perft(const bool verbose, const int dim, const uint64_t *const counts,
 
 void test(const bool verbose, const bool with_perft)
 {
-#if 0
+#if 1
 	{
 		int dim = 5;
 		Zobrist z(dim);
-		Board b(&z, "...../...../...../b..../..... b 0");
+		Board b(&z, "...../...../...../...../w.... b 0");
 
-		printf("%d\n", test_connect_play(b, true));
+		printf("%d\n", test_connect_play(b, true, t2v("B1", b.getDim())));
 
 		return;
 	}
@@ -492,7 +494,7 @@ void test(const bool verbose, const bool with_perft)
 
 	// "connect()"
 	for(auto b : boards)
-		test_connect_play(stringToBoard(b.b), verbose);
+		test_connect_play(stringToBoard(b.b), verbose, { });
 
 	std::vector<int> sizes { 5, 7, 9, 13, 19 };
 
@@ -536,7 +538,7 @@ void test(const bool verbose, const bool with_perft)
 			purgeChains(&chainsBlack);
 
 			// test
-			bool cur_ok = test_connect_play(b, verbose);
+			bool cur_ok = test_connect_play(b, verbose, { });
 
 			ok += cur_ok;
 
