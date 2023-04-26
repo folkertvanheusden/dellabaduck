@@ -494,57 +494,61 @@ void test(const bool verbose, const bool with_perft)
 	for(auto b : boards)
 		test_connect_play(stringToBoard(b.b), verbose);
 
-	int ok = 0;
-	constexpr int n_to_do = 100000;
-	int smallest_n_stones = INT_MAX;
+	std::vector<int> sizes { 5, 7, 9, 13, 19 };
 
-	for(int i=0; i<n_to_do; i++) {
-		send(true, "# ===== test %d =====", i);
+	for(int size : sizes) {
+		int ok = 0;
+		constexpr int n_to_do = 50000;
+		int smallest_n_stones = INT_MAX;
 
-		int dim = 9;
-		Board b(&z, dim);
+		for(int i=0; i<n_to_do; i++) {
+			send(true, "# ===== test %d/%d =====", i, size);
 
-		// gen
-		std::uniform_int_distribution<> rng(0, dim * dim);
-		int n = rng(gen);
+			int dim = size;
+			Board b(&z, dim);
 
-		std::uniform_int_distribution<> rngdim(0, dim - 1);
+			// gen
+			std::uniform_int_distribution<> rng(0, dim * dim);
+			int n = rng(gen);
 
-		std::uniform_int_distribution<> rngcol(0, 1);
+			std::uniform_int_distribution<> rngdim(0, dim - 1);
 
-		for(int fill=0; fill<n; fill++) {
-			int x = rngdim(gen);
-			int y = rngdim(gen);
+			std::uniform_int_distribution<> rngcol(0, 1);
 
-			if (b.getAt(x, y) == B_EMPTY)
-				b.setAt(x, y, rngcol(gen) ? B_BLACK : B_WHITE);
+			for(int fill=0; fill<n; fill++) {
+				int x = rngdim(gen);
+				int y = rngdim(gen);
+
+				if (b.getAt(x, y) == B_EMPTY)
+					b.setAt(x, y, rngcol(gen) ? B_BLACK : B_WHITE);
+			}
+
+			// purge chains with no liberties
+			std::vector<chain_t *> chainsWhite, chainsBlack;
+
+			ChainMap cm(b.getDim());
+			findChains(b, &chainsWhite, &chainsBlack, &cm);
+
+			purgeChainsWithoutLiberties(&b, chainsWhite);
+			purgeChainsWithoutLiberties(&b, chainsBlack);
+
+			purgeChains(&chainsWhite);
+			purgeChains(&chainsBlack);
+
+			// test
+			bool cur_ok = test_connect_play(b, verbose);
+
+			ok += cur_ok;
+
+			if (!cur_ok && n < smallest_n_stones) {
+				smallest_n_stones = n;
+
+				send(true, "# ---- test %d/%d failed with %d stones ----", i, size, n);
+			}
 		}
 
-		// purge chains with no liberties
-		std::vector<chain_t *> chainsWhite, chainsBlack;
-
-		ChainMap cm(b.getDim());
-		findChains(b, &chainsWhite, &chainsBlack, &cm);
-
-		purgeChainsWithoutLiberties(&b, chainsWhite);
-		purgeChainsWithoutLiberties(&b, chainsBlack);
-
-		purgeChains(&chainsWhite);
-		purgeChains(&chainsBlack);
-
-		// test
-		bool cur_ok = test_connect_play(b, verbose);
-
-		ok += cur_ok;
-
-		if (!cur_ok && n < smallest_n_stones) {
-			smallest_n_stones = n;
-
-			send(true, "# ---- test %d failed with %d stones ----", i, n);
-		}
+		send(verbose, "%.1f%% ok (%d), min # stones: %d (dim: %d)", ok * 100. / n_to_do, ok, smallest_n_stones, size);
 	}
-
-	send(verbose, "%.1f%% ok (%d), min # stones: %d", ok * 100. / n_to_do, ok, smallest_n_stones);
 
 	if (with_perft) {
 		constexpr uint64_t b3x3[] = { 10, 91, 738, 5281, 33384, 179712, 842696, 3271208 };
