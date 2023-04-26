@@ -289,11 +289,11 @@ void test_perft(const bool verbose, const int dim, const uint64_t *const counts,
 
 void test(const bool verbose, const bool with_perft)
 {
-#if 1
+#if 0
 	{
 		int dim = 5;
 		Zobrist z(dim);
-		Board b(&z, "...../...../...../...../w.... b 0");
+		Board b(&z, "...../.b.../w..../.w.../w.... b 0");
 
 		printf("%d\n", test_connect_play(b, true, t2v("B1", b.getDim())));
 

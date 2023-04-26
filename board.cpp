@@ -336,7 +336,7 @@ void findChains(const Board & b, std::vector<chain_t *> *const chainsWhite, std:
 	delete [] scanned;
 }
 
-void getLiberty(const ChainMap & cm, const int x, const int y, const board_t for_whom, std::unordered_set<Vertex, Vertex::HashFunction> *const target)
+void getLiberty(const ChainMap & cm, const int x, const int y, const board_t for_whom, std::unordered_set<Vertex, Vertex::HashFunction> *const targetChain, std::set<Vertex> *const globalLiberties)
 {
 	bool      ok    = false;
 	const int dim   = cm.getDim();
@@ -359,7 +359,9 @@ void getLiberty(const ChainMap & cm, const int x, const int y, const board_t for
 		auto c = cm.getAt(v);
 
 		if (c == nullptr)
-			target->insert(v);
+			targetChain->insert(v);
+		else if (c->type != for_whom && c->liberties.size() == 1)
+			globalLiberties->insert(*c->liberties.begin());
 	}
 }
 
@@ -535,6 +537,8 @@ void connect(Board *const b, ChainMap *const cm, std::vector<chain_t *> *const c
 
 	eraseLiberty(libertiesBlack, v);
 
+	auto globalLiberties = what == B_WHITE ? libertiesWhite : libertiesBlack;
+
 	// determine the adjacent fields
 	std::vector<Vertex> adjacent;
 	if (y > 0)
@@ -601,7 +605,7 @@ void connect(Board *const b, ChainMap *const cm, std::vector<chain_t *> *const c
 		}
 
 		// add any new liberties
-		getLiberty(*cm, x, y, what, &toMerge.at(0)->liberties);
+		getLiberty(*cm, x, y, what, &toMerge.at(0)->liberties, globalLiberties);
 	}
 	else {
 		Vertex v(x, y, dim);
@@ -623,7 +627,7 @@ void connect(Board *const b, ChainMap *const cm, std::vector<chain_t *> *const c
 		cm->setAt(v, curChain);
 
 		// find any liberties around it
-		getLiberty(*cm, x, y, what, &curChain->liberties);
+		getLiberty(*cm, x, y, what, &curChain->liberties, globalLiberties);
 	}
 
 	// find surrounding opponent chains of the current position to remove them
