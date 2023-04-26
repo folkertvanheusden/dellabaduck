@@ -420,6 +420,8 @@ void findLiberties(const ChainMap & cm, std::vector<Vertex> *const empties, cons
 		okFields[i] = c == nullptr || (c->type == for_whom && c->liberties.size() > 1) || (c->type != for_whom && c->liberties.size() == 1);
 	}
 
+	empties->reserve(dimsq);
+
 	for(int y=0; y<dim; y++) {
 		const int yo = y * dim;
 
