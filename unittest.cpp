@@ -291,7 +291,7 @@ void test(const bool verbose, const bool with_perft)
 	{
 		int dim = 5;
 		Zobrist z(dim);
-		Board b(&z, "...../...../...../wb.../.w... b 0");
+		Board b(&z, "...../...../...../b..../..... b 0");
 
 		printf("%d\n", test_connect_play(b, true));
 
