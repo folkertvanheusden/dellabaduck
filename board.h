@@ -35,6 +35,7 @@ public:
 	int getDim() const;
 	void getTo(board_t *const bto) const;
 	board_t getAt(const int v) const;
+	board_t getAt(const Vertex & v) const;
 	board_t getAt(const int x, const int y) const;
 	uint64_t getHash() const;
 
