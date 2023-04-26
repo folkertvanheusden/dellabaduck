@@ -406,7 +406,7 @@ bool checkLiberty(const ChainMap & cm, const int x, const int y, const board_t f
 	return ok;
 }
 
-void findLiberties(const ChainMap & cm, std::set<Vertex> *const empties, const board_t for_whom)
+void findLiberties(const ChainMap & cm, std::vector<Vertex> *const empties, const board_t for_whom)
 {
 	const int dim   = cm.getDim();
 	const int dimsq = dim * dim;
@@ -430,7 +430,7 @@ void findLiberties(const ChainMap & cm, std::set<Vertex> *const empties, const b
 				continue;
 
 			if ((x > 0 && okFields[o - 1]) || (x < dimm1 && okFields[o + 1]) || (y > 0 && okFields[o - dim]) || (y < dimm1 && okFields[o + dim]))
-				empties->insert({ o, dim });
+				empties->push_back({ o, dim });
 		}
 	}
 
