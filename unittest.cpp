@@ -298,6 +298,7 @@ void test(const bool verbose, const bool with_perft)
 
 	std::vector<test_fens> fens { 
 		{ "...../.b.../w..../.w.../w.... b 0", "B1" },
+		{ "...../...../.b.../b.b../bw... b 0", "C1" },
 	};
 
 	for(auto & data : fens) {
