@@ -89,7 +89,7 @@ bool test_connect_play(const Board & b, const bool verbose, std::optional<Vertex
 	if (!verifyChainsAndMap(chainsWhite2, chainsBlack2, "2A", cm2, verbose))
 		ok = false;
 
-	std::set<Vertex> liberties2W, liberties2B;
+	std::vector<Vertex> liberties2W, liberties2B;
 	findLiberties(cm2, &liberties2W, B_WHITE);
 	findLiberties(cm2, &liberties2B, B_BLACK);
 
@@ -111,7 +111,7 @@ bool test_connect_play(const Board & b, const bool verbose, std::optional<Vertex
 		if (!verifyChainsAndMap(chainsWhite1, chainsBlack1, "1B", cm1, verbose))
 			ok = false;
 
-		std::set<Vertex> liberties1W, liberties1B;
+		std::vector<Vertex> liberties1W, liberties1B;
 		findLiberties(cm1, &liberties1W, B_WHITE);
 		findLiberties(cm1, &liberties1B, B_BLACK);
 
@@ -215,7 +215,7 @@ uint64_t perft(const Board & b, std::set<uint64_t> *const seen, const player_t p
 	findChains(b, &chainsWhite, &chainsBlack, &cm);
 
 	// find the liberties -> the "moves"
-	std::set<Vertex> liberties;
+	std::vector<Vertex> liberties;
 	findLiberties(cm, &liberties, playerToStone(p));
 
 	purgeChains(&chainsBlack);
