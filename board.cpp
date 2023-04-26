@@ -414,7 +414,7 @@ bool checkLiberty(const ChainMap & cm, const int x, const int y, const board_t f
 	return ok;
 }
 
-void findLiberties(const ChainMap & cm, std::vector<Vertex> *const empties, const board_t for_whom)
+void findLiberties(const ChainMap & cm, std::set<Vertex> *const empties, const board_t for_whom)
 {
 	const int dim = cm.getDim();
 
@@ -424,7 +424,7 @@ void findLiberties(const ChainMap & cm, std::vector<Vertex> *const empties, cons
 				continue;
 
 			if (checkLiberty(cm, x, y, for_whom))
-				empties->push_back({ x, y, dim });
+				empties->insert({ x, y, dim });
 		}
 	}
 }
@@ -511,20 +511,12 @@ int countLiberties(const Board & b, const int x, const int y)
 	return n;
 }
 
-void eraseLiberty(std::vector<Vertex> *const liberties, const Vertex & v)
+void eraseLiberty(std::set<Vertex> *const liberties, const Vertex & v)
 {
-	const size_t n_liberties = liberties->size();
-
-	for(size_t i=0; i<n_liberties; i++) {
-		if (liberties->at(i) == v) {
-			liberties->at(i) = std::move(liberties->back());
-			liberties->pop_back();
-			break;
-		}
-	}
+	liberties->erase(v);
 }
 
-void connect(Board *const b, ChainMap *const cm, std::vector<chain_t *> *const chainsWhite, std::vector<chain_t *> *const chainsBlack, std::vector<Vertex> *const libertiesWhite, std::vector<Vertex> *const libertiesBlack, const board_t what, const int x, const int y)
+void connect(Board *const b, ChainMap *const cm, std::vector<chain_t *> *const chainsWhite, std::vector<chain_t *> *const chainsBlack, std::set<Vertex> *const libertiesWhite, std::set<Vertex> *const libertiesBlack, const board_t what, const int x, const int y)
 {
 	const int dim   = b->getDim();
 	const int dimm1 = dim - 1;
@@ -654,8 +646,8 @@ void connect(Board *const b, ChainMap *const cm, std::vector<chain_t *> *const c
 				auto p = cm->getAt(x - 1, y);
 				if (p) {
 					p->liberties.insert(ve);
-					libertiesWhite->push_back(ve);
-					libertiesBlack->push_back(ve);
+					libertiesWhite->insert(ve);
+					libertiesBlack->insert(ve);
 				}
 			}
 
@@ -663,8 +655,8 @@ void connect(Board *const b, ChainMap *const cm, std::vector<chain_t *> *const c
 				auto p = cm->getAt(x + 1, y);
 				if (p) {
 					p->liberties.insert(ve);
-					libertiesWhite->push_back(ve);
-					libertiesBlack->push_back(ve);
+					libertiesWhite->insert(ve);
+					libertiesBlack->insert(ve);
 				}
 			}
 
@@ -672,8 +664,8 @@ void connect(Board *const b, ChainMap *const cm, std::vector<chain_t *> *const c
 				auto p = cm->getAt(x, y - 1);
 				if (p) {
 					p->liberties.insert(ve);
-					libertiesWhite->push_back(ve);
-					libertiesBlack->push_back(ve);
+					libertiesWhite->insert(ve);
+					libertiesBlack->insert(ve);
 				}
 			}
 
@@ -681,8 +673,8 @@ void connect(Board *const b, ChainMap *const cm, std::vector<chain_t *> *const c
 				auto p = cm->getAt(x, y + 1);
 				if (p) {
 					p->liberties.insert(ve);
-					libertiesWhite->push_back(ve);
-					libertiesBlack->push_back(ve);
+					libertiesWhite->insert(ve);
+					libertiesBlack->insert(ve);
 				}
 			}
 		}
