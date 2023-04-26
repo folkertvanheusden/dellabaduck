@@ -289,17 +289,26 @@ void test_perft(const bool verbose, const int dim, const uint64_t *const counts,
 
 void test(const bool verbose, const bool with_perft)
 {
-#if 0
-	{
-		int dim = 5;
-		Zobrist z(dim);
-		Board b(&z, "...../.b.../w..../.w.../w.... b 0");
+	struct test_fens {
+		std::string fen;
+		std::string move;
+	};
 
-		printf("%d\n", test_connect_play(b, true, t2v("B1", b.getDim())));
+	Zobrist z(19);
 
-		return;
+	std::vector<test_fens> fens { 
+		{ "...../.b.../w..../.w.../w.... b 0", "B1" },
+	};
+
+	for(auto & data : fens) {
+		printf("Verify: %s with move %s\n", data.fen.c_str(), data.move.c_str());
+
+		Board b(&z, data.fen);
+
+		if (test_connect_play(b, true, t2v(data.move, b.getDim())) == 0)
+			printf("FAIL ^\n");
 	}
-#endif
+
 	struct test_data {
 		std::string b;
 		int         dim;
@@ -464,7 +473,6 @@ void test(const bool verbose, const bool with_perft)
 	}
 
 	// zobrist hashing
-	Zobrist z(9);
 	Board b(&z, 9);
 
 	uint64_t startHash = b.getHash();
