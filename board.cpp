@@ -356,8 +356,6 @@ void getLiberty(const ChainMap & cm, const int x, const int y, const board_t for
 
 		if (c == nullptr)
 			target->insert(v);
-		else if (c->type != for_whom && c->liberties.size() == 1)
-			target->insert(*c->liberties.begin());
 	}
 }
 
