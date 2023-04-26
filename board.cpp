@@ -420,7 +420,7 @@ void findLiberties(const ChainMap & cm, std::set<Vertex> *const empties, const b
 		okFields[i] = c == nullptr || (c->type == for_whom && c->liberties.size() > 1) || (c->type != for_whom && c->liberties.size() == 1);
 	}
 
-	for(int y=dim-1; y>=0; y--) {
+	for(int y=0; y<dim; y++) {
 		const int yo = y * dim;
 
 		for(int x=0; x<dim; x++) {
@@ -429,26 +429,9 @@ void findLiberties(const ChainMap & cm, std::set<Vertex> *const empties, const b
 			if (cm.getAt(o))
 				continue;
 
-			bool ok = false;
-
-			if (x > 0)
-				ok |= okFields[o - 1];
-
-			if (x < dimm1)
-				ok |= okFields[o + 1];
-
-			if (y > 0)
-				ok |= okFields[o - dim];
-
-			if (y < dimm1)
-				ok |= okFields[o + dim];
-
-			if (ok)
+			if ((x > 0 && okFields[o - 1]) || (x < dimm1 && okFields[o + 1]) || (y > 0 && okFields[o - dim]) || (y < dimm1 && okFields[o + dim]))
 				empties->insert({ o, dim });
-
-//			printf("%d", ok);
 		}
-//		printf("\n");
 	}
 
 	delete [] okFields;
