@@ -104,6 +104,9 @@ std::set<Vertex> stringToChain(const std::string & in, const int dim)
 
 bool compareChain(const std::set<Vertex> & a, const std::set<Vertex> & b)
 {
+	if (a.size() != b.size())
+		return false;
+
 	for(auto v : a) {
 		if (b.find(v) == b.end())
 			return false;
@@ -114,6 +117,9 @@ bool compareChain(const std::set<Vertex> & a, const std::set<Vertex> & b)
 
 bool compareChain(const std::unordered_set<Vertex, Vertex::HashFunction> & a, const std::unordered_set<Vertex, Vertex::HashFunction> & b)
 {
+	if (a.size() != b.size())
+		return false;
+
 	for(auto v : a) {
 		if (b.find(v) == b.end())
 			return false;
@@ -124,6 +130,9 @@ bool compareChain(const std::unordered_set<Vertex, Vertex::HashFunction> & a, co
 
 bool compareChain(const std::unordered_set<Vertex, Vertex::HashFunction> & a, const std::set<Vertex> & b)
 {
+	if (a.size() != b.size())
+		return false;
+
 	for(auto v : a) {
 		if (b.find(v) == b.end())
 			return false;
@@ -134,6 +143,9 @@ bool compareChain(const std::unordered_set<Vertex, Vertex::HashFunction> & a, co
 
 bool compareChain(const std::vector<Vertex> & a, const std::vector<Vertex> & b)
 {
+	if (a.size() != b.size())
+		return false;
+
 	for(auto v : a) {
 		if (std::find(b.begin(), b.end(), v) == b.end())
 			return false;
