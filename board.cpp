@@ -407,7 +407,7 @@ void findLiberties(const ChainMap & cm, std::vector<Vertex> *const empties, cons
 				continue;
 
 			if ((x > 0 && okFields[o - 1]) || (x < dimm1 && okFields[o + 1]) || (y > 0 && okFields[o - dim]) || (y < dimm1 && okFields[o + dim]))
-				empties->push_back({ o, dim });
+				empties->emplace_back(o, dim);
 		}
 	}
 
