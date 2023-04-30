@@ -397,12 +397,10 @@ void findLiberties(const ChainMap & cm, std::vector<Vertex> *const empties, cons
 
 	empties->reserve(dimsq);
 
+	int o = 0;
+
 	for(int y=0; y<dim; y++) {
-		const int yo = y * dim;
-
-		for(int x=0; x<dim; x++) {
-			const int o = yo + x;
-
+		for(int x=0; x<dim; x++, o++) {
 			if (cm.getAt(o))
 				continue;
 
