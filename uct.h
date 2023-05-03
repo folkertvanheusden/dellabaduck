@@ -29,7 +29,7 @@ private:
 	uct_node *traverse();
 	uct_node *best_uct();
 	void      backpropagate(uct_node *const node, double result);
-	bool      fully_expanded();
+	bool      fully_expanded() const;
 	double    get_score();
 	double    playout(const uct_node *const leaf);
 
@@ -46,6 +46,8 @@ public:
 	const Board  get_position() const;
 
 	uct_node    *best_child() const;
+
+	bool         verify() const;
 
 	const Vertex get_causing_move() const;
 

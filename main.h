@@ -3,4 +3,4 @@
 #include "board.h"
 
 
-std::tuple<double, double, int, player_t> playout(const Board & in, const double komi, player_t p);
+std::tuple<double, double, int> playout(const Board & in, const double komi, player_t p);

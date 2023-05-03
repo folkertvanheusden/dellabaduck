@@ -457,7 +457,7 @@ void selectAlphaBeta(const Board & b, const ChainMap & cm, const std::vector<cha
 	delete [] valid;
 }
 
-std::tuple<double, double, int, player_t> playout(const Board & in, const double komi, player_t p)
+std::tuple<double, double, int> playout(const Board & in, const double komi, player_t p)
 {
 	Board b(in);
 
@@ -511,6 +511,9 @@ std::tuple<double, double, int, player_t> playout(const Board & in, const double
 			if (seen.insert(new_hash).second == false)  // terminate loop if already in the set
 				break;
 		}
+		else {
+			pass[p] = true;
+		}
 
 		p = getOpponent(p);
 	}
@@ -520,7 +523,7 @@ std::tuple<double, double, int, player_t> playout(const Board & in, const double
 
 	auto s = score(b, komi);
 
-	return std::tuple<double, double, int, player_t>(s.first, s.second, mc, p);
+	return std::tuple<double, double, int>(s.first, s.second, mc);
 }
 
 void playoutThread(std::vector<std::pair<double, uint32_t> > *const all_results, std::mutex *const all_results_lock, const uint64_t h_end_t, const uint64_t end_t, const std::vector<Vertex> *const liberties, const player_t p, const double komi, const Board *const b)
@@ -916,7 +919,7 @@ int getNEmpty(const Board & b, const player_t p)
 int main(int argc, char *argv[])
 {
 	// uct object is not threadsafe yet
-	int nThreads = 1; // std::thread::hardware_concurrency();
+	int nThreads = std::thread::hardware_concurrency();
 
 	int dim = 9;
 
