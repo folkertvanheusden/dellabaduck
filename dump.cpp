@@ -1,5 +1,7 @@
 #include <set>
 #include <string>
+#include <unordered_set>
+#include <utility>
 #include <vector>
 
 #include "board.h"
@@ -23,13 +25,30 @@ void dump(const std::set<Vertex> & set)
 	send(true, line.c_str());
 }
 
-void dump(const std::vector<Vertex> & set)
+void dump(const std::unordered_set<Vertex, Vertex::HashFunction> & uset)
 {
 	send(true, "# Vertex set");
 
 	std::string line = "# ";
-	for(auto v : set)
+	for(auto v : uset)
 		line += myformat("%s ", v2t(v).c_str());
+	send(true, line.c_str());
+}
+
+void dump(const std::vector<Vertex> & vector, const bool sorted)
+{
+	send(true, "# Vertex vector");
+
+	auto vector_sorted = vector;
+
+	if (sorted)
+		std::sort(vector_sorted.begin(), vector_sorted.end());
+
+	std::string line = "# ";
+
+	for(auto v : vector_sorted)
+		line += myformat("%s ", v2t(v).c_str());
+
 	send(true, line.c_str());
 }
 
@@ -135,8 +154,18 @@ void dump(const ChainMap & cm)
 	for(int y=dim - 1; y>=0; y--) {
 		line = myformat("# %2d | ", y + 1);
 
-		for(int x=0; x<dim; x++)
-			line += cm.getEnclosed(y * dim + x) ? '1' : '0';
+		for(int x=0; x<dim; x++) {
+			auto p = cm.getAt(y * dim + x);
+
+			if (p == nullptr)
+				line += '.';
+			else if (p->type == B_BLACK)
+				line += 'x';
+			else if (p->type == B_WHITE)
+				line += 'o';
+			else
+				line += '!';
+		}
 
 		send(true, "%s", line.c_str());
 	}
@@ -153,4 +182,37 @@ void dump(const ChainMap & cm)
 	}
 
 	send(true, "%s", line.c_str());
+}
+
+std::string init_sgf(const int dim)
+{
+	return "(;AP[DellaBaduck]SZ[" + myformat("%d", dim) + "]";
+}
+
+std::string dumpToSgf(const Board & b, const double komi, const bool with_end)
+{
+	int         dim = b.getDim();
+	std::string sgf = init_sgf(dim);
+
+	sgf += myformat(";KM[%f]", komi);
+
+	for(int y=0; y<dim; y++) {
+		for(int x=0; x<dim; x++) {
+			auto v     = Vertex(x, y, dim);
+
+			auto stone = b.getAt(v.getV());
+
+			if (stone == B_EMPTY)
+				continue;
+
+			sgf += myformat(";%c[%s]", stone == B_BLACK ? 'B' : 'W', v2t(v).c_str());
+		}
+	}
+
+	return sgf + (with_end ? ")" : "");
+}
+
+void dump(const Vertex & v)
+{
+	printf("%s\n", v2t(v).c_str());
 }

@@ -3,6 +3,7 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string>
 #include <string.h>
 #include <time.h>
 #include <unistd.h>
@@ -10,9 +11,25 @@
 #include "time.h"
 
 
-FILE *fh = fopen("input.dat", "a+");
+FILE *fh = nullptr;
 
 bool verbose = false;
+
+void closeLog()
+{
+	if (fh) {
+		fclose(fh);
+
+		fh = nullptr;
+	}
+}
+
+void startLog(const std::string & filename)
+{
+	fh = fopen(filename.c_str(), "a+");
+
+	atexit(closeLog);
+}
 
 void send(const bool is_verbose, const char *fmt, ...)
 {
@@ -33,9 +50,9 @@ void send(const bool is_verbose, const char *fmt, ...)
 	va_start(ap, fmt);
 	(void)vasprintf(&str, fmt, ap);
 	va_end(ap);
-	fflush(fh);
 
-	fprintf(fh, "%s%s\n", ts_str, str);
+	if (fh)
+		fprintf(fh, "%s%s\n", ts_str, str);
 
 	if (is_verbose) {
 		if (verbose)
@@ -45,7 +62,8 @@ void send(const bool is_verbose, const char *fmt, ...)
 		printf("%s\n", str);
 	}
 
-	fflush(fh);
+	if (fh)
+		fflush(fh);
 
 	free(str);
 	free(ts_str);
@@ -54,11 +72,4 @@ void send(const bool is_verbose, const char *fmt, ...)
 void setVerbose(const bool v)
 {
 	verbose = v;
-}
-
-void closeLog()
-{
-	fclose(fh);
-
-	fh = nullptr;
 }

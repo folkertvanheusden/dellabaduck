@@ -35,6 +35,7 @@
 #include "str.h"
 #include "time.h"
 #include "uct.h"
+#include "unittest.h"
 #include "vertex.h"
 #include "zobrist.h"
 
@@ -42,34 +43,6 @@
 //#define CALC_BCO
 
 Zobrist z(19);
-
-std::string init_sgf(const int dim)
-{
-	return "(;AP[DellaBaduck]SZ[" + myformat("%d", dim) + "]";
-}
-
-std::string dumpToSgf(const Board & b, const double komi, const bool with_end)
-{
-	int         dim = b.getDim();
-	std::string sgf = init_sgf(dim);
-
-	sgf += myformat(";KM[%f]", komi);
-
-	for(int y=0; y<dim; y++) {
-		for(int x=0; x<dim; x++) {
-			auto v     = Vertex(x, y, dim);
-
-			auto stone = b.getAt(v.getV());
-
-			if (stone == B_EMPTY)
-				continue;
-
-			sgf += myformat(";%c[%s]", stone == B_BLACK ? 'B' : 'W', v2t(v).c_str());
-		}
-	}
-
-	return sgf + (with_end ? ")" : "");
-}
 
 typedef struct {
 	double score;
@@ -104,7 +77,12 @@ void selectRandom(const Board & b, const ChainMap & cm, const std::vector<chain_
 		r = rng(gen);
 	}
 
-	const int v = liberties.at(r).getV();
+	auto   it        = liberties.begin();
+
+	for(size_t i=0; i<r; i++)
+		it++;
+
+	const int v = it->getV();
 
 	evals->at(v).score++;
 	evals->at(v).valid = true;
@@ -118,7 +96,7 @@ void selectExtendChains(const Board & b, const ChainMap & cm, const std::vector<
 
 	for(auto chain : scan) {
 		for(auto chainStone : chain->chain) {
-			std::set<Vertex> empties;
+			std::unordered_set<Vertex, Vertex::HashFunction> empties;
 			pickEmptyAround(cm, chainStone, &empties);
 
 			for(auto cross : empties) {
@@ -323,7 +301,7 @@ void selectAlphaBeta(const Board & b, const ChainMap & cm, const std::vector<cha
 	std::vector<int> places_for_sort;
 
 	for(auto & v : liberties)
-		places_for_sort.push_back(v.getV()), n_work++;
+		places_for_sort.emplace_back(v.getV()), n_work++;
 
 	std::sort(places_for_sort.begin(), places_for_sort.end(), CompareCrossesSortHelper(b, p));
 
@@ -490,12 +468,6 @@ std::tuple<double, double, int, player_t> playout(const Board & in, const double
 	std::vector<chain_t *> chainsWhite, chainsBlack;
 	findChains(b, &chainsWhite, &chainsBlack, &cm);
 
-	std::vector<Vertex> libertiesWhite;
-	findLiberties(cm, &libertiesWhite, B_WHITE);
-
-	std::vector<Vertex> libertiesBlack;
-	findLiberties(cm, &libertiesBlack, B_BLACK);
-
 	std::unordered_set<uint64_t> seen;
 	seen.insert(b.getHash());
 
@@ -504,7 +476,8 @@ std::tuple<double, double, int, player_t> playout(const Board & in, const double
 	bool pass[2] { false };
 
 	while(++mc < dim * dim * dim) {
-		auto & liberties = p == P_BLACK ? libertiesBlack : libertiesWhite;
+		std::vector<Vertex> liberties;
+		findLiberties(cm, &liberties, playerToStone(p));
 
 		// no valid liberties? return "pass".
 		if (liberties.empty()) {
@@ -531,11 +504,11 @@ std::tuple<double, double, int, player_t> playout(const Board & in, const double
 			const int x = liberties.at(r).getX();
 			const int y = liberties.at(r).getY();
 
-			connect(&b, &cm, &chainsWhite, &chainsBlack, &libertiesWhite, &libertiesBlack, playerToStone(p), x, y);
+			connect(&b, &cm, &chainsWhite, &chainsBlack, playerToStone(p), x, y);
 
 			uint64_t new_hash = b.getHash();
 
-			if (seen.insert(new_hash).second == false)
+			if (seen.insert(new_hash).second == false)  // terminate loop if already in the set
 				break;
 		}
 
@@ -589,39 +562,42 @@ void selectPlayout(const Board & b, const ChainMap & cm, const std::vector<chain
 		threads.erase(threads.begin());
 	}
 
+	uint64_t total_playouts = 0;
+
 	for(int i=0; i<dimsq; i++) {
 		if (all_results.at(i).second) {
 			double score = all_results.at(i).first / all_results.at(i).second;
+
+			total_playouts += all_results.at(i).second;
 
 			evals->at(i).score += score;
 
 			evals->at(i).valid = true;
 		}
 	}
+
+	send(true, "# total playouts: %lu", total_playouts);
 }
 
 void purgeKO(const Board & b, const player_t p, std::set<uint64_t> *const seen, std::vector<Vertex> *const liberties)
 {
-        for(auto it = liberties->begin(); it != liberties->end();) {
-                Board temp(b);
+	for(auto it = liberties->begin(); it != liberties->end();) {
+		Board temp(b);
 
-                play(&temp, *it, p);
+		play(&temp, *it, p);
 
-                if (seen->find(temp.getHash()) != seen->end()) {
-			*it = liberties->back();
-			liberties->pop_back();
-		}
-                else {
-                        it++;
-		}
-        }
+		if (seen->find(temp.getHash()) != seen->end())
+			it = liberties->erase(it);
+		else
+			it++;
+	}
 }
 
 std::optional<Vertex> genMove(Board *const b, const player_t & p, const bool doPlay, const double useTime, const double komi, const int nThreads, std::set<uint64_t> *const seen)
 {
 	dump(*b);
 
-	if (useTime == 0)
+	if (useTime <= 0.001)
 		return { };
 
 	const int dim = b->getDim();
@@ -684,7 +660,7 @@ std::optional<Vertex> genMove(Board *const b, const player_t & p, const bool doP
 				send(true, "# invalid move %s detected", v2t(temp).c_str());
 			else {
 				bestScore = evals.at(i).score;
-				v = temp;
+				v.emplace(temp);
 			}
 		}
 	}
@@ -919,326 +895,6 @@ Board loadSgf(const std::string & in)
 	return b;
 }
 
-bool compareChain(const std::set<Vertex> & a, const std::set<Vertex> & b)
-{
-	for(auto v : a) {
-		if (b.find(v) == b.end())
-			return false;
-	}
-
-	return true;
-}
-
-bool compareChain(const std::vector<Vertex> & a, const std::vector<Vertex> & b)
-{
-	for(auto v : a) {
-		if (std::find(b.begin(), b.end(), v) == b.end())
-			return false;
-	}
-
-	return true;
-}
-
-bool findChain(const std::vector<chain_t *> & chains, const std::vector<Vertex> & search_for)
-{
-	for(auto c : chains) {
-		if (compareChain(c->chain, search_for))
-			return true;
-	}
-
-	return false;
-}
-
-bool findChain(const std::vector<chain_t *> & chains, const std::set<Vertex> & search_for)
-{
-	for(auto c : chains) {
-		if (compareChain(c->liberties, search_for))
-			return true;
-	}
-
-	return false;
-}
-
-bool compareChainT(const std::vector<chain_t *> & chains1, const std::vector<chain_t *> & chains2)
-{
-	for(auto & c : chains1) {
-		if (findChain(chains2, c->chain) == false)
-			return false;
-
-		if (findChain(chains2, c->liberties) == false)
-			return false;
-	}
-
-	return true;
-}
-
-void test(const bool verbose)
-{
-	struct test_data {
-		std::string b;
-		int         dim;
-		double      score;
-		std::vector<std::pair<std::string, std::string> > white_chains;
-		std::vector<std::pair<std::string, std::string> > black_chains;
-	};
-
-	std::vector<test_data> boards;
-
-	boards.push_back({
-			".....\n"
-			".....\n"
-			".....\n"
-			".....\n"
-			".....\n"
-			, 5, -7.5,
-			{ },
-			{ },
-			});
-
-	boards.push_back({
-			"xxxxxxx\n"
-			"x.....x\n"
-			"x.o...x\n"
-			"x...xxx\n"
-			"xxxx...\n"
-			".....xx\n"
-			".....x.\n"
-			, 7, 13.5,
-			{ { "C5", "C6 D5 B5 C4" } },
-			{ { "G2 F2 F1", "G3 F3 E2 G1 E1" }, { "G7 F7 E7 D7 C7 B7 A7 G6 A6 G5 A5 G4 F4 E4 A4 D3 C3 B3 A3", "F6 E6 D6 C6 B6 F5 E5 B5 D4 C4 B4 G3 F3 E3 D2 C2 B2 A2" } }
-			});
-
-	boards.push_back({
-			"xxxxxxx\n"
-			"x.....x\n"
-			"x.....x\n"
-			"x...xxx\n"
-			"xxxx...\n"
-			".....xx\n"
-			".o...x.\n"
-			, 7, 13.5,
-			{ { "B1", "B2 C1 A1" } },
-			{ { "G2 F2 F1", "G3 F3 E2 G1 E1" }, { "G7 F7 E7 D7 C7 B7 A7 G6 A6 G5 A5 G4 F4 E4 A4 D3 C3 B3 A3", "F6 E6 D6 C6 B6 F5 E5 B5 D4 C4 B4 G3 F3 E3 D2 C2 B2 A2" } }
-		       	});
-
-	boards.push_back({
-			"xxxxxxx..\n"
-			"x.....x.x\n"
-			"x.....x.o\n"
-			"x...xxx..\n"
-			"xxxx.....\n"
-			".....xx..\n"
-			".o...x...\n"
-			"......ooo\n"
-			".....o...\n"
-			, 9, 9.5,
-			{ { "F1", "F2 G1 E1" }, { "J2 H2 G2", "J3 H3 G3 F2 J1 H1 G1" }, { "B3", "B4 C3 A3 B2" }, { "J7", "H7 J6" } },
-			{ { "G4 F4 F3", "G5 F5 H4 E4 G3 E3 F2" }, { "G9 F9 E9 D9 C9 B9 A9 G8 A8 G7 A7 G6 F6 E6 A6 D5 C5 B5 A5", "H9 H8 F8 E8 D8 C8 B8 H7 F7 E7 B7 H6 D6 C6 B6 G5 F5 E5 D4 C4 B4 A4" }, { "J8", "J9 H8" } }
-		       	});
-
-	boards.push_back({
-			".........\n"
-			"...o.....\n"
-			"xxox.x...\n"
-			"..o...x.x\n"
-			".........\n"
-			"...o.o.o.\n"
-			".........\n"
-			".........\n"
-			".........\n"
-			, 9, -7.5,
-			{ { "D4", "D5 E4 C4 D3" }, { "F4", "F5 G4 E4 F3" }, { "H4", "H5 J4 G4 H3" }, { "C7 C6", "C8 D6 B6 C5" }, { "D8", "D9 E8 C8" } },
-			{ { "G6", "G7 H6 F6 G5" }, { "J6", "J7 H6 J5" }, { "B7 A7", "B8 A8 B6 A6" }, { "D7", "E7 D6" }, { "F7", "F8 G7 E7 F6" } }
-		       	});
-
-#if 0
-	boards.push_back({
-			"xx.xxxxox\n"
-			"xooooxoox\n"
-			"xoxo.ooxx\n"
-			"oxoxooox.\n"
-			"xoxoxoxoo\n"
-			"oxoxoxoox\n"
-			"xooooooox\n"
-			"oooxoxoxx\n"
-			"xoxooxoox\n"
-			, 9, -15.5,
-			{ },
-			{ }
-			});
-#endif
-
-	for(auto b : boards) {
-		bool   ok   = true;
-		Board  brd  = stringToBoard(b.b);
-
-		double komi       = 7.5;
-
-		auto   temp_score = score(brd, komi);
-		double test_score = temp_score.first - temp_score.second;
-
-		if (verbose)
-			printf("%s %f\n", dumpToSgf(brd, komi, true).c_str(), test_score);
-
-		if (test_score != b.score)
-			printf("expected score: %f, current: %f\n", b.score, test_score), ok = false;
-
-		ChainMap cm(brd.getDim());
-		std::vector<chain_t *> chainsWhite, chainsBlack;
-		findChains(brd, &chainsWhite, &chainsBlack, &cm);
-
-		scanEnclosed(brd, &cm, playerToStone(P_WHITE));
-
-		if (b.white_chains.size() != chainsWhite.size())
-			printf("white: number of chains mismatch\n"), ok = false;
-
-		if (b.black_chains.size() != chainsBlack.size())
-			printf("black: number of chains mismatch\n"), ok = false;
-
-		for(auto ch : b.white_chains) {
-			auto white_stones = stringToChain(ch.first, brd.getDim());
-
-			if (findChain(chainsWhite, white_stones) == false)
-				printf("white stones mismatch\n"), ok = false;
-		}
-
-		for(auto ch : b.white_chains) {
-			auto white_liberties = stringToChain(ch.second, brd.getDim());
-
-			if (findChain(chainsWhite, white_liberties) == false)
-				printf("white liberties mismatch for %s\n", ch.second.c_str()), ok = false;
-		}
-
-		for(auto ch : b.black_chains) {
-			auto black_stones = stringToChain(ch.first, brd.getDim());
-
-			if (findChain(chainsBlack, black_stones) == false)
-				printf("black stones mismatch\n"), ok = false;
-		}
-
-		for(auto ch : b.black_chains) {
-			auto black_liberties = stringToChain(ch.second, brd.getDim());
-
-			if (findChain(chainsBlack, black_liberties) == false)
-				printf("black liberties mismatch for %s\n", ch.second.c_str()), ok = false;
-		}
-
-		if (!ok) {
-			dump(brd);
-
-			dump(chainsBlack);
-
-			dump(chainsWhite);
-
-			send(true, "---\n");
-		}
-
-		purgeChains(&chainsBlack);
-		purgeChains(&chainsWhite);
-	}
-
-	// zobrist hashing
-	Board b(&z, 9);
-
-	uint64_t startHash = b.getHash();
-	if (startHash)
-		printf("initial hash (%lx) invalid\n", startHash);
-
-	b.setAt(3, 3, B_BLACK);
-	uint64_t firstHash = b.getHash();
-
-	if (firstHash == 0)
-		printf("hash did not change\n");
-
-	b.setAt(3, 3, B_WHITE);
-	uint64_t secondHash = b.getHash();
-
-	if (secondHash == firstHash)
-		printf("hash (%lx) did not change for type\n", secondHash);
-
-	if (secondHash == 0)
-		printf("hash became initial\n");
-
-	b.setAt(3, 3, B_EMPTY);
-	uint64_t thirdHash = b.getHash();
-
-	if (thirdHash)
-		printf("hash (%lx) did not reset\n", thirdHash);
-
-	// "connect()"
-	for(auto b : boards) {
-		bool ok = true;
-
-		Board brd1 = stringToBoard(b.b);
-		Board brd2(brd1);
-
-		dump(brd1);
-
-		assert(brd2.getHash() == brd1.getHash());  // sanity check
-
-		ChainMap cm2(brd2.getDim());
-		std::vector<chain_t *> chainsWhite2, chainsBlack2;
-		findChains(brd2, &chainsWhite2, &chainsBlack2, &cm2);
-
-		std::vector<Vertex> liberties2W, liberties2B;
-		findLiberties(cm2, &liberties2W, B_WHITE);
-		findLiberties(cm2, &liberties2B, B_BLACK);
-
-		auto move = liberties2B.at(0);
-
-		play(&brd1, move, P_BLACK);
-
-		ChainMap cm1(brd1.getDim());
-		std::vector<chain_t *> chainsWhite1, chainsBlack1;
-		findChains(brd1, &chainsWhite1, &chainsBlack1, &cm1);
-
-		std::vector<Vertex> liberties1W, liberties1B;
-		findLiberties(cm1, &liberties1W, B_WHITE);
-		findLiberties(cm1, &liberties1B, B_BLACK);
-
-		connect(&brd2, &cm2, &chainsWhite2, &chainsBlack2, &liberties2W, &liberties2B, playerToStone(P_BLACK), move.getX(), move.getY());
-
-		if (brd2.getHash() != brd1.getHash())
-			printf("boards mismatch\n"), ok = false;
-
-		if (compareChainT(chainsWhite1, chainsWhite2) == false)
-			printf("chainsWhite mismatch\n"), ok = false;
-
-		if (compareChainT(chainsBlack1, chainsBlack2) == false)
-			printf("chainsBlack mismatch\n"), ok = false;
-
-		if (compareChain(liberties1W, liberties2W) == false)
-			printf("liberties white mismatch\n"), ok = false;
-
-		if (compareChain(liberties1B, liberties2B) == false)
-			printf("liberties black mismatch\n"), ok = false;
-
-		if (!ok) {
-			send(true, " * boards\n");
-			dump(brd1);
-			dump(brd2);
-
-			send(true, " * chains black\n");
-			dump(chainsBlack1);
-			dump(chainsBlack2);
-
-			send(true, " * chains white\n");
-			dump(chainsWhite1);
-			dump(chainsWhite2);
-
-			send(true, "---\n");
-		}
-
-		purgeChains(&chainsBlack2);
-		purgeChains(&chainsWhite2);
-
-		purgeChains(&chainsBlack1);
-		purgeChains(&chainsWhite1);
-	}
-
-	printf("--- unittest end ---\n");
-}
-
 int getNEmpty(const Board & b, const player_t p)
 {
 	ChainMap cm(b.getDim());
@@ -1255,75 +911,6 @@ int getNEmpty(const Board & b, const player_t p)
 	return liberties.size();
 }
 
-uint64_t perft(const Board & b, std::set<uint64_t> *const seen, const player_t p, const int depth, const int pass, const int verbose, const bool top)
-{
-	if (depth == 0)
-		return 1;
-
-	if (pass >= 2)
-		return 0;
-
-	const int      dim        = b.getDim();
-
-	const int      new_depth  = depth - 1;
-	const player_t new_player = getOpponent(p);
-
-	uint64_t       total      = 0;
-
-	// find chains of stones
-	ChainMap cm(dim);
-	std::vector<chain_t *> chainsWhite, chainsBlack;
-	findChains(b, &chainsWhite, &chainsBlack, &cm);
-
-	// find the liberties -> the "moves"
-	std::vector<Vertex> liberties;
-	findLiberties(cm, &liberties, playerToStone(p));
-
-	purgeChains(&chainsBlack);
-	purgeChains(&chainsWhite);
-	
-	for(auto & cross : liberties) {
-		Board new_board(b);
-
-		play(&new_board, cross, p);
-
-		uint64_t hash = new_board.getHash();
-
-		if (seen->find(hash) == seen->end()) {
-			if (verbose == 2)
-				send(true, "%d %s %s %lx", depth, v2t(cross).c_str(), dumpToString(b, p, pass).c_str(), b.getHash());
-
-			seen->insert(hash);
-
-			uint64_t cur_count = perft(new_board, seen, new_player, new_depth, 0, verbose, false);
-
-			total += cur_count;
-
-			if (verbose == 1 && top)
-				send(true, "%s: %ld", v2t(cross).c_str(), cur_count);
-
-			seen->erase(hash);
-		}
-	}
-
-	if (pass < 2) {
-		uint64_t cur_count = perft(b, seen, new_player, new_depth, pass + 1, verbose, false);
-
-		total += cur_count;
-
-		if (verbose == 1 && top)
-			send(true, "pass: %ld", cur_count);
-	}
-
-	if (verbose == 2)
-		send(true, "%d pass %s %lx", depth, dumpToString(b, p, pass).c_str(), b.getHash());
-
-	if (verbose == 1 && top)
-		send(true, "total: %ld", total);
-
-	return total;
-}
-
 int main(int argc, char *argv[])
 {
 	// uct object is not threadsafe yet
@@ -1331,15 +918,22 @@ int main(int argc, char *argv[])
 
 	int dim = 9;
 
+	std::string logfile;
+
 	int c = -1;
-	while((c = getopt(argc, argv, "vt:5")) != -1) {
+	while((c = getopt(argc, argv, "l:vt:5")) != -1) {
 		if (c == 'v')  // console
 			setVerbose(true);
 		else if (c == 't')
 			nThreads = atoi(optarg);
 		else if (c == '5')
 			dim = 5;
+		else if (c == 'l')
+			logfile = optarg;
 	}
+
+	if (logfile.empty() == false)
+		startLog(logfile);
 
 	setbuf(stdout, nullptr);
 	setbuf(stderr, nullptr);
@@ -1352,7 +946,8 @@ int main(int argc, char *argv[])
 	
 	int      pass = 0;
 
-	double timeLeft = -1;
+	double timeLeftB = -1;
+	double timeLeftW = -1;
 
 	double komi = 0.;
 
@@ -1367,6 +962,10 @@ int main(int argc, char *argv[])
 		char buffer[4096] { 0 };
 		if (!fgets(buffer, sizeof buffer, stdin))
 			break;
+
+		char *cr = strchr(buffer, '\r');
+		if (cr)
+			*cr = 0x00;
 
 		char *lf = strchr(buffer, '\n');
 		if (lf)
@@ -1413,7 +1012,9 @@ int main(int argc, char *argv[])
 			moves_executed = 0;
 			// not /2: assuming that some stones are regained during the game
 			moves_total    = dim * dim;
-			timeLeft       = -1;
+
+			timeLeftW      = -1;
+			timeLeftB      = -1;
 
 			sgf = init_sgf(dim);
 		}
@@ -1502,23 +1103,28 @@ int main(int argc, char *argv[])
 			send(false, "=%s", id.c_str());  // TODO
 		}
 		else if (parts.at(0) == "time_left" && parts.size() >= 3) {
-			timeLeft = atof(parts.at(2).c_str());
+			player_t player = (parts.at(1) == "b" || parts.at(1) == "black") ? P_BLACK : P_WHITE;
+
+			if (player == P_BLACK)
+				timeLeftB = atof(parts.at(2).c_str());
+			else
+				timeLeftW = atof(parts.at(2).c_str());
 
 			send(false, "=%s", id.c_str());  // TODO
 		}
 		else if (parts.at(0) == "list_commands") {
 			send(false, "=%s name", id.c_str());
-			send(false, "=%s version", id.c_str());
-			send(false, "=%s boardsize", id.c_str());
-			send(false, "=%s clear_board", id.c_str());
-			send(false, "=%s play", id.c_str());
-			send(false, "=%s genmove", id.c_str());
-			send(false, "=%s komi", id.c_str());
-			send(false, "=%s quit", id.c_str());
-			send(false, "=%s loadsgf", id.c_str());
-			send(false, "=%s final_score", id.c_str());
-			send(false, "=%s time_settings", id.c_str());
-			send(false, "=%s time_left", id.c_str());
+			send(false, "version");
+			send(false, "boardsize");
+			send(false, "clear_board");
+			send(false, "play");
+			send(false, "genmove");
+			send(false, "komi");
+			send(false, "quit");
+			send(false, "loadsgf");
+			send(false, "final_score");
+			send(false, "time_settings");
+			send(false, "time_left");
 		}
 		else if (parts.at(0) == "final_score") {
 			auto final_score = score(*b, komi);
@@ -1527,8 +1133,9 @@ int main(int argc, char *argv[])
 
 			send(false, "=%s %s", id.c_str(), scoreStr(final_score).c_str());
 		}
-		else if (parts.at(0) == "unittest")
-			test(parts.size() == 2 ? parts.at(1) == "-v" : false);
+		else if (parts.at(0) == "unittest") {
+			test(std::find(parts.begin() + 1, parts.end(), "-v") != parts.end(), std::find(parts.begin() + 1, parts.end(), "-p") != parts.end());
+		}
 		else if (parts.at(0) == "loadsgf") {
 			delete b;
 			b = new Board(loadSgfFile(parts.at(1)));
@@ -1600,6 +1207,8 @@ int main(int argc, char *argv[])
 		}
 		else if (parts.at(0) == "genmove" || parts.at(0) == "reg_genmove") {
 			player_t player = (parts.at(1) == "b" || parts.at(1) == "black") ? P_BLACK : P_WHITE;
+
+			double timeLeft = player == P_BLACK ? timeLeftB : timeLeftW;
 
 			if (timeLeft < 0)
 				timeLeft = 5.0;

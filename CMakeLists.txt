@@ -18,6 +18,7 @@ add_executable(
   str.cpp
   time.cpp
   uct.cpp
+  unittest.cpp
   vertex.cpp
   zobrist.cpp
 )
