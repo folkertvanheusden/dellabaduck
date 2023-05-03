@@ -12,11 +12,12 @@
 #include "uct.h"
 
 
-uct_node::uct_node(uct_node *const parent, const Board & position, const player_t player, const std::optional<Vertex> & causing_move) :
+uct_node::uct_node(uct_node *const parent, const Board & position, const player_t player, const std::optional<Vertex> & causing_move, const double komi) :
 	parent(parent),
 	position(position),
 	player(player),
-	causing_move(causing_move)
+	causing_move(causing_move),
+	komi(komi)
 {
 	if (causing_move.has_value())
 		play(&this->position, causing_move.value(), player);
@@ -42,7 +43,7 @@ uct_node::~uct_node()
 
 uct_node *uct_node::add_child(const Vertex & m)
 {
-	uct_node *new_node = new uct_node(this, position, getOpponent(player), m);
+	uct_node *new_node = new uct_node(this, position, getOpponent(player), m, komi);
 
 	children.push_back({ m, new_node });
 
@@ -178,7 +179,7 @@ const Board uct_node::get_position() const
 
 double uct_node::playout(const uct_node *const leaf)
 {
-	auto rc = ::playout(leaf->get_position(), 0., leaf->get_player());
+	auto rc = ::playout(leaf->get_position(), komi, leaf->get_player());
 
 	if (std::get<3>(rc) == P_BLACK && std::get<0>(rc) > std::get<1>(rc))
 		return 1.;
@@ -199,7 +200,7 @@ void uct_node::monte_carlo_tree_search()
 
 	auto simulation_result = playout(leaf);
 
-	backpropagate(leaf, simulation_result);
+	backpropagate(leaf, 1.0 - simulation_result);
 }
 
 const Vertex uct_node::get_causing_move() const
@@ -212,9 +213,9 @@ const std::vector<std::pair<Vertex, uct_node *> > & uct_node::get_children() con
 	return children;
 }
 
-Vertex calculate_move(const Board & b, const player_t p, const unsigned think_time)
+Vertex calculate_move(const Board & b, const player_t p, const unsigned think_time, const double komi)
 {
-	uct_node *root     = new uct_node(nullptr, b, p, { });
+	uct_node *root     = new uct_node(nullptr, b, p, { }, komi);
 
 	uint64_t  start_ts = get_ts_ms();
 

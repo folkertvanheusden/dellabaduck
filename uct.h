@@ -13,6 +13,7 @@ private:
 	Board                           position;
 	const player_t                  player;
 	const std::optional<Vertex>     causing_move;
+	const double                    komi;
 
 	std::vector<std::pair<Vertex, uct_node *> > children;
 	std::vector<Vertex>             unvisited;
@@ -33,7 +34,7 @@ private:
 	double    playout(const uct_node *const leaf);
 
 public:
-	uct_node(uct_node *const parent, const Board & position, const player_t player, const std::optional<Vertex> & causing_move);
+	uct_node(uct_node *const parent, const Board & position, const player_t player, const std::optional<Vertex> & causing_move, const double komi);
 	virtual ~uct_node();
 
 	bool         is_game_over() const { return game_over; }
@@ -54,4 +55,4 @@ public:
 	double       get_score_count();
 };
 
-Vertex calculate_move(const Board & b, const player_t p, const unsigned think_time);
+Vertex calculate_move(const Board & b, const player_t p, const unsigned think_time, const double komi);
