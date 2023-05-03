@@ -41,6 +41,33 @@ uct_node::~uct_node()
 		delete u.second;
 }
 
+bool uct_node::verify() const
+{
+	if (!fully_expanded())
+		return true;
+
+	if (score > visited)
+		return false;
+
+	bool     rc                   = true;
+	uint64_t children_visit_count = 0;
+
+	for(auto & u : children) {
+		children_visit_count += u.second->get_visit_count();
+
+		if (!u.second->verify())
+			rc = false;
+	}
+
+	if (children_visit_count + 1 != visited) {
+		printf("this node: %lu, children: %lu\n", visited, children_visit_count);
+
+		rc = false;
+	}
+
+	return rc;
+}
+
 uct_node *uct_node::add_child(const Vertex & m)
 {
 	uct_node *new_node = new uct_node(this, position, getOpponent(player), m, komi);
@@ -84,7 +111,7 @@ uct_node *uct_node::pick_unvisited()
 	if (unvisited.empty())
 		return nullptr;
 
-	auto first = unvisited.begin();
+	auto first = unvisited.begin();  // back + pop_back
 
 	uct_node *new_node = add_child(*first);
 
@@ -93,7 +120,7 @@ uct_node *uct_node::pick_unvisited()
 	return new_node;
 }
 
-bool uct_node::fully_expanded()
+bool uct_node::fully_expanded() const
 {
 	return unvisited.empty();
 }
@@ -179,28 +206,39 @@ const Board uct_node::get_position() const
 
 double uct_node::playout(const uct_node *const leaf)
 {
-	auto rc = ::playout(leaf->get_position(), komi, leaf->get_player());
+	player_t p = leaf->get_player();
 
-	if (std::get<3>(rc) == P_BLACK && std::get<0>(rc) > std::get<1>(rc))
-		return 1.;
-	else if (std::get<3>(rc) == P_WHITE && std::get<0>(rc) < std::get<1>(rc))
-		return 1.;
-	else if (std::get<3>(rc) == P_BLACK && std::get<0>(rc) < std::get<1>(rc))
-		return 0.;
-	else if (std::get<3>(rc) == P_WHITE && std::get<0>(rc) > std::get<1>(rc))
-		return 0.;
+	auto rc = ::playout(leaf->get_position(), komi, p);
 
-	// should not compare doubles with ==
-	return 0.5;
+	double result = 0.5;
+
+	// TODO p? or opponent(p)?
+
+	if (p == P_BLACK && std::get<0>(rc) > std::get<1>(rc))
+		result = 1.;
+	else if (p == P_WHITE && std::get<0>(rc) < std::get<1>(rc))
+		result = 1.;
+	else if (p == P_BLACK && std::get<0>(rc) < std::get<1>(rc))
+		result = 0.;
+	else if (p == P_WHITE && std::get<0>(rc) > std::get<1>(rc))
+		result = 0.;
+
+#if 0
+	printf("player: %d, result: %.1f, black: %.1f, white: %.1f, count: %u\n",
+			leaf->get_player(), result,
+			std::get<0>(rc), std::get<1>(rc), std::get<2>(rc));
+#endif
+
+	return result;
 }
 
 void uct_node::monte_carlo_tree_search()
 {
 	uct_node *leaf = traverse();
 
-	auto simulation_result = playout(leaf);
+	double simulation_result = playout(leaf);
 
-	backpropagate(leaf, 1.0 - simulation_result);
+	backpropagate(leaf, 1. - simulation_result);
 }
 
 const Vertex uct_node::get_causing_move() const
@@ -229,9 +267,11 @@ std::pair<Vertex, uint64_t> calculate_move(const Board & b, const player_t p, co
 		if (get_ts_ms() - start_ts >= think_time) {
 			auto best_move = root->best_child()->get_causing_move();
 
+			// root->verify();
+
 			delete root;
 
-			fprintf(stderr, "# n played/s: %.2f\n", n_played * 1000.0 / think_time);
+			// fprintf(stderr, "# n played/s: %.2f\n", n_played * 1000.0 / think_time);
 
 			return { best_move, n_played };
 		}
