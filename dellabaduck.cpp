@@ -596,6 +596,38 @@ void purgeKO(const Board & b, const player_t p, std::set<uint64_t> *const seen, 
 	}
 }
 
+void selectUCT(const Board & b, const ChainMap & cm, const std::vector<chain_t *> & chainsWhite, const std::vector<chain_t *> & chainsBlack, const std::vector<Vertex> & liberties, const player_t & p, std::vector<eval_t> *const evals, const double useTime, const double komi, const int nThreads)
+{
+        uct_node *root     = new uct_node(nullptr, b, p, { });
+
+        uint64_t  start_ts = get_ts_ms();
+
+        uint64_t  n_played = 0;
+
+        for(;;) {
+                root->monte_carlo_tree_search();
+
+                n_played++;
+
+                if (get_ts_ms() - start_ts >= useTime * 1000.)
+			break;
+	}
+
+	auto best = root->best_child();
+
+	Vertex move(best->get_causing_move());
+
+	delete root;
+
+	fprintf(stderr, "# n played/s: %.2f, selected move: %s\n", n_played / useTime, v2t(move).c_str());
+
+	int o = move.getV();
+
+	evals->at(o).score += 100.;
+
+	evals->at(o).valid = true;
+}
+
 std::optional<Vertex> genMove(Board *const b, const player_t & p, const bool doPlay, const double useTime, const double komi, const int nThreads, std::set<uint64_t> *const seen)
 {
 	dump(*b);
@@ -638,7 +670,8 @@ std::optional<Vertex> genMove(Board *const b, const player_t & p, const bool doP
 
 	if (useTime >= 0.1)
 		// selectAlphaBeta(*b, cm, chainsWhite, chainsBlack, liberties, p, &evals, useTime, komi, nThreads);
-		selectPlayout(*b, cm, chainsWhite, chainsBlack, liberties, p, &evals, useTime, komi, nThreads);
+		// selectPlayout(*b, cm, chainsWhite, chainsBlack, liberties, p, &evals, useTime, komi, nThreads);
+		selectUCT(*b, cm, chainsWhite, chainsBlack, liberties, p, &evals, useTime, komi, nThreads);
 	else {
 		scanEnclosed(*b, &cm, playerToStone(p));
 
@@ -649,6 +682,8 @@ std::optional<Vertex> genMove(Board *const b, const player_t & p, const bool doP
 		selectKillChains(*b, cm, chainsWhite, chainsBlack, liberties, p, &evals);
 
 		selectAtLeastOne(*b, cm, chainsWhite, chainsBlack, liberties, p, &evals);
+
+		selectPlayout(*b, cm, chainsWhite, chainsBlack, liberties, p, &evals, useTime, komi, nThreads);
 	}
 
 	// find best
