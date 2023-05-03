@@ -565,15 +565,21 @@ void selectPlayout(const Board & b, const ChainMap & cm, const std::vector<chain
 		threads.erase(threads.begin());
 	}
 
+	uint64_t total_playouts = 0;
+
 	for(int i=0; i<dimsq; i++) {
 		if (all_results.at(i).second) {
 			double score = all_results.at(i).first / all_results.at(i).second;
+
+			total_playouts += all_results.at(i).second;
 
 			evals->at(i).score += score;
 
 			evals->at(i).valid = true;
 		}
 	}
+
+	send(true, "# total playouts: %lu", total_playouts);
 }
 
 void purgeKO(const Board & b, const player_t p, std::set<uint64_t> *const seen, std::vector<Vertex> *const liberties)
