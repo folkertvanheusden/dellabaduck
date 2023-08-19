@@ -337,68 +337,44 @@ bool checkLiberty(const ChainMap & cm, const int x, const int y, const board_t f
 	bool      ok  = false;
 	const int dim = cm.getDim();
 
-	if (x > 0)
-		ok |= cm.getAt({ x - 1, y, dim }) == nullptr;
+	if (x > 0) {
+		const auto p = cm.getAt({ x - 1, y, dim });
 
-	if (x < dim - 1)
-		ok |= cm.getAt({ x + 1, y, dim }) == nullptr;
+		ok |= p == nullptr;
 
-	if (y > 0)
-		ok |= cm.getAt({ x, y - 1, dim }) == nullptr;
+		ok |= p != nullptr && p->type == for_whom && p->liberties.size() > 1;
 
-	if (y < dim - 1)
-		ok |= cm.getAt({ x, y + 1, dim }) == nullptr;
-
-	if (ok == false) {
-		if (x > 0) {
-			auto p = cm.getAt({ x - 1, y, dim });
-
-			ok |= p != nullptr && p->type == for_whom && p->liberties.size() > 1;
-		}
-
-		if (x < dim - 1) {
-			auto p = cm.getAt({ x + 1, y, dim });
-
-			ok |= p != nullptr && p->type == for_whom && p->liberties.size() > 1;
-		}
-
-		if (y > 0) {
-			auto p = cm.getAt({ x, y - 1, dim });
-
-			ok |= p != nullptr && p->type == for_whom && p->liberties.size() > 1;
-		}
-
-		if (y < dim - 1) {
-			auto p = cm.getAt({ x, y + 1, dim });
-
-			ok |= p != nullptr && p->type == for_whom && p->liberties.size() > 1;
-		}
+		ok |= p != nullptr && p->type != for_whom && p->liberties.size() == 1;
 	}
 
-	if (ok == false) {
-		if (x > 0) {
-			auto p = cm.getAt({ x - 1, y, dim });
+	if (!ok && x < dim - 1) {
+		const auto p = cm.getAt({ x + 1, y, dim });
 
-			ok |= p != nullptr && p->type != for_whom && p->liberties.size() == 1;
-		}
+		ok |= p == nullptr;
 
-		if (x < dim - 1) {
-			auto p = cm.getAt({ x + 1, y, dim });
+		ok |= p != nullptr && p->type == for_whom && p->liberties.size() > 1;
 
-			ok |= p != nullptr && p->type != for_whom && p->liberties.size() == 1;
-		}
+		ok |= p != nullptr && p->type != for_whom && p->liberties.size() == 1;
+	}
 
-		if (y > 0) {
-			auto p = cm.getAt({ x, y - 1, dim });
+	if (!ok && y > 0) {
+		const auto p = cm.getAt({ x, y - 1, dim });
 
-			ok |= p != nullptr && p->type != for_whom && p->liberties.size() == 1;
-		}
+		ok |= p == nullptr;
 
-		if (y < dim - 1) {
-			auto p = cm.getAt({ x, y + 1, dim });
+		ok |= p != nullptr && p->type == for_whom && p->liberties.size() > 1;
 
-			ok |= p != nullptr && p->type != for_whom && p->liberties.size() == 1;
-		}
+		ok |= p != nullptr && p->type != for_whom && p->liberties.size() == 1;
+	}
+
+	if (!ok && y < dim - 1) {
+		const auto p = cm.getAt({ x, y + 1, dim });
+
+		ok |= p == nullptr;
+
+		ok |= p != nullptr && p->type == for_whom && p->liberties.size() > 1;
+
+		ok |= p != nullptr && p->type != for_whom && p->liberties.size() == 1;
 	}
 
 	return ok;
