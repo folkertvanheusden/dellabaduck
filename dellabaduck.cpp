@@ -538,6 +538,9 @@ std::tuple<double, double, int, player_t> playout(const Board & in, const double
 			if (seen.insert(new_hash).second == false)
 				break;
 		}
+		else {
+			pass[p] = true;
+		}
 
 		p = getOpponent(p);
 	}
