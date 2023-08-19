@@ -25,6 +25,7 @@ private:
 	uint64_t       hash { 0       };
 
 	uint64_t getHashForField(const int v);
+	void updateField(const int v, const board_t bv);
 
 public:
 	Board(Zobrist *const z, const int dim);

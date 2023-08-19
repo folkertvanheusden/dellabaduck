@@ -23,6 +23,17 @@ uint64_t Board::getHashForField(const int v)
 	return z->get(v, stone == B_BLACK);
 }
 
+void Board::updateField(const int v, const board_t bv)
+{
+	if (b[v] != B_EMPTY)
+		hash ^= z->get(v, b[v] == B_BLACK);
+
+	b[v] = bv;
+
+	if (bv != B_EMPTY)
+		hash ^= z->get(v, bv == B_BLACK);
+}
+
 Board::Board(Zobrist *const z, const int dim) : z(z), dim(dim), b(new board_t[dim * dim]())
 {
 	assert(dim & 1);
@@ -110,33 +121,24 @@ void Board::setAt(const int v, const board_t bv)
 	assert(v < dim * dim);
 	assert(v >= 0);
 
-	hash ^= getHashForField(v);
-
-	b[v] = bv;
-
-	hash ^= getHashForField(v);
+	updateField(v, bv);
 }
 
 void Board::setAt(const Vertex & v, const board_t bv)
 {
 	int vd = v.getV();
 
-	hash ^= getHashForField(vd);
-
-	b[vd] = bv;
-
-	hash ^= getHashForField(vd);
+	updateField(vd, bv);
 }
 
 void Board::setAt(const int x, const int y, const board_t bv)
 {
 	assert(x < dim && x >= 0);
 	assert(y < dim && y >= 0);
+
 	int v = y * dim + x;
 
-	hash ^= getHashForField(v);
-	b[v] = bv;
-	hash ^= getHashForField(v);
+	updateField(v, bv);
 }
 
 ChainMap::ChainMap(const int dim) : dim(dim), cm(new chain_t *[dim * dim]()), enclosed(new bool[dim * dim]())
