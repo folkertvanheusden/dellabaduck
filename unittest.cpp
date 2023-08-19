@@ -93,11 +93,6 @@ bool test_connect_play(const Board & b, const bool verbose, std::optional<Vertex
 	findLiberties(cm2, &liberties2W, B_WHITE);
 	findLiberties(cm2, &liberties2B, B_BLACK);
 
-	printf("white liberties: ");
-	dump(liberties2W);
-	printf("black liberties: ");
-	dump(liberties2B);
-
 	if (liberties2B.empty() == false) {
 		if (move.has_value() == false)
 			move = *liberties2B.begin();
