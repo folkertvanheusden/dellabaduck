@@ -497,7 +497,7 @@ std::tuple<double, double, int> playout(const Board & in, const double komi, pla
 
 		size_t chainSize = liberties.size();
 
-		std::uniform_int_distribution<> rng(0, chainSize);
+		std::uniform_int_distribution<> rng(0, chainSize - 1);
 		r = rng(gen);
 
 		if (r < chainSize) {  // pass
