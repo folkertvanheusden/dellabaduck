@@ -212,7 +212,7 @@ const std::vector<std::pair<Vertex, uct_node *> > & uct_node::get_children() con
 	return children;
 }
 
-Vertex calculate_move(const Board & b, const player_t p, const unsigned think_time)
+std::pair<Vertex, uint64_t> calculate_move(const Board & b, const player_t p, const unsigned think_time)
 {
 	uct_node *root     = new uct_node(nullptr, b, p, { });
 
@@ -232,7 +232,7 @@ Vertex calculate_move(const Board & b, const player_t p, const unsigned think_ti
 
 			fprintf(stderr, "# n played/s: %.2f\n", n_played * 1000.0 / think_time);
 
-			return best_move;
+			return { best_move, n_played };
 		}
 	}
 }

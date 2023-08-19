@@ -554,7 +554,7 @@ void playoutThread(std::vector<std::pair<double, uint32_t> > *const all_results,
 {
 	auto rc = calculate_move(*b, p, h_end_t - get_ts_ms());
 
-	int  v  = rc.getV();
+	int  v  = rc.first.getV();
 
 	std::unique_lock<std::mutex> lck(*all_results_lock);
 
@@ -793,6 +793,30 @@ double benchmark_2(const Board & in, const unsigned ms)
 
 	double pops = n * 1000. / (end - start);
 	send(true, "# playouts (%lu total) per second: %f", n, pops);
+
+	return pops;
+}
+
+double benchmark_3(const Board & in, const unsigned ms)
+{
+	send(true, "# starting benchmark 3: duration: %.3fs, board dimensions: %d", ms / 1000.0, in.getDim());
+
+	int      dim    = in.getDim();
+	int      dimsq  = dim * dim;
+
+	srand(101);
+
+	Board work(&z, dim);
+
+	int nstones = (rand() % dimsq) + 1;
+
+	for(int i=0; i<nstones; i++)
+		work.setAt(rand() % dimsq, rand() & 1 ? B_WHITE : B_BLACK);
+
+	auto rc = calculate_move(work, P_BLACK, ms);
+
+	double pops = rc.second * 1000. / ms;
+	send(true, "# playouts (%lu total) per second: %f", rc.second, pops);
 
 	return pops;
 }
@@ -1488,6 +1512,8 @@ int main(int argc, char *argv[])
 				pops = benchmark_1(*b, atoi(parts.at(1).c_str()));
 			else if (parts.at(2) == "2")
 				pops = benchmark_2(*b, atoi(parts.at(1).c_str()));
+			else if (parts.at(2) == "3")
+				pops = benchmark_3(*b, atoi(parts.at(1).c_str()));
 
 			send(false, "=%s %f", id.c_str(), pops);
 		}
