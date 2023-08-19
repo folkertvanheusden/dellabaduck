@@ -778,7 +778,7 @@ double benchmark_2(const Board & in, const unsigned ms)
 	return pops;
 }
 
-double benchmark_3(const Board & in, const unsigned ms)
+double benchmark_3(const Board & in, const unsigned ms, const double komi)
 {
 	send(true, "# starting benchmark 3: duration: %.3fs, board dimensions: %d", ms / 1000.0, in.getDim());
 
@@ -794,7 +794,7 @@ double benchmark_3(const Board & in, const unsigned ms)
 	for(int i=0; i<nstones; i++)
 		work.setAt(rand() % dimsq, rand() & 1 ? B_WHITE : B_BLACK);
 
-	auto rc = calculate_move(work, P_BLACK, ms);
+	auto rc = calculate_move(work, P_BLACK, ms, komi);
 
 	double pops = rc.second * 1000. / ms;
 	send(true, "# playouts (%lu total) per second: %f", rc.second, pops);
@@ -1119,7 +1119,7 @@ int main(int argc, char *argv[])
 			else if (parts.at(2) == "2")
 				pops = benchmark_2(*b, atoi(parts.at(1).c_str()));
 			else if (parts.at(2) == "3")
-				pops = benchmark_3(*b, atoi(parts.at(1).c_str()));
+				pops = benchmark_3(*b, atoi(parts.at(1).c_str()), komi);
 
 			send(false, "=%s %f", id.c_str(), pops);
 		}
