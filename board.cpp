@@ -545,6 +545,7 @@ void connect(Board *const b, ChainMap *const cm, std::vector<chain_t *> *const c
 	if (x < dim - 1 && cm->getAt(x + 1, y) && cm->getAt(x + 1, y)->type == what)
 		toMergeTemp.insert(cm->getAt(x + 1, y));
 
+	// first in a set ^ to make sure no duplicates are in the vector
 	std::vector<chain_t *> toMerge;
 	for(auto & chain : toMergeTemp)
 		toMerge.push_back(chain);
@@ -589,10 +590,12 @@ void connect(Board *const b, ChainMap *const cm, std::vector<chain_t *> *const c
 		pickEmptyAround(*cm, v, &toMerge.at(0)->liberties);
 	}
 	else {
+		Vertex v(x, y, dim);
+
 		// this is a new chain
 		chain_t *curChain = new chain_t;
 		curChain->type = what;
-		curChain->chain.push_back({ x, y, dim });
+		curChain->chain.push_back(v);
 
 		if (what == B_WHITE)
 			chainsWhite->push_back(curChain);
@@ -606,7 +609,7 @@ void connect(Board *const b, ChainMap *const cm, std::vector<chain_t *> *const c
 		cm->setAt(x, y, curChain);
 
 		// find any liberties around it
-		pickEmptyAround(*cm, Vertex(x, y, dim), &curChain->liberties);
+		pickEmptyAround(*cm, v, &curChain->liberties);
 	}
 
 	// find surrounding opponent chains
