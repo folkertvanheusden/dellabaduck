@@ -493,27 +493,20 @@ std::tuple<double, double, int> playout(const Board & in, const double komi, pla
 
 		pass[0] = pass[1] = false;
 
-		size_t r  = 0;
-
 		size_t chainSize = liberties.size();
 
 		std::uniform_int_distribution<> rng(0, chainSize - 1);
-		r = rng(gen);
+		size_t r = rng(gen);
 
-		if (r < chainSize) {  // pass
-			const int x = liberties.at(r).getX();
-			const int y = liberties.at(r).getY();
+		const int x = liberties.at(r).getX();
+		const int y = liberties.at(r).getY();
 
-			connect(&b, &cm, &chainsWhite, &chainsBlack, playerToStone(p), x, y);
+		connect(&b, &cm, &chainsWhite, &chainsBlack, playerToStone(p), x, y);
 
-			uint64_t new_hash = b.getHash();
+		uint64_t new_hash = b.getHash();
 
-			if (seen.insert(new_hash).second == false)  // terminate loop if already in the set
-				break;
-		}
-		else {
-			pass[p] = true;
-		}
+		if (seen.insert(new_hash).second == false)  // terminate loop if already in the set
+			break;
 
 		p = getOpponent(p);
 	}
