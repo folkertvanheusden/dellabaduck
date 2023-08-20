@@ -523,6 +523,12 @@ std::tuple<double, double, int> playout(const Board & in, const double komi, pla
 
 	std::uniform_int_distribution<> rng(0, dim - 1);
 
+	int *fields = new int[dimsq];
+	for(int i=0; i<dimsq; i++)
+		fields[i] = i;
+
+	int field_o = 0;
+
 	bool *okFields = new bool[dimsq];
 
 	while(++mc < dim * dim * dim) {
@@ -539,10 +545,15 @@ std::tuple<double, double, int> playout(const Board & in, const double komi, pla
 		int  y         = 0;
 
 		while(attempt_n < dimsq) {
-			x = rng(gen);
-			y = rng(gen);
+			x = fields[field_o] % dim;
+			y = fields[field_o] / dim;
 
-			int o = y * dim + x;
+			int o = fields[field_o];
+
+			field_o = (field_o + 1) % dimsq;
+
+			if (field_o == 0)
+				std::random_shuffle(&fields[0], &fields[dimsq]);
 
 			// al
 			if (cm->getAt(o)) {
@@ -553,10 +564,10 @@ std::tuple<double, double, int> playout(const Board & in, const double komi, pla
 
 			// first find a liberty that is not in an eye
 			if (!(((x > 0 && okFields[o - 1]) || (x < dimm1 && okFields[o + 1]) || (y > 0 && okFields[o - dim]) || (y < dimm1 && okFields[o + dim])) && isInEye(b, x, y, for_whom) == false)) {
+				attempt_n++;
 
 				continue;
 			}
-
 
 			Board copyBoard(b);
 
@@ -609,6 +620,8 @@ std::tuple<double, double, int> playout(const Board & in, const double komi, pla
 	}
 
 	delete [] okFields;
+
+	delete [] fields;
 
 	purgeChains(&chainsBlack);
 	purgeChains(&chainsWhite);
