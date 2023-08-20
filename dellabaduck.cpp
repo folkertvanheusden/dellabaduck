@@ -513,6 +513,12 @@ std::tuple<double, double, int> playout(const Board & in, const double komi, pla
 
 	bool pass[2] { false };
 
+#ifdef STORE_1_PLAYOUT
+	std::string sgf = "(;AP[DellaBaduck]SZ[" + myformat("%d", dim) + "]";
+
+	sgf += myformat(";KM[%f]", komi);
+#endif
+
 	while(++mc < dim * dim * dim) {
 		std::vector<Vertex> liberties;
 		findLiberties(cm, &liberties, playerToStone(p));
@@ -566,6 +572,11 @@ std::tuple<double, double, int> playout(const Board & in, const double komi, pla
 
 		connect(&b, &cm, &chainsWhite, &chainsBlack, stone, x, y);
 
+#ifdef STORE_1_PLAYOUT
+		Vertex v { x, y, dim };
+		sgf += myformat(";%c[%s]", p == P_BLACK ? 'B' : 'W', v2t(v).c_str());
+#endif
+
 		uint64_t new_hash = b.getHash();
 
 		if (seen.insert(new_hash).second == false)  // terminate loop if already in the set
@@ -578,6 +589,12 @@ std::tuple<double, double, int> playout(const Board & in, const double komi, pla
 	purgeChains(&chainsWhite);
 
 	auto s = score(b, komi);
+
+#ifdef STORE_1_PLAYOUT
+	sgf += ")";
+
+	printf("%s\n", sgf.c_str());
+#endif
 
 	return std::tuple<double, double, int>(s.first, s.second, mc);
 }
@@ -1042,6 +1059,11 @@ int main(int argc, char *argv[])
 	std::string sgf = init_sgf(b->getDim());
 
 	std::set<uint64_t> seen;
+
+#ifdef STORE_1_PLAYOUT
+	playout(*b, 7.5, P_BLACK);
+	return 0;
+#endif
 
 	for(;;) {
 		char buffer[4096] { 0 };
