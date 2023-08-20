@@ -541,9 +541,9 @@ std::tuple<double, double, int> playout(const Board & in, const double komi, pla
 	while(++mc < dim * dim * dim) {
 		board_t for_whom = playerToStone(p);
 
-		int  attempt_n = 0;
-		int  x         = 0;
-		int  y         = 0;
+		int attempt_n = 0;
+		int x         = 0;
+		int y         = 0;
 
 		while(attempt_n < dimsq) {
 			if (field_o == 0)
@@ -578,7 +578,6 @@ std::tuple<double, double, int> playout(const Board & in, const double komi, pla
 			// and see if it did not produce a ko
 			if (seen.insert(b.getHash()).second == true) {
 				// no ko
-				pass[0] = pass[1] = false;
 				break;  // Ok!
 			}
 
