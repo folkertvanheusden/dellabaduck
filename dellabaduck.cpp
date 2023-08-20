@@ -540,13 +540,12 @@ std::tuple<double, double, int> playout(const Board & in, const double komi, pla
 		board_t stone = playerToStone(p);
 
 		std::uniform_int_distribution<> rng(0, chainSize - 1);
-		size_t r = 0;
 		size_t attempt_n = 0;
 		int x = 0, y = 0;
 
 		while(attempt_n < chainSize) {
 			// first find a liberty that is not in an eye
-			r = rng(gen);
+			size_t r = rng(gen);
 
 			x = liberties.at(r).getX();
 			y = liberties.at(r).getY();
