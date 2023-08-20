@@ -581,7 +581,7 @@ std::tuple<double, double, int> playout(const Board & in, const double komi, pla
 			if (seen.insert(b.getHash()).second == true) {
 				// no ko
 				pass[0] = pass[1] = false;
-				break;
+				break;  // Ok!
 			}
 
 			// ko; rewind
@@ -601,6 +601,7 @@ std::tuple<double, double, int> playout(const Board & in, const double komi, pla
 			attempt_n++;
 		}
 
+		// all fields tried; pass
 		if (attempt_n >= dimsq) {
 			pass[p] = true;
 
