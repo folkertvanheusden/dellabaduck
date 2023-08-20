@@ -502,7 +502,7 @@ bool okField(const ChainMap & cm, const unsigned x, const unsigned y, const boar
 	if (x >= dim || y >= dim)
 		return false;
 
-	auto c = cm.getAt(y * cm.getDim() + x);
+	auto c = cm.getAt(y * dim + x);
 
 	return c == nullptr || (c->type == for_whom && c->liberties.size() > 1) || (c->type != for_whom && c->liberties.size() == 1);
 }
@@ -531,8 +531,6 @@ std::tuple<double, double, int> playout(const Board & in, const double komi, pla
 
 	sgf += myformat(";KM[%f]", komi);
 #endif
-
-	std::uniform_int_distribution<> rng(0, dim - 1);
 
 	int *fields = new int[dimsq];
 	for(int i=0; i<dimsq; i++)
@@ -566,7 +564,7 @@ std::tuple<double, double, int> playout(const Board & in, const double komi, pla
 			}
 
 			// first find a liberty that is not in an eye
-			if (!((okField(*cm, x - 1, y, for_whom) || okField(*cm, x + 1, y, for_whom) || okField(*cm, x, y - 1, for_whom) || okField(*cm, x, y + 1, for_whom)) && isInEye(b, x, y, for_whom) == false)) {
+			if ((okField(*cm, x - 1, y, for_whom) == false && okField(*cm, x + 1, y, for_whom) == false && okField(*cm, x, y - 1, for_whom) == false && okField(*cm, x, y + 1, for_whom)) || isInEye(b, x, y, for_whom) == true) {
 				attempt_n++;
 
 				continue;
