@@ -745,9 +745,10 @@ std::optional<Vertex> genMove(Board *const b, const player_t & p, const bool doP
 	std::vector<eval_t> evals;
 	evals.resize(p2dim);
 
-	if (useTime >= 0.1)
+//	if (useTime >= 0.1)
 		// selectAlphaBeta(*b, cm, chainsWhite, chainsBlack, liberties, p, &evals, useTime, komi, nThreads);
 		selectPlayout(*b, cm, chainsWhite, chainsBlack, liberties, p, &evals, useTime, komi, nThreads);
+#if 0
 	else {
 		scanEnclosed(*b, &cm, playerToStone(p));
 
@@ -761,6 +762,7 @@ std::optional<Vertex> genMove(Board *const b, const player_t & p, const bool doP
 
 		selectPlayout(*b, cm, chainsWhite, chainsBlack, liberties, p, &evals, useTime, komi, nThreads);
 	}
+#endif
 
 	// find best
 	std::optional<Vertex> v;
