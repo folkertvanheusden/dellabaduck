@@ -4,6 +4,7 @@ cmake_minimum_required(VERSION 3.2)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
 
+# add_compile_options(-Wall -pedantic -DSTORE_1_PLAYOUT)
 add_compile_options(-Wall -pedantic)
 
 add_executable(

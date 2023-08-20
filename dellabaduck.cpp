@@ -502,9 +502,9 @@ std::tuple<double, double, int> playout(const Board & in, const double komi, pla
 	const int dim = b.getDim();
 
 	// find chains of stones
-	ChainMap cm(dim);
+	ChainMap *cm = new ChainMap(dim);
 	std::vector<chain_t *> chainsWhite, chainsBlack;
-	findChains(b, &chainsWhite, &chainsBlack, &cm);
+	findChains(b, &chainsWhite, &chainsBlack, cm);
 
 	std::unordered_set<uint64_t> seen;
 	seen.insert(b.getHash());
@@ -521,7 +521,7 @@ std::tuple<double, double, int> playout(const Board & in, const double komi, pla
 
 	while(++mc < dim * dim * dim) {
 		std::vector<Vertex> liberties;
-		findLiberties(cm, &liberties, playerToStone(p));
+		findLiberties(*cm, &liberties, playerToStone(p));
 
 		// no valid liberties? return "pass".
 		if (liberties.empty()) {
@@ -540,22 +540,51 @@ std::tuple<double, double, int> playout(const Board & in, const double komi, pla
 		board_t stone = playerToStone(p);
 
 		std::uniform_int_distribution<> rng(0, chainSize - 1);
-		size_t r;
+		size_t r = 0;
 		size_t attempt_n = 0;
-		int x, y;
+		int x = 0, y = 0;
 
-		do {
+		while(attempt_n < chainSize) {
+			// first find a liberty that is not in an eye
 			r = rng(gen);
 
 			x = liberties.at(r).getX();
 			y = liberties.at(r).getY();
 
-			if (!isInEye(b, x, y, stone))
+			if (isInEye(b, x, y, stone)) {
+				attempt_n++;
+
+				continue;
+			}
+
+			Board copyBoard(b);
+
+			// then try the move...
+			connect(&b, cm, &chainsWhite, &chainsBlack, stone, x, y);
+
+			// and see if it did not produce a ko
+			if (seen.insert(b.getHash()).second == true) {
+				// no ko
+				pass[0] = pass[1] = false;
 				break;
+			}
+
+			// ko; rewind
+
+			// 1. rewind board
+			b = copyBoard;
+
+			// 2. recreate chains map
+			delete cm;
+			cm = new ChainMap(dim);
+			// purge chains
+			purgeChains(&chainsBlack);
+			purgeChains(&chainsWhite);
+			// find them again
+			findChains(b, &chainsWhite, &chainsBlack, cm);
 
 			attempt_n++;
 		}
-		while(attempt_n < chainSize);
 
 		if (attempt_n == chainSize) {
 			pass[p] = true;
@@ -570,23 +599,18 @@ std::tuple<double, double, int> playout(const Board & in, const double komi, pla
 
 		pass[0] = pass[1] = false;
 
-		connect(&b, &cm, &chainsWhite, &chainsBlack, stone, x, y);
-
 #ifdef STORE_1_PLAYOUT
 		Vertex v { x, y, dim };
 		sgf += myformat(";%c[%s]", p == P_BLACK ? 'B' : 'W', v2t(v).c_str());
 #endif
-
-		uint64_t new_hash = b.getHash();
-
-		if (seen.insert(new_hash).second == false)  // terminate loop if already in the set
-			break;
 
 		p = getOpponent(p);
 	}
 
 	purgeChains(&chainsBlack);
 	purgeChains(&chainsWhite);
+
+	delete cm;
 
 	auto s = score(b, komi);
 

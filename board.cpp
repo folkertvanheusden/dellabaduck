@@ -35,6 +35,19 @@ void Board::updateField(const int v, const board_t bv)
 		hash ^= z->get(v, bv == B_BLACK);
 }
 
+uint64_t Board::getHashForMove(const int v, const board_t bv)
+{
+	uint64_t out = hash;
+
+	if (b[v] != B_EMPTY)
+		out ^= z->get(v, b[v] == B_BLACK);
+
+	if (bv != B_EMPTY)
+		out ^= z->get(v, bv == B_BLACK);
+
+	return out;
+}
+
 Board::Board(Zobrist *const z, const int dim) : z(z), dim(dim), b(new board_t[dim * dim]())
 {
 	assert(dim & 1);
@@ -85,6 +98,19 @@ Board::Board(const Board & bIn) : z(bIn.z), dim(bIn.getDim()), b(new board_t[dim
 Board::~Board()
 {
 	delete [] b;
+}
+
+Board & Board::operator=(const Board & in)
+{
+	assert(dim == in.getDim());
+
+	// copy contents
+	in.getTo(b);
+
+	// adjust hash
+	hash = in.getHash();
+
+	return *this;
 }
 
 int Board::getDim() const
@@ -359,7 +385,6 @@ bool checkLiberty(const ChainMap & cm, const int x, const int y, const board_t f
 {
 	bool      ok    = false;
 	const int dim   = cm.getDim();
-	const int dimm1 = dim - 1;
 
 	std::vector<chain_t *> crosses;
 

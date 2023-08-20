@@ -27,14 +27,19 @@ private:
 	uint64_t getHashForField(const int v);
 	void updateField(const int v, const board_t bv);
 
+	void getTo(board_t *const bto) const;
+
 public:
 	Board(Zobrist *const z, const int dim);
 	Board(Zobrist *const z, const std::string & str);
 	Board(const Board & bIn);
 	~Board();
 
+	Board & operator=(const Board & in);
+
+	uint64_t getHashForMove(const int v, const board_t bv);
+
 	int getDim() const;
-	void getTo(board_t *const bto) const;
 	board_t getAt(const int v) const;
 	board_t getAt(const Vertex & v) const;
 	board_t getAt(const int x, const int y) const;
