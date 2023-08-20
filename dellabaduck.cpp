@@ -457,6 +457,44 @@ void selectAlphaBeta(const Board & b, const ChainMap & cm, const std::vector<cha
 	delete [] valid;
 }
 
+bool isInEye(const Board & b, const int x, const int y, const board_t stone)
+{
+	const int dim = b.getDim();
+
+	int check_n = 0;
+	int fail_n  = 0;
+
+	if (x > 0) {
+		check_n++;
+
+		if (b.getAt(x - 1, y) == stone)
+			fail_n++;
+	}
+
+	if (y > 0) {
+		check_n++;
+
+		if (b.getAt(x, y - 1) == stone)
+			fail_n++;
+	}
+
+	if (x < dim - 1) {
+		check_n++;
+
+		if (b.getAt(x + 1, y) == stone)
+			fail_n++;
+	}
+
+	if (y < dim - 1) {
+		check_n++;
+
+		if (b.getAt(x, y + 1) == stone)
+			fail_n++;
+	}
+
+	return check_n == fail_n;
+}
+
 std::tuple<double, double, int> playout(const Board & in, const double komi, player_t p)
 {
 	Board b(in);
@@ -491,17 +529,42 @@ std::tuple<double, double, int> playout(const Board & in, const double komi, pla
 			continue;
 		}
 
-		pass[0] = pass[1] = false;
-
 		size_t chainSize = liberties.size();
 
+		board_t stone = playerToStone(p);
+
 		std::uniform_int_distribution<> rng(0, chainSize - 1);
-		size_t r = rng(gen);
+		size_t r;
+		size_t attempt_n = 0;
+		int x, y;
 
-		const int x = liberties.at(r).getX();
-		const int y = liberties.at(r).getY();
+		do {
+			r = rng(gen);
 
-		connect(&b, &cm, &chainsWhite, &chainsBlack, playerToStone(p), x, y);
+			x = liberties.at(r).getX();
+			y = liberties.at(r).getY();
+
+			if (!isInEye(b, x, y, stone))
+				break;
+
+			attempt_n++;
+		}
+		while(attempt_n < chainSize);
+
+		if (attempt_n == chainSize) {
+			pass[p] = true;
+
+			if (pass[0] && pass[1])
+				break;
+
+			p = getOpponent(p);
+
+			continue;
+		}
+
+		pass[0] = pass[1] = false;
+
+		connect(&b, &cm, &chainsWhite, &chainsBlack, stone, x, y);
 
 		uint64_t new_hash = b.getHash();
 
