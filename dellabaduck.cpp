@@ -499,7 +499,9 @@ std::tuple<double, double, int> playout(const Board & in, const double komi, pla
 {
 	Board b(in);
 
-	const int dim = b.getDim();
+	const int dim   = b.getDim();
+	const int dimsq = dim * dim;
+	const int dimm1 = dim - 1;
 
 	// find chains of stones
 	ChainMap *cm = new ChainMap(dim);
@@ -519,47 +521,47 @@ std::tuple<double, double, int> playout(const Board & in, const double komi, pla
 	sgf += myformat(";KM[%f]", komi);
 #endif
 
+	std::uniform_int_distribution<> rng(0, dim - 1);
+
+	bool *okFields = new bool[dimsq];
+
 	while(++mc < dim * dim * dim) {
-		std::vector<Vertex> liberties;
-		findLiberties(*cm, &liberties, playerToStone(p));
+		board_t for_whom = playerToStone(p);
 
-		// no valid liberties? return "pass".
-		if (liberties.empty()) {
-			pass[p] = true;
+		for(int i=0; i<dimsq; i++) {
+			auto c = cm->getAt(i);
 
-			if (pass[0] && pass[1])
-				break;
-
-			p = getOpponent(p);
-
-			continue;
+			okFields[i] = c == nullptr || (c->type == for_whom && c->liberties.size() > 1) || (c->type != for_whom && c->liberties.size() == 1);
 		}
 
-		size_t chainSize = liberties.size();
+		int  attempt_n = 0;
+		int  x         = 0;
+		int  y         = 0;
 
-		board_t stone = playerToStone(p);
+		while(attempt_n < dimsq) {
+			x = rng(gen);
+			y = rng(gen);
 
-		std::uniform_int_distribution<> rng(0, chainSize - 1);
-		size_t attempt_n = 0;
-		int x = 0, y = 0;
+			int o = y * dim + x;
 
-		while(attempt_n < chainSize) {
-			// first find a liberty that is not in an eye
-			size_t r = rng(gen);
-
-			x = liberties.at(r).getX();
-			y = liberties.at(r).getY();
-
-			if (isInEye(b, x, y, stone)) {
+			// al
+			if (cm->getAt(o)) {
 				attempt_n++;
 
 				continue;
 			}
 
+			// first find a liberty that is not in an eye
+			if (!(((x > 0 && okFields[o - 1]) || (x < dimm1 && okFields[o + 1]) || (y > 0 && okFields[o - dim]) || (y < dimm1 && okFields[o + dim])) && isInEye(b, x, y, for_whom) == false)) {
+
+				continue;
+			}
+
+
 			Board copyBoard(b);
 
 			// then try the move...
-			connect(&b, cm, &chainsWhite, &chainsBlack, stone, x, y);
+			connect(&b, cm, &chainsWhite, &chainsBlack, for_whom, x, y);
 
 			// and see if it did not produce a ko
 			if (seen.insert(b.getHash()).second == true) {
@@ -585,7 +587,7 @@ std::tuple<double, double, int> playout(const Board & in, const double komi, pla
 			attempt_n++;
 		}
 
-		if (attempt_n == chainSize) {
+		if (attempt_n >= dimsq) {
 			pass[p] = true;
 
 			if (pass[0] && pass[1])
@@ -605,6 +607,8 @@ std::tuple<double, double, int> playout(const Board & in, const double komi, pla
 
 		p = getOpponent(p);
 	}
+
+	delete [] okFields;
 
 	purgeChains(&chainsBlack);
 	purgeChains(&chainsWhite);
