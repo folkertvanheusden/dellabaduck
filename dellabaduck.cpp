@@ -515,9 +515,9 @@ std::tuple<double, double, int> playout(const Board & in, const double komi, pla
 	const int dimsq = dim * dim;
 
 	// find chains of stones
-	ChainMap *cm = new ChainMap(dim);
+	ChainMap cm(dim);
 	std::vector<chain_t *> chainsWhite, chainsBlack;
-	findChains(b, &chainsWhite, &chainsBlack, cm);
+	findChains(b, &chainsWhite, &chainsBlack, &cm);
 
 	std::unordered_set<uint64_t> seen;
 	seen.insert(b.getHash());
@@ -557,14 +557,14 @@ std::tuple<double, double, int> playout(const Board & in, const double komi, pla
 			field_o = (field_o + 1) % dimsq;
 
 			// al
-			if (cm->getAt(o)) {
+			if (cm.getAt(o)) {
 				attempt_n++;
 
 				continue;
 			}
 
 			// first find a liberty that is not in an eye
-			if ((okField(*cm, x - 1, y, for_whom) == false && okField(*cm, x + 1, y, for_whom) == false && okField(*cm, x, y - 1, for_whom) == false && okField(*cm, x, y + 1, for_whom)) || isInEye(b, x, y, for_whom) == true) {
+			if ((okField(cm, x - 1, y, for_whom) == false && okField(cm, x + 1, y, for_whom) == false && okField(cm, x, y - 1, for_whom) == false && okField(cm, x, y + 1, for_whom)) || isInEye(b, x, y, for_whom) == true) {
 				attempt_n++;
 
 				continue;
@@ -573,7 +573,7 @@ std::tuple<double, double, int> playout(const Board & in, const double komi, pla
 			Board copyBoard(b);
 
 			// then try the move...
-			connect(&b, cm, &chainsWhite, &chainsBlack, for_whom, x, y);
+			connect(&b, &cm, &chainsWhite, &chainsBlack, for_whom, x, y);
 
 			// and see if it did not produce a ko
 			if (seen.insert(b.getHash()).second == true) {
@@ -587,13 +587,12 @@ std::tuple<double, double, int> playout(const Board & in, const double komi, pla
 			b = copyBoard;
 
 			// 2. recreate chains map
-			delete cm;
-			cm = new ChainMap(dim);
+			cm.reset();
 			// purge chains
 			purgeChains(&chainsBlack);
 			purgeChains(&chainsWhite);
 			// find them again
-			findChains(b, &chainsWhite, &chainsBlack, cm);
+			findChains(b, &chainsWhite, &chainsBlack, &cm);
 
 			attempt_n++;
 		}
@@ -624,8 +623,6 @@ std::tuple<double, double, int> playout(const Board & in, const double komi, pla
 
 	purgeChains(&chainsBlack);
 	purgeChains(&chainsWhite);
-
-	delete cm;
 
 	auto s = score(b, komi);
 

@@ -67,6 +67,8 @@ public:
 	ChainMap(const int dim);
 	virtual ~ChainMap();
 
+	void reset();
+
 	bool getEnclosed(const int v) const;
 	void setEnclosed(const int v);
 

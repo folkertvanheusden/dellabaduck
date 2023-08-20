@@ -184,6 +184,11 @@ ChainMap::~ChainMap()
 	delete [] cm;
 }
 
+void ChainMap::reset()
+{
+	memset(cm, 0x00, dim * dim * sizeof(chain_t *));
+}
+
 bool ChainMap::getEnclosed(const int v) const
 {
 	return enclosed[v];
