@@ -495,13 +495,24 @@ bool isInEye(const Board & b, const int x, const int y, const board_t stone)
 	return check_n == fail_n;
 }
 
+bool okField(const ChainMap & cm, const unsigned x, const unsigned y, const board_t for_whom)
+{
+	const unsigned dim = cm.getDim();
+
+	if (x >= dim || y >= dim)
+		return false;
+
+	auto c = cm.getAt(y * cm.getDim() + x);
+
+	return c == nullptr || (c->type == for_whom && c->liberties.size() > 1) || (c->type != for_whom && c->liberties.size() == 1);
+}
+
 std::tuple<double, double, int> playout(const Board & in, const double komi, player_t p)
 {
 	Board b(in);
 
 	const int dim   = b.getDim();
 	const int dimsq = dim * dim;
-	const int dimm1 = dim - 1;
 
 	// find chains of stones
 	ChainMap *cm = new ChainMap(dim);
@@ -529,31 +540,23 @@ std::tuple<double, double, int> playout(const Board & in, const double komi, pla
 
 	int field_o = 0;
 
-	bool *okFields = new bool[dimsq];
-
 	while(++mc < dim * dim * dim) {
 		board_t for_whom = playerToStone(p);
-
-		for(int i=0; i<dimsq; i++) {
-			auto c = cm->getAt(i);
-
-			okFields[i] = c == nullptr || (c->type == for_whom && c->liberties.size() > 1) || (c->type != for_whom && c->liberties.size() == 1);
-		}
 
 		int  attempt_n = 0;
 		int  x         = 0;
 		int  y         = 0;
 
 		while(attempt_n < dimsq) {
+			if (field_o == 0)
+				std::random_shuffle(&fields[0], &fields[dimsq]);
+
 			x = fields[field_o] % dim;
 			y = fields[field_o] / dim;
 
 			int o = fields[field_o];
 
 			field_o = (field_o + 1) % dimsq;
-
-			if (field_o == 0)
-				std::random_shuffle(&fields[0], &fields[dimsq]);
 
 			// al
 			if (cm->getAt(o)) {
@@ -563,7 +566,7 @@ std::tuple<double, double, int> playout(const Board & in, const double komi, pla
 			}
 
 			// first find a liberty that is not in an eye
-			if (!(((x > 0 && okFields[o - 1]) || (x < dimm1 && okFields[o + 1]) || (y > 0 && okFields[o - dim]) || (y < dimm1 && okFields[o + dim])) && isInEye(b, x, y, for_whom) == false)) {
+			if (!((okField(*cm, x - 1, y, for_whom) || okField(*cm, x + 1, y, for_whom) || okField(*cm, x, y - 1, for_whom) || okField(*cm, x, y + 1, for_whom)) && isInEye(b, x, y, for_whom) == false)) {
 				attempt_n++;
 
 				continue;
@@ -618,8 +621,6 @@ std::tuple<double, double, int> playout(const Board & in, const double komi, pla
 
 		p = getOpponent(p);
 	}
-
-	delete [] okFields;
 
 	delete [] fields;
 
