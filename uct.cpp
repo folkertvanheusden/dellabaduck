@@ -12,6 +12,8 @@
 #include "uct.h"
 
 
+thread_local auto rng = std::default_random_engine {};
+
 uct_node::uct_node(uct_node *const parent, const Board & position, const player_t player, const std::optional<Vertex> & causing_move, const double komi) :
 	parent(parent),
 	position(position),
@@ -30,6 +32,9 @@ uct_node::uct_node(uct_node *const parent, const Board & position, const player_
         findLiberties(cm, &unvisited, playerToStone(player));
 
 	game_over = unvisited.empty();
+
+	if (!game_over)
+		std::shuffle(std::begin(unvisited), std::end(unvisited), rng);
 
 	purgeChains(&chainsBlack);
 	purgeChains(&chainsWhite);
@@ -72,7 +77,7 @@ uct_node *uct_node::add_child(const Vertex & m)
 {
 	uct_node *new_node = new uct_node(this, position, getOpponent(player), m, komi);
 
-	children.push_back({ m, new_node });
+	children.emplace_back(m, new_node);
 
 	return new_node;
 }
