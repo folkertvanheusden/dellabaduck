@@ -57,4 +57,4 @@ public:
 	double       get_score_count();
 };
 
-std::pair<Vertex, uint64_t> calculate_move(const Board & b, const player_t p, const unsigned think_time, const double komi);
+std::tuple<Vertex, uint64_t, uint64_t> calculate_move(const Board & b, const player_t p, const unsigned think_time, const double komi);

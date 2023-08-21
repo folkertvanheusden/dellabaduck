@@ -256,7 +256,7 @@ const std::vector<std::pair<Vertex, uct_node *> > & uct_node::get_children() con
 	return children;
 }
 
-std::pair<Vertex, uint64_t> calculate_move(const Board & b, const player_t p, const unsigned think_time, const double komi)
+std::tuple<Vertex, uint64_t, uint64_t> calculate_move(const Board & b, const player_t p, const unsigned think_time, const double komi)
 {
 	uct_node *root     = new uct_node(nullptr, b, p, { }, komi);
 
@@ -272,13 +272,15 @@ std::pair<Vertex, uint64_t> calculate_move(const Board & b, const player_t p, co
 		if (get_ts_ms() - start_ts >= think_time) {
 			auto best_move = root->best_child()->get_causing_move();
 
+			auto best_count = root->best_child()->get_visit_count();
+
 			// root->verify();
 
 			delete root;
 
 			// fprintf(stderr, "# n played/s: %.2f\n", n_played * 1000.0 / think_time);
 
-			return { best_move, n_played };
+			return { best_move, n_played, best_count };
 		}
 	}
 }

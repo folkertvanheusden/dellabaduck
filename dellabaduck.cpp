@@ -639,12 +639,12 @@ void playoutThread(std::vector<std::pair<double, uint32_t> > *const all_results,
 {
 	auto rc = calculate_move(*b, p, end_t - get_ts_ms(), komi);
 
-	int  v  = rc.first.getV();
+	int  v  = std::get<0>(rc).getV();
 
 	std::unique_lock<std::mutex> lck(*all_results_lock);
 
-	all_results->at(v).first  += 8;  // score
-	all_results->at(v).second += 1;  // count
+	all_results->at(v).first += std::get<2>(rc);  // score
+	all_results->at(v).second = 1;  // divider
 }
 
 void selectPlayout(const Board & b, const ChainMap & cm, const std::vector<chain_t *> & chainsWhite, const std::vector<chain_t *> & chainsBlack, const std::vector<Vertex> & liberties, const player_t & p, std::vector<eval_t> *const evals, const double useTime, const double komi, const int nThreads)
@@ -906,8 +906,9 @@ double benchmark_3(const Board & in, const unsigned ms, const double komi)
 
 	auto rc = calculate_move(work, P_BLACK, ms, komi);
 
-	double pops = rc.second * 1000. / ms;
-	send(true, "# playouts (%lu total) per second: %f", rc.second, pops);
+	int mc = std::get<1>(rc);
+	double pops = mc * 1000. / ms;
+	send(true, "# playouts (%lu total) per second: %f", mc, pops);
 
 	return pops;
 }
