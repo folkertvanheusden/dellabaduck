@@ -821,7 +821,7 @@ std::optional<Vertex> genMove(Board *const b, const player_t & p, const bool doP
 
 double benchmark_1(const Board & in, const unsigned ms)
 {
-	send(true, "# starting benchmark 1: duration: %.3fs, board dimensions: %d", ms / 1000.0, in.getDim());
+	send(true, "# starting benchmark 1: find-chains, duration: %.3fs, board dimensions: %d", ms / 1000.0, in.getDim());
 
 	uint64_t start = get_ts_ms();
 	uint64_t end = 0;
@@ -850,7 +850,7 @@ double benchmark_1(const Board & in, const unsigned ms)
 
 double benchmark_2(const Board & in, const unsigned ms)
 {
-	send(true, "# starting benchmark 2: duration: %.3fs, board dimensions: %d", ms / 1000.0, in.getDim());
+	send(true, "# starting benchmark 2: a/b-search, duration: %.3fs, board dimensions: %d", ms / 1000.0, in.getDim());
 
 	int      dim    = in.getDim();
 	int      dimsq  = dim * dim;
@@ -891,7 +891,7 @@ double benchmark_2(const Board & in, const unsigned ms)
 
 double benchmark_3(const Board & in, const unsigned ms, const double komi)
 {
-	send(true, "# starting benchmark 3: duration: %.3fs, board dimensions: %d", ms / 1000.0, in.getDim());
+	send(true, "# starting benchmark 3: uct, duration: %.3fs, board dimensions: %d", ms / 1000.0, in.getDim());
 
 	int      dim    = in.getDim();
 	int      dimsq  = dim * dim;
