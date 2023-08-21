@@ -635,9 +635,9 @@ std::tuple<double, double, int> playout(const Board & in, const double komi, pla
 	return std::tuple<double, double, int>(s.first, s.second, mc);
 }
 
-void playoutThread(std::vector<std::pair<double, uint32_t> > *const all_results, std::mutex *const all_results_lock, const uint64_t h_end_t, const uint64_t end_t, const std::vector<Vertex> *const liberties, const player_t p, const double komi, const Board *const b)
+void playoutThread(std::vector<std::pair<double, uint32_t> > *const all_results, std::mutex *const all_results_lock, const uint64_t end_t, const std::vector<Vertex> *const liberties, const player_t p, const double komi, const Board *const b)
 {
-	auto rc = calculate_move(*b, p, h_end_t - get_ts_ms(), komi);
+	auto rc = calculate_move(*b, p, end_t - get_ts_ms(), komi);
 
 	int  v  = rc.first.getV();
 
@@ -650,7 +650,6 @@ void playoutThread(std::vector<std::pair<double, uint32_t> > *const all_results,
 void selectPlayout(const Board & b, const ChainMap & cm, const std::vector<chain_t *> & chainsWhite, const std::vector<chain_t *> & chainsBlack, const std::vector<Vertex> & liberties, const player_t & p, std::vector<eval_t> *const evals, const double useTime, const double komi, const int nThreads)
 {
 	uint64_t start_t = get_ts_ms();  // TODO: start of genMove()
-	uint64_t h_end_t = start_t + useTime * 450;
 	uint64_t end_t   = start_t + useTime * 900;
 
 	std::vector<std::thread *> threads;
@@ -664,7 +663,7 @@ void selectPlayout(const Board & b, const ChainMap & cm, const std::vector<chain
 	std::mutex all_results_lock;
 
 	for(int i=0; i<nThreads; i++)
-		threads.push_back(new std::thread(playoutThread, &all_results, &all_results_lock, h_end_t, end_t, &liberties, p, komi, &b));
+		threads.push_back(new std::thread(playoutThread, &all_results, &all_results_lock, end_t, &liberties, p, komi, &b));
 
 	while(threads.empty() == false) {
 		(*threads.begin())->join();
@@ -1367,7 +1366,8 @@ int main(int argc, char *argv[])
 			if (timeLeft < 0)
 				timeLeft = 5.0;
 
-			int stones_to_do = std::max(getNEmpty(*b, player), moves_total) - moves_executed;
+			int n_empty = getNEmpty(*b, player);
+			int stones_to_do = std::max(n_empty, moves_total) - moves_executed;
 
 			double time_use = 0.;
 
@@ -1384,6 +1384,13 @@ int main(int argc, char *argv[])
 			uint64_t start_ts = get_ts_ms();
 			auto v = genMove(b, player, parts.at(0) == "genmove", time_use, komi, nThreads, &seen);
 			uint64_t end_ts = get_ts_ms();
+
+			send(true, "# %s, n_empty: %d, stones_to_do: %d, stonesLeftB: %d, stonesLeftW: %d, timeLeft: %f, time_use: %f | used: %.3f",
+					player == P_BLACK ? "black":"white", 
+					n_empty,
+					stones_to_do, stonesLeftB, stonesLeftW,
+					timeLeft, time_use,
+					(end_ts - start_ts) / 1000.);
 
 			timeLeft = -1.0;
 
