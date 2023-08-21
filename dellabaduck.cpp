@@ -1089,6 +1089,9 @@ int main(int argc, char *argv[])
 	double timeLeftB = -1;
 	double timeLeftW = -1;
 
+	int stonesLeftB = 0;
+	int stonesLeftW = 0;
+
 	double komi = 0.;
 
 	int moves_executed = 0;
@@ -1249,13 +1252,17 @@ int main(int argc, char *argv[])
 		else if (parts.at(0) == "time_settings") {
 			send(false, "=%s", id.c_str());  // TODO
 		}
-		else if (parts.at(0) == "time_left" && parts.size() >= 3) {
+		else if (parts.at(0) == "time_left" && parts.size() >= 4) {
 			player_t player = (parts.at(1) == "b" || parts.at(1) == "black") ? P_BLACK : P_WHITE;
 
-			if (player == P_BLACK)
+			if (player == P_BLACK) {
 				timeLeftB = atof(parts.at(2).c_str());
-			else
+				stonesLeftB = atoi(parts.at(3).c_str());
+			}
+			else {
 				timeLeftW = atof(parts.at(2).c_str());
+				stonesLeftW = atoi(parts.at(3).c_str());
+			}
 
 			send(false, "=%s", id.c_str());  // TODO
 		}
@@ -1360,7 +1367,16 @@ int main(int argc, char *argv[])
 			if (timeLeft < 0)
 				timeLeft = 5.0;
 
-			double time_use = timeLeft / (std::max(getNEmpty(*b, player), moves_total) - moves_executed);
+			int stones_to_do = std::max(getNEmpty(*b, player), moves_total) - moves_executed;
+
+			double time_use = 0.;
+
+			if (player == P_BLACK && stonesLeftB > 0)
+				time_use = timeLeft / stonesLeftB;
+			else if (player == P_WHITE && stonesLeftW > 0)
+				time_use = timeLeft / stonesLeftW;
+			else
+				time_use = timeLeft / stones_to_do;
 
 			if (++moves_executed >= moves_total)
 				moves_total = (moves_total * 4) / 3;
