@@ -260,6 +260,142 @@ void findChainsScan(std::queue<std::pair<unsigned, unsigned> > *const work_queue
 	}
 }
 
+void findChainsScanPlusX(std::queue<std::pair<unsigned, unsigned> > *const work_queue, const Board & b, unsigned x, unsigned y, const board_t type, bool *const scanned, std::unordered_set<Vertex, Vertex::HashFunction> *const target)
+{
+	const unsigned dim = b.getDim();
+
+	for(;;) {
+		x++;
+
+		if (x >= dim)
+			break;
+
+		const unsigned v = y * dim + x;
+
+		if (scanned[v])
+			break;
+
+		board_t type_at = b.getAt(v);
+
+		if (type_at != type) {
+			if (x < dim - 1 && b.getAt(x + 1, y) == B_EMPTY)
+				target->insert({ x + 1, y, dim });
+
+			break;
+		}
+
+		work_queue->push({ x, y });
+
+		if (y > 0 && b.getAt(x, y - 1) == B_EMPTY)
+			target->insert({ x, y - 1, dim });
+
+		if (y < dim - 1 && b.getAt(x, y + 1) == B_EMPTY)
+			target->insert({ x, y + 1, dim });
+	}
+}
+
+void findChainsScanMinX(std::queue<std::pair<unsigned, unsigned> > *const work_queue, const Board & b, unsigned x, unsigned y, const board_t type, bool *const scanned, std::unordered_set<Vertex, Vertex::HashFunction> *const target)
+{
+	const unsigned dim = b.getDim();
+
+	for(;;) {
+		x--;
+
+		if (x >= dim)
+			break;
+
+		const unsigned v = y * dim + x;
+
+		if (scanned[v])
+			break;
+
+		board_t type_at = b.getAt(v);
+
+		if (type_at != type) {
+			if (x > 0 && b.getAt(x - 1, y) == B_EMPTY)
+				target->insert({ x - 1, y, dim });
+
+			break;
+		}
+
+		work_queue->push({ x, y });
+
+		if (y > 0 && b.getAt(x, y - 1) == B_EMPTY)
+			target->insert({ x, y - 1, dim });
+
+		if (y < dim - 1 && b.getAt(x, y + 1) == B_EMPTY)
+			target->insert({ x, y + 1, dim });
+	}
+}
+
+void findChainsScanPlusY(std::queue<std::pair<unsigned, unsigned> > *const work_queue, const Board & b, unsigned x, unsigned y, const board_t type, bool *const scanned, std::unordered_set<Vertex, Vertex::HashFunction> *const target)
+{
+	const unsigned dim = b.getDim();
+
+	for(;;) {
+		y++;
+
+		if (y >= dim)
+			break;
+
+		const unsigned v = y * dim + x;
+
+		if (scanned[v])
+			break;
+
+		board_t type_at = b.getAt(v);
+
+		if (type_at != type) {
+			if (y < dim - 1 && b.getAt(x, y + 1) == B_EMPTY)
+				target->insert({ x, y + 1, dim });
+
+			break;
+		}
+
+		work_queue->push({ x, y });
+
+		if (x > 0 && b.getAt(x - 1, y) == B_EMPTY)
+			target->insert({ x - 1, y, dim });
+
+		if (x < dim - 1 && b.getAt(x + 1, y) == B_EMPTY)
+			target->insert({ x + 1, y, dim });
+	}
+}
+
+void findChainsScanMinY(std::queue<std::pair<unsigned, unsigned> > *const work_queue, const Board & b, unsigned x, unsigned y, const board_t type, bool *const scanned, std::unordered_set<Vertex, Vertex::HashFunction> *const target)
+{
+	const unsigned dim = b.getDim();
+
+	for(;;) {
+		y--;
+
+		if (y >= dim)
+			break;
+
+		const unsigned v = y * dim + x;
+
+		if (scanned[v])
+			break;
+
+		board_t type_at = b.getAt(v);
+
+		if (type_at != type) {
+			if (y > 0 && b.getAt(x, y - 1) == B_EMPTY)
+				target->insert({ x, y - 1, dim });
+
+			break;
+		}
+
+		work_queue->push({ x, y });
+
+		if (x > 0 && b.getAt(x - 1, y) == B_EMPTY)
+			target->insert({ x - 1, y, dim });
+
+		if (x < dim - 1 && b.getAt(x + 1, y) == B_EMPTY)
+			target->insert({ x + 1, y, dim });
+	}
+}
+
 void pickEmptyAround(const ChainMap & cm, const Vertex & v, std::unordered_set<Vertex, Vertex::HashFunction> *const target)
 {
         const int x = v.getX();
@@ -345,16 +481,13 @@ void findChains(const Board & b, std::vector<chain_t *> *const chainsWhite, std:
 
 					curChain->chain.emplace_back(int(x), int(y), int(dim));
 
-					findChainsScan(&work_queue, b, x, y, 0, -1, cur_bv, scanned);
-					findChainsScan(&work_queue, b, x, y, 0, +1, cur_bv, scanned);
-					findChainsScan(&work_queue, b, x, y, -1, 0, cur_bv, scanned);
-					findChainsScan(&work_queue, b, x, y, +1, 0, cur_bv, scanned);
+					findChainsScanMinX (&work_queue, b, x, y, cur_bv, scanned, &curChain->liberties);
+					findChainsScanPlusX(&work_queue, b, x, y, cur_bv, scanned, &curChain->liberties);
+					findChainsScanMinY (&work_queue, b, x, y, cur_bv, scanned, &curChain->liberties);
+					findChainsScanPlusY(&work_queue, b, x, y, cur_bv, scanned, &curChain->liberties);
 				}
 			}
 			while(work_queue.empty() == false);
-
-			for(auto & stone : curChain->chain)
-				pickEmptyAround(b, stone, &curChain->liberties);
 
 			if (curChain->type == B_WHITE)
 				chainsWhite->emplace_back(curChain);
