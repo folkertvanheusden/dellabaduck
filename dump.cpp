@@ -198,14 +198,12 @@ std::string dumpToSgf(const Board & b, const double komi, const bool with_end)
 
 	for(int y=0; y<dim; y++) {
 		for(int x=0; x<dim; x++) {
-			auto v     = Vertex(x, y, dim);
-
-			auto stone = b.getAt(v.getV());
+			auto stone = b.getAt(x, y);
 
 			if (stone == B_EMPTY)
 				continue;
 
-			sgf += myformat(";%c[%s]", stone == B_BLACK ? 'B' : 'W', v2t(v).c_str());
+			sgf += myformat(";%c[%c%c]", stone == B_BLACK ? 'B' : 'W', 'a' + x, 'a' + y);
 		}
 	}
 
