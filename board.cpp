@@ -119,6 +119,7 @@ Board & Board::operator=(const Board & in)
 	return *this;
 }
 
+// this ignores undo history!
 bool Board::operator==(const Board & rhs)
 {
 	if (getHash() != rhs.getHash())
