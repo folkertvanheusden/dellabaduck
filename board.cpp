@@ -29,9 +29,11 @@ void Board::updateField(const Vertex & v, const board_t bv)
 {
 	int place = v.getV();
 
+	// update layout-undo
 	assert(undo.back().finished == false);
 	undo.back().undos.emplace_back(v, b[place], hash);
 
+	// put stone & update
 	if (b[place] != B_EMPTY)
 		hash ^= z->get(place, b[place] == B_BLACK);
 
