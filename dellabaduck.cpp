@@ -612,8 +612,7 @@ std::tuple<double, double, int> playout(const Board & in, const double komi, pla
 		pass[0] = pass[1] = false;
 
 #ifdef STORE_1_PLAYOUT
-		Vertex v { x, y, dim };
-		sgf += myformat(";%c[%s]", p == P_BLACK ? 'B' : 'W', v2t(v).c_str());
+		sgf += myformat(";%c[%c%c]", p == P_BLACK ? 'B' : 'W', 'a' + x, 'a' + y);
 #endif
 
 		p = getOpponent(p);
