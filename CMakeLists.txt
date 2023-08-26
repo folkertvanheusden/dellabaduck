@@ -8,6 +8,15 @@ set(CMAKE_CXX_STANDARD_REQUIRED True)
 add_compile_options(-Wall -pedantic)
 
 add_executable(
+  board_unittest
+  board.cpp
+  board_unittest.cpp
+  random.cpp
+  vertex.cpp
+  zobrist.cpp
+)
+
+add_executable(
   dellabaduck
   board.cpp
   dellabaduck.cpp
@@ -24,8 +33,8 @@ add_executable(
   zobrist.cpp
 )
 
-set(CMAKE_BUILD_TYPE RelWithDebInfo)
-#set(CMAKE_BUILD_TYPE Debug)
+#set(CMAKE_BUILD_TYPE RelWithDebInfo)
+set(CMAKE_BUILD_TYPE Debug)
 
 set(CMAKE_INTERPROCEDURAL_OPTIMIZATION TRUE)
 

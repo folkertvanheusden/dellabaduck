@@ -14,7 +14,6 @@ void dump(const chain_t & chain);
 void dump(const std::vector<chain_t *> & chains);
 void dump(const Board & b);
 std::string dumpToString(const Board & b, const player_t next_player, const int pass_depth);
-void dump(const ChainMap & cm);
 std::string init_sgf(const int dim);
 std::string dumpToSgf(const Board & b, const double komi, const bool with_end);
 void dump(const Vertex & v);
