@@ -37,15 +37,23 @@ public:
 	}
 
 	void addStone(const Vertex & v) {
-		squares.insert(v);
+		bool rc = squares.insert(v).second;
+		assert(rc);
+	}
+
+	void removeStone(const Vertex & v) {
+		bool rc = squares.erase(v);
+		assert(rc);
 	}
 
 	void addLiberty(const Vertex & v) {
-		liberties.insert(v);
+		bool rc = liberties.insert(v).second;
+		assert(rc);
 	}
 
 	void removeLiberty(const Vertex & v) {
-		liberties.erase(v);
+		bool rc = liberties.erase(v);
+		assert(rc);
 	}
 
 	bool isDead() {
