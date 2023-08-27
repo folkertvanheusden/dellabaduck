@@ -2,68 +2,7 @@
 #include <cstdio>
 
 #include "board.h"
-#include "str.h"
 
-void dump(const Board & b)
-{
-        const int dim = b.getDim();
-
-        std::string line;
-
-        for(int y=dim - 1; y>=0; y--) {
-                line = myformat("# %2d | ", y + 1);
-
-		// which stone
-                for(int x=0; x<dim; x++) {
-                        board_t bv = b.getAt(x, y);
-
-                        if (bv == B_EMPTY)
-                                line += ".";
-                        else if (bv == B_BLACK)
-                                line += "x";
-                        else if (bv == B_WHITE)
-                                line += "o";
-                        else
-                                line += "!";
-                }
-
-		line += "   ";
-
-		// chain number
-                for(int x=0; x<dim; x++) {
-			auto chain = b.getChainConst(Vertex(x, y, dim));
-
-			line += myformat("%4d", chain.second);
-                }
-
-		line += "   ";
-
-		// liberty count
-                for(int x=0; x<dim; x++) {
-			auto chain = b.getChainConst(Vertex(x, y, dim));
-
-			if (chain.first)
-				line += myformat(" %zu", chain.first->getLiberties()->size());
-			else
-				line += "  ";
-                }
-
-                printf("%s\n", line.c_str());
-        }
-
-        line = "#      ";
-
-        for(int x=0; x<dim; x++) {
-                int xc = 'A' + x;
-
-                if (xc >= 'I')
-                        xc++;
-
-                line += myformat("%c", xc);
-        }
-
-        printf("%s\n", line.c_str());
-}
 
 int main(int argc, char *argv[])
 {

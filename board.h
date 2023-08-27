@@ -95,6 +95,8 @@ public:
 	Board(const Board & bIn);
 	~Board();
 
+	void dump();
+
 	Board & operator=(const Board & in);
 	bool operator==(const Board & rhs);
 	bool operator!=(const Board & rhs);
