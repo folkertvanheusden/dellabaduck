@@ -6,8 +6,9 @@
 class Vertex
 {
 private:
-	int v   { 0 };
-	int dim { 0 };
+	const int  v     { 0     };
+	const int  dim   { 0     };
+	const bool valid { false };
 
 public:
 	Vertex(const int v, const int dim);
@@ -24,6 +25,13 @@ public:
 			return std::hash<int>()(v.v);
 		}
 	};
+
+	bool isValid() const { return valid; }
+
+	Vertex up()    const { return { v - dim, dim }; }
+	Vertex down()  const { return { v + dim, dim }; }
+	Vertex left()  const { return { v - 1,   dim }; }
+	Vertex right() const { return { v + 1,   dim }; }
 
 	int getDim() const;
 	int getV() const;

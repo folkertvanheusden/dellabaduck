@@ -1,8 +1,7 @@
 #pragma once
 
-#include <queue>
-#include <set>
-#include <stdint.h>
+#include <cstdint>
+#include <map>
 #include <string>
 #include <unordered_set>
 #include <vector>
@@ -17,16 +16,54 @@ typedef enum { B_EMPTY, B_WHITE, B_BLACK, B_LAST } board_t;
 
 const char *board_t_name(const board_t v);
 
+class chain {
+private:
+	std::unordered_set<Vertex, Vertex::HashFunction> squares;
+	std::unordered_set<Vertex, Vertex::HashFunction> liberties;
+
+public:
+	chain() {
+	}
+
+	virtual ~chain() {
+	}
+
+	const std::unordered_set<Vertex, Vertex::HashFunction> * getStones() const {
+		return &squares;
+	}
+
+	const std::unordered_set<Vertex, Vertex::HashFunction> * getLiberties() const {
+		return &liberties;
+	}
+
+	void addStone(const Vertex & v) {
+		squares.insert(v);
+	}
+
+	void addLiberty(const Vertex & v) {
+		liberties.insert(v);
+	}
+
+	void removeLiberty(const Vertex & v) {
+		liberties.erase(v);
+	}
+
+	bool isDead() {
+		return liberties.empty();
+	}
+};
+
 typedef struct {
 	// vertex, stone, hash
 	std::vector<std::tuple<Vertex, board_t, uint64_t> > undos;
 	bool finished { false };
-} undo_t;
+} b_undo_t;
 
 typedef struct {
-	std::unordered_set<Vertex, Vertex::HashFunction> squares;
-	std::unordered_set<Vertex, Vertex::HashFunction> liberties;
-} chain_t;
+	// bool: true = add, false = remove
+	std::vector<std::tuple<uint64_t, chain *, bool, board_t> > undos;
+	bool finished { false };
+} c_undo_t;
 
 class Board {
 private:
@@ -34,16 +71,22 @@ private:
 	int            dim  { 0       };
 	board_t       *b    { nullptr };
 	uint64_t       hash { 0       };
+	uint64_t      *cm   { nullptr };  // chain map
+	uint64_t       cnr  { 1       };  // chain nr (0 = no chain)
 
-	std::vector<chain_t> blackChains;
-	std::vector<chain_t> whiteChains;
+	std::map<uint64_t, chain *> blackChains;
+	std::map<uint64_t, chain *> whiteChains;
 
 	uint64_t getHashForField(const int v);
 	void updateField(const Vertex & v, const board_t bv);
 
+	void addLiberties(chain *const c, const Vertex & v);
+
 	void getTo(board_t *const bto) const;
 
-	std::vector<undo_t> undo;
+	std::vector<b_undo_t> b_undo;
+
+	std::vector<c_undo_t> c_undo;
 
 public:
 	Board(Zobrist *const z, const int dim);
@@ -54,6 +97,12 @@ public:
 	Board & operator=(const Board & in);
 	bool operator==(const Board & rhs);
 	bool operator!=(const Board & rhs);
+
+	auto getBlackChains() const { return &blackChains; }
+	auto getWhiteChains() const { return &whiteChains; }
+
+	std::pair<chain *, uint64_t> getChain(const Vertex & v);
+	std::pair<chain *, uint64_t> getChainConst(const Vertex & v) const;
 
 	uint64_t getHashForMove(const int v, const board_t bv);
 
@@ -70,6 +119,8 @@ public:
 	void putAt(const int x, const int y, const board_t bv);
 
 	void finishMove();
+
+	size_t getUndoDepth();
 
 	void undoMoveSet();
 };

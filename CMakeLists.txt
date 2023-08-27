@@ -12,6 +12,7 @@ add_executable(
   board.cpp
   board_unittest.cpp
   random.cpp
+  str.cpp
   vertex.cpp
   zobrist.cpp
 )

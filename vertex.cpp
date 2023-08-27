@@ -1,21 +1,18 @@
-#include <assert.h>
+#include <cassert>
 
 #include "vertex.h"
 
 
-Vertex::Vertex(const int v, const int dim) : v(v), dim(dim)
+Vertex::Vertex(const int v, const int dim) : v(v), dim(dim), valid(v >= 0 && v < dim * dim)
 {
-       assert(dim & 1);
 }
 
-Vertex::Vertex(const int x, const int y, const int dim) : v(y * dim + x), dim(dim)
+Vertex::Vertex(const int x, const int y, const int dim) : v(y * dim + x), dim(dim), valid(x >= 0 && y >= 0 && x < dim && y < dim)
 {
-       assert(dim & 1);
 }
 
-Vertex::Vertex(const Vertex & v) : v(v.getV()), dim(v.getDim())
+Vertex::Vertex(const Vertex & v) : v(v.getV()), dim(v.getDim()), valid(v.getV())
 {
-       assert(dim & 1);
 }
 
 Vertex::~Vertex()
