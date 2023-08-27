@@ -62,6 +62,7 @@ typedef struct {
 typedef struct {
 	// bool: true = add, false = remove
 	std::vector<std::tuple<uint64_t, chain *, bool, board_t> > undos;
+	std::vector<std::tuple<chain *, Vertex, bool> > undos_liberties;
 	bool finished { false };
 } c_undo_t;
 

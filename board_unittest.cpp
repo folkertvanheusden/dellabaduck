@@ -344,8 +344,6 @@ int main(int argc, char *argv[])
 
 		assert(a.getUndoDepth() == 2);
 
-		dump(a);
-
 		assert(a.getAt(testV) == B_BLACK);  // board check
 		assert(a.getChain(testV).first  == prev_data.first);  // chain map check (pointer)
 		assert(a.getChain(testV).second == prev_data.second);  // chain map check (index)

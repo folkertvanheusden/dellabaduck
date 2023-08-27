@@ -167,8 +167,14 @@ void Board::updateField(const Vertex & v, const board_t bv)
 				cm[stone.getV()] = cnr;
 			}
 
-			for(auto & liberty: *old_c->getLiberties())
+			// copy the liberties
+			for(auto & liberty: *old_c->getLiberties()) {
 				new_c->addLiberty(liberty);
+
+				// undo-management
+				c_undo.back().undos_liberties.push_back({ old_c, liberty, false });  // remove from old chain
+				c_undo.back().undos_liberties.push_back({ new_c, liberty, true  });  // add to new chain
+			}
 
 			// register a chain deletion
 			c_undo.back().undos.push_back({ old_nr, old_c, false, bv });
@@ -182,13 +188,14 @@ void Board::updateField(const Vertex & v, const board_t bv)
 			assert(rc);
 		}
 
+		// remove the liberty where the new stone is placed
+		new_c->removeLiberty(v);
+		c_undo.back().undos_liberties.push_back({ new_c, v, false });
+
 		// merge the new stone
 		new_c->addStone(v);  // add to (new) chain
 		cm[place] = cnr;  // put (new) chain in chainmap
 		addLiberties(new_c, v);  // add liberties of this new stone to the (new) chain
-
-		// remove the liberty where the new stone is placed
-		new_c->removeLiberty(v);
 
 		// place the new chain
 		bool rc = false;
@@ -226,8 +233,13 @@ void Board::updateField(const Vertex & v, const board_t bv)
 		addLiberties(c, v);
 
 		// remove this liberty from adjacent chains 
-		for(auto & ac: adjacentTheirs)
-			getChain(ac).first->removeLiberty(v);
+		for(auto & ac: adjacentTheirs) {
+			auto ch = getChain(ac);
+
+			ch.first->removeLiberty(v);
+
+			c_undo.back().undos_liberties.push_back({ ch.first, ac, false });
+		}
 
 		cnr++;
 	}
@@ -261,34 +273,50 @@ void Board::updateField(const Vertex & v, const board_t bv)
 			// register new liberties in surrounding chains
 			Vertex vLeft(v.left());
 			if (vLeft.isValid()) {
-				chain *old_c = getChain(ac).first;
+				auto   ch    = getChain(vLeft);
+				chain *old_c = ch.first;
 
-				if (old_c)
+				if (old_c) {
 					old_c->addLiberty(stone);
+
+					c_undo.back().undos_liberties.push_back({ old_c, vLeft, true });
+				}
 			}
 
 			Vertex vRight(v.right());
 			if (vRight.isValid()) {
-				chain *old_c = getChain(ac).first;
+				auto   ch    = getChain(vRight);
+				chain *old_c = ch.first;
 
-				if (old_c)
+				if (old_c) {
 					old_c->addLiberty(stone);
+
+					c_undo.back().undos_liberties.push_back({ old_c, vRight, true });
+				}
 			}
 
 			Vertex vUp(v.up());
 			if (vUp.isValid()) {
-				chain *old_c = getChain(ac).first;
+				auto   ch    = getChain(vUp);
+				chain *old_c = ch.first;
 
-				if (old_c)
+				if (old_c) {
 					old_c->addLiberty(stone);
+
+					c_undo.back().undos_liberties.push_back({ old_c, vUp, true });
+				}
 			}
 
 			Vertex vDown(v.down());
 			if (vDown.isValid()) {
-				chain *old_c = getChain(ac).first;
+				auto   ch    = getChain(vDown);
+				chain *old_c = ch.first;
 
-				if (old_c)
+				if (old_c) {
 					old_c->addLiberty(stone);
+
+					c_undo.back().undos_liberties.push_back({ old_c, vDown, true });
+				}
 			}
 		}
 
@@ -538,8 +566,18 @@ void Board::undoMoveSet()
 				assert(getAt(stone.getV()) == col);
 			}
 		}
+	}
 
-		// TODO: liberties opnieuw?
+	// undo liberties
+	for(auto & tuple: std::ranges::views::reverse(c_undo.back().undos_liberties)) {
+		chain    *c  = std::get<0>(tuple);
+		Vertex & v   = std::get<1>(tuple);
+		bool     add = std::get<2>(tuple);
+
+		if (add)  // liberty was added? then remove it now
+			c->removeLiberty(v);
+		else
+			c->addLiberty(v);
 	}
 
 	c_undo.pop_back();
