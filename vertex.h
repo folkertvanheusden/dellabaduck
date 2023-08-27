@@ -30,8 +30,8 @@ public:
 
 	Vertex up()    const { return { v - dim, dim }; }
 	Vertex down()  const { return { v + dim, dim }; }
-	Vertex left()  const { return { v - 1,   dim }; }
-	Vertex right() const { return { v + 1,   dim }; }
+	Vertex left()  const;
+	Vertex right() const;
 
 	int getDim() const;
 	int getV() const;

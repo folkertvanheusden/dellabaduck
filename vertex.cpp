@@ -53,3 +53,19 @@ int Vertex::getY() const
 {
        return v / dim;
 }
+
+Vertex Vertex::left() const
+{
+	int x = v % dim;
+	int y = v / dim;
+
+	return { x - 1, y, dim };
+}
+
+Vertex Vertex::right() const
+{
+	int x = v % dim;
+	int y = v / dim;
+
+	return { x + 1, y, dim };
+}
