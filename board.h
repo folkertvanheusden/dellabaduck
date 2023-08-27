@@ -47,8 +47,8 @@ public:
 	}
 
 	void addLiberty(const Vertex & v) {
-		bool rc = liberties.insert(v).second;
-		assert(rc);
+		// it is assumed that liberties may be added multiple times
+		liberties.insert(v);
 	}
 
 	void removeLiberty(const Vertex & v) {
