@@ -596,3 +596,39 @@ void Board::putAt(const int x, const int y, const board_t bv)
 
 	updateField({ x, y, dim }, bv);
 }
+
+std::vector<Vertex> * Board::findLiberties(const board_t for_whom)
+{
+	std::vector<Vertex> *empties = new std::vector<Vertex>;
+
+	const int dimsq = dim * dim;
+	const int dimm1 = dim - 1;
+
+	bool *okFields = new bool[dimsq];
+
+	for(int i=0; i<dimsq; i++) {
+		board_t bv = getAt(i);
+
+		chain *c = (bv == B_BLACK ? &blackChains : (bv == B_WHITE ? &whiteChains : nullptr))->find(cm[i])->second;
+
+		okFields[i] = c == nullptr || (bv == for_whom && c->getLiberties()->size() > 1) || (bv != for_whom && c->getLiberties()->size() == 1);
+	}
+
+	empties->reserve(dimsq);
+
+	int o = 0;
+
+	for(int y=0; y<dim; y++) {
+		for(int x=0; x<dim; x++, o++) {
+			if (getAt(o) != B_EMPTY)
+				continue;
+
+			if ((x > 0 && okFields[o - 1]) || (x < dimm1 && okFields[o + 1]) || (y > 0 && okFields[o - dim]) || (y < dimm1 && okFields[o + dim]))
+				empties->emplace_back(o, dim);
+		}
+	}
+
+	delete [] okFields;
+
+	return empties;
+}

@@ -102,6 +102,8 @@ public:
 	auto getBlackChains() const { return &blackChains; }
 	auto getWhiteChains() const { return &whiteChains; }
 
+	std::vector<Vertex> * findLiberties(const board_t for_whom);
+
 	std::pair<chain *, uint64_t> getChain(const Vertex & v);
 	std::pair<chain *, uint64_t> getChainConst(const Vertex & v) const;
 
