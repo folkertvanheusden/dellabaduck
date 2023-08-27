@@ -10,9 +10,9 @@
 #include "zobrist.h"
 
 
-typedef enum { P_BLACK = 0, P_WHITE } player_t;
+enum class player_t { P_BLACK = 0, P_WHITE };
 
-typedef enum { B_EMPTY, B_WHITE, B_BLACK, B_LAST } board_t;
+enum class board_t { B_EMPTY, B_WHITE, B_BLACK, B_LAST };
 
 const char *board_t_name(const board_t v);
 

@@ -8,19 +8,28 @@
 
 const char *board_t_name(const board_t v)
 {
-	static const char *const board_t_names[] = { ".", "o", "x" };
+	if (v == board_t::B_BLACK)
+		return "x";
 
-	return board_t_names[v];
+	if (v == board_t::B_WHITE)
+		return "o";
+
+	if (v == board_t::B_EMPTY)
+		return ".";
+
+	assert(false);
+
+	return "?";
 }
 
 uint64_t Board::getHashForField(const int v)
 {
 	board_t stone = b[v];
 
-	if (stone == B_EMPTY)
+	if (stone == board_t::B_EMPTY)
 		return 0;
 
-	return z->get(v, stone == B_BLACK);
+	return z->get(v, stone == board_t::B_BLACK);
 }
 
 std::pair<chain *, uint64_t> Board::getChain(const Vertex & v)
@@ -35,9 +44,9 @@ std::pair<chain *, uint64_t> Board::getChain(const Vertex & v)
 
 	board_t  bv = b[o];
 
-	auto it = bv == B_BLACK ? blackChains.find(nr) : whiteChains.find(nr);
+	auto it = bv == board_t::B_BLACK ? blackChains.find(nr) : whiteChains.find(nr);
 
-	assert(it != (bv == B_BLACK ? blackChains.end() : whiteChains.end()));
+	assert(it != (bv == board_t::B_BLACK ? blackChains.end() : whiteChains.end()));
 
 	return { it->second, nr };
 }
@@ -51,9 +60,9 @@ std::pair<chain *, uint64_t> Board::getChainConst(const Vertex & v) const
 	if (nr == 0)
 		return { nullptr, nr };
 
-	auto it = b[o] == B_BLACK ? blackChains.find(nr) : whiteChains.find(nr);
+	auto it = b[o] == board_t::B_BLACK ? blackChains.find(nr) : whiteChains.find(nr);
 
-	assert(it != (b[o] == B_BLACK ? blackChains.end() : whiteChains.end()));
+	assert(it != (b[o] == board_t::B_BLACK ? blackChains.end() : whiteChains.end()));
 
 	return { it->second, nr };
 }
@@ -61,19 +70,19 @@ std::pair<chain *, uint64_t> Board::getChainConst(const Vertex & v) const
 void Board::addLiberties(chain *const c, const Vertex & v)
 {
 	Vertex vLeft(v.left());
-	if (vLeft.isValid() && getAt(vLeft) == B_EMPTY)
+	if (vLeft.isValid() && getAt(vLeft) == board_t::B_EMPTY)
 		c->addLiberty(vLeft);
 
 	Vertex vRight(v.right());
-	if (vRight.isValid() && getAt(vRight) == B_EMPTY)
+	if (vRight.isValid() && getAt(vRight) == board_t::B_EMPTY)
 		c->addLiberty(vRight);
 
 	Vertex vUp(v.up());
-	if (vUp.isValid() && getAt(vUp) == B_EMPTY)
+	if (vUp.isValid() && getAt(vUp) == board_t::B_EMPTY)
 		c->addLiberty(vUp);
 
 	Vertex vDown(v.down());
-	if (vDown.isValid() && getAt(vDown) == B_EMPTY)
+	if (vDown.isValid() && getAt(vDown) == board_t::B_EMPTY)
 		c->addLiberty(vDown);
 }
 
@@ -91,13 +100,13 @@ void Board::updateField(const Vertex & v, const board_t bv)
 	b_undo.back().undos.emplace_back(v, b[place], hash);
 
 	// put stone & update
-	if (b[place] != B_EMPTY)
-		hash ^= z->get(place, b[place] == B_BLACK);
+	if (b[place] != board_t::B_EMPTY)
+		hash ^= z->get(place, b[place] == board_t::B_BLACK);
 
 	b[place] = bv;
 
-	if (bv != B_EMPTY)
-		hash ^= z->get(place, bv == B_BLACK);
+	if (bv != board_t::B_EMPTY)
+		hash ^= z->get(place, bv == board_t::B_BLACK);
 
 	// any chains surrounding this vertex?
 	std::unordered_set<Vertex, Vertex::HashFunction> adjacentBlack;
@@ -107,9 +116,9 @@ void Board::updateField(const Vertex & v, const board_t bv)
 	if (vLeft.isValid()) {
 		board_t bv = getAt(vLeft);
 
-		if (bv == B_BLACK)
+		if (bv == board_t::B_BLACK)
 			adjacentBlack.insert(vLeft);
-		else if (bv == B_WHITE)
+		else if (bv == board_t::B_WHITE)
 			adjacentWhite.insert(vLeft);
 	}
 
@@ -117,9 +126,9 @@ void Board::updateField(const Vertex & v, const board_t bv)
 	if (vRight.isValid()) {
 		board_t bv = getAt(vRight);
 
-		if (bv == B_BLACK)  // mine
+		if (bv == board_t::B_BLACK)  // mine
 			adjacentBlack.insert(vRight);
-		else if (bv == B_WHITE)
+		else if (bv == board_t::B_WHITE)
 			adjacentWhite.insert(vRight);
 	}
 
@@ -127,9 +136,9 @@ void Board::updateField(const Vertex & v, const board_t bv)
 	if (vUp.isValid()) {
 		board_t bv = getAt(vUp);
 
-		if (bv == B_BLACK)  // mine
+		if (bv == board_t::B_BLACK)  // mine
 			adjacentBlack.insert(vUp);
-		else if (bv == B_WHITE)
+		else if (bv == board_t::B_WHITE)
 			adjacentWhite.insert(vUp);
 	}
 
@@ -137,15 +146,15 @@ void Board::updateField(const Vertex & v, const board_t bv)
 	if (vDown.isValid()) {
 		board_t bv = getAt(vDown);
 
-		if (bv == B_BLACK)  // mine
+		if (bv == board_t::B_BLACK)  // mine
 			adjacentBlack.insert(vDown);
-		else if (bv == B_WHITE)
+		else if (bv == board_t::B_WHITE)
 			adjacentWhite.insert(vDown);
 	}
 
 	// connect/delete chains when placing a stone
-	auto & adjacentMine   = bv == B_BLACK ? adjacentBlack : adjacentWhite;
-	auto & adjacentTheirs = bv == B_BLACK ? adjacentWhite : adjacentBlack;
+	auto & adjacentMine   = bv == board_t::B_BLACK ? adjacentBlack : adjacentWhite;
+	auto & adjacentTheirs = bv == board_t::B_BLACK ? adjacentWhite : adjacentBlack;
 
 	// connect adjacent chains
 	if (adjacentMine.empty() == false) {
@@ -182,7 +191,7 @@ void Board::updateField(const Vertex & v, const board_t bv)
 
 			// delete chain from lists
 			bool rc = false;
-			if (bv == B_BLACK)
+			if (bv == board_t::B_BLACK)
 				rc = blackChains.erase(old_nr);
 			else
 				rc = whiteChains.erase(old_nr);
@@ -200,7 +209,7 @@ void Board::updateField(const Vertex & v, const board_t bv)
 
 		// place the new chain
 		bool rc = false;
-		if (bv == B_BLACK)
+		if (bv == board_t::B_BLACK)
 			rc = blackChains.insert({ cnr, new_c }).second;
 		else
 			rc = whiteChains.insert({ cnr, new_c }).second;
@@ -221,7 +230,7 @@ void Board::updateField(const Vertex & v, const board_t bv)
 
 		// register new chain in the maps
 		bool rc = false;
-		if (bv == B_BLACK)
+		if (bv == board_t::B_BLACK)
 			rc = blackChains.insert({ cnr, c }).second;
 		else
 			rc = whiteChains.insert({ cnr, c }).second;
@@ -250,7 +259,7 @@ void Board::updateField(const Vertex & v, const board_t bv)
 		auto     ch      = getChain(ac);
 		chain   *work_c  = ch.first;
 		uint64_t work_nr = ch.second;
-		board_t  work_b  = bv == B_BLACK ? B_WHITE : B_BLACK;
+		board_t  work_b  = bv == board_t::B_BLACK ? board_t::B_WHITE : board_t::B_BLACK;
 
 		if (work_c->isDead() == false)
 			continue;
@@ -263,10 +272,10 @@ void Board::updateField(const Vertex & v, const board_t bv)
 			b_undo.back().undos.emplace_back(stone, b[stone.getV()], hash);
 
 			// remove stone from board
-			b[stone.getV()] = B_EMPTY;
+			b[stone.getV()] = board_t::B_EMPTY;
 
 			// update hash
-			hash ^= z->get(stone.getV(), bv == B_BLACK);
+			hash ^= z->get(stone.getV(), bv == board_t::B_BLACK);
 
 			// remove stone from chainmap
 			cm[stone.getV()] = 0;
@@ -322,11 +331,11 @@ void Board::updateField(const Vertex & v, const board_t bv)
 		}
 
 		// register a chain deletion
-		c_undo.back().undos.push_back({ work_nr, work_c, false, bv == B_BLACK ? B_WHITE : B_BLACK });
+		c_undo.back().undos.push_back({ work_nr, work_c, false, bv == board_t::B_BLACK ? board_t::B_WHITE : board_t::B_BLACK });
 
 		// remove chain from lists
 		bool rc = false;
-		if (bv == B_WHITE)  // !we're purging opponent chains!
+		if (bv == board_t::B_WHITE)  // !we're purging opponent chains!
 			rc = blackChains.erase(work_nr);
 		else
 			rc = whiteChains.erase(work_nr);
@@ -338,11 +347,11 @@ uint64_t Board::getHashForMove(const int v, const board_t bv)
 {
 	uint64_t out = hash;
 
-	if (b[v] != B_EMPTY)
-		out ^= z->get(v, b[v] == B_BLACK);
+	if (b[v] != board_t::B_EMPTY)
+		out ^= z->get(v, b[v] == board_t::B_BLACK);
 
-	if (bv != B_EMPTY)
-		out ^= z->get(v, bv == B_BLACK);
+	if (bv != board_t::B_EMPTY)
+		out ^= z->get(v, bv == board_t::B_BLACK);
 
 	return out;
 }
@@ -375,9 +384,9 @@ Board::Board(Zobrist *const z, const std::string & str) : z(z)
 			char c = str[str_o];
 
 			if (c == 'w' || c == 'W')
-				putAt(x, y, B_WHITE);
+				putAt(x, y, board_t::B_WHITE);
 			else if (c == 'b' || c == 'B')
-				putAt(x, y, B_BLACK);
+				putAt(x, y, board_t::B_BLACK);
 			else
 				assert(c == '.');
 
@@ -538,7 +547,7 @@ void Board::undoMoveSet()
 
 		if (add) {  // chain was added? then remove it now
 			bool rc = false;
-			if (col == B_BLACK)
+			if (col == board_t::B_BLACK)
 				rc = blackChains.erase(nr);
 			else
 				rc = whiteChains.erase(nr);
@@ -547,14 +556,14 @@ void Board::undoMoveSet()
 			for(auto & stone: *c->getStones()) {
 				assert(cm[stone.getV()] != 0);
 				cm[stone.getV()] = 0;
-				assert(getAt(stone.getV()) == B_EMPTY);
+				assert(getAt(stone.getV()) == board_t::B_EMPTY);
 			}
 
 			delete c;
 		}
 		else {
 			bool rc = false;
-			if (col == B_BLACK)
+			if (col == board_t::B_BLACK)
 				rc = blackChains.insert({ nr, c }).second;
 			else
 				rc = whiteChains.insert({ nr, c }).second;
@@ -586,14 +595,14 @@ void Board::undoMoveSet()
 
 void Board::putAt(const Vertex & v, const board_t bv)
 {
-	assert(bv == B_BLACK || bv == B_WHITE);
+	assert(bv == board_t::B_BLACK || bv == board_t::B_WHITE);
 
 	updateField(v, bv);
 }
 
 void Board::putAt(const int x, const int y, const board_t bv)
 {
-	assert(bv == B_BLACK || bv == B_WHITE);
+	assert(bv == board_t::B_BLACK || bv == board_t::B_WHITE);
 
 	updateField({ x, y, dim }, bv);
 }
@@ -610,7 +619,7 @@ std::vector<Vertex> * Board::findLiberties(const board_t for_whom)
 	for(int i=0; i<dimsq; i++) {
 		board_t bv = getAt(i);
 
-		chain *c = (bv == B_BLACK ? &blackChains : (bv == B_WHITE ? &whiteChains : nullptr))->find(cm[i])->second;
+		chain *c = (bv == board_t::B_BLACK ? &blackChains : (bv == board_t::B_WHITE ? &whiteChains : nullptr))->find(cm[i])->second;
 
 		okFields[i] = c == nullptr || (bv == for_whom && c->getLiberties()->size() > 1) || (bv != for_whom && c->getLiberties()->size() == 1);
 	}
@@ -621,7 +630,7 @@ std::vector<Vertex> * Board::findLiberties(const board_t for_whom)
 
 	for(int y=0; y<dim; y++) {
 		for(int x=0; x<dim; x++, o++) {
-			if (getAt(o) != B_EMPTY)
+			if (getAt(o) != board_t::B_EMPTY)
 				continue;
 
 			if ((x > 0 && okFields[o - 1]) || (x < dimm1 && okFields[o + 1]) || (y > 0 && okFields[o - dim]) || (y < dimm1 && okFields[o + dim]))
@@ -646,11 +655,11 @@ void Board::dump()
                 for(int x=0; x<dim; x++) {
                         board_t bv = getAt(x, y);
 
-                        if (bv == B_EMPTY)
+                        if (bv == board_t::B_EMPTY)
                                 line += ".";
-                        else if (bv == B_BLACK)
+                        else if (bv == board_t::B_BLACK)
                                 line += "x";
-                        else if (bv == B_WHITE)
+                        else if (bv == board_t::B_WHITE)
                                 line += "o";
                         else
                                 line += "!";

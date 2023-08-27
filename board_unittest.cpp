@@ -24,7 +24,7 @@ int main(int argc, char *argv[])
 	{
 		Board a(&z, 9), b(&z, 9);
 		b.startMove();
-		b.putAt(Vertex(0, 0, 9), B_BLACK);
+		b.putAt(Vertex(0, 0, 9), board_t::B_BLACK);
 		assert(a != b);
 	}
 
@@ -32,7 +32,7 @@ int main(int argc, char *argv[])
 	{
 		Board a(&z, 9), b(&z, 9);
 		b.startMove();
-		b.putAt(Vertex(0, 0, 9), B_BLACK);
+		b.putAt(Vertex(0, 0, 9), board_t::B_BLACK);
 		b.finishMove();
 		assert(a != b);
 	}
@@ -41,7 +41,7 @@ int main(int argc, char *argv[])
 	{
 		Board a(&z, 9), b(&z, 9);
 		b.startMove();
-		b.putAt(Vertex(0, 0, 9), B_BLACK);
+		b.putAt(Vertex(0, 0, 9), board_t::B_BLACK);
 		b.finishMove();
 
 		assert(b.getUndoDepth() == 1);
@@ -55,10 +55,10 @@ int main(int argc, char *argv[])
 	{
 		Board a(&z, 9), b(&z, 9);
 		b.startMove();
-		b.putAt(Vertex(0, 0, 9), B_BLACK);
-		b.putAt(Vertex(3, 2, 9), B_WHITE);
-		b.putAt(Vertex(1, 1, 9), B_BLACK);
-		b.putAt(Vertex(7, 8, 9), B_WHITE);
+		b.putAt(Vertex(0, 0, 9), board_t::B_BLACK);
+		b.putAt(Vertex(3, 2, 9), board_t::B_WHITE);
+		b.putAt(Vertex(1, 1, 9), board_t::B_BLACK);
+		b.putAt(Vertex(7, 8, 9), board_t::B_WHITE);
 		b.finishMove();
 
 		b.undoMoveSet();
@@ -71,20 +71,20 @@ int main(int argc, char *argv[])
 		Board a(&z, 9), b(&z, 9);
 
 		a.startMove();
-		a.putAt(Vertex(1, 3, 9), B_BLACK);
-		a.putAt(Vertex(4, 4, 9), B_WHITE);
+		a.putAt(Vertex(1, 3, 9), board_t::B_BLACK);
+		a.putAt(Vertex(4, 4, 9), board_t::B_WHITE);
 		a.finishMove();
 
 		b.startMove();
-		b.putAt(Vertex(1, 3, 9), B_BLACK);
-		b.putAt(Vertex(4, 4, 9), B_WHITE);
+		b.putAt(Vertex(1, 3, 9), board_t::B_BLACK);
+		b.putAt(Vertex(4, 4, 9), board_t::B_WHITE);
 		b.finishMove();
 
 		b.startMove();
-		b.putAt(Vertex(0, 0, 9), B_BLACK);
-		b.putAt(Vertex(3, 2, 9), B_WHITE);
-		b.putAt(Vertex(1, 1, 9), B_BLACK);
-		b.putAt(Vertex(7, 8, 9), B_WHITE);
+		b.putAt(Vertex(0, 0, 9), board_t::B_BLACK);
+		b.putAt(Vertex(3, 2, 9), board_t::B_WHITE);
+		b.putAt(Vertex(1, 1, 9), board_t::B_BLACK);
+		b.putAt(Vertex(7, 8, 9), board_t::B_WHITE);
 		b.finishMove();
 
 		assert(a.getUndoDepth() == 1);
@@ -102,10 +102,10 @@ int main(int argc, char *argv[])
 		Board a(&z, 19), b(&z, 9);
 
 		b.startMove();
-		b.putAt(Vertex(0, 0, 9), B_BLACK);
-		b.putAt(Vertex(3, 2, 9), B_WHITE);
-		b.putAt(Vertex(1, 1, 9), B_BLACK);
-		b.putAt(Vertex(7, 8, 9), B_WHITE);
+		b.putAt(Vertex(0, 0, 9), board_t::B_BLACK);
+		b.putAt(Vertex(3, 2, 9), board_t::B_WHITE);
+		b.putAt(Vertex(1, 1, 9), board_t::B_BLACK);
+		b.putAt(Vertex(7, 8, 9), board_t::B_WHITE);
 		b.finishMove();
 
 		a = b;
@@ -118,7 +118,7 @@ int main(int argc, char *argv[])
 		Board a(&z, 9);
 
 		a.startMove();
-		a.putAt(Vertex(1, 1, 9), B_BLACK);
+		a.putAt(Vertex(1, 1, 9), board_t::B_BLACK);
 		a.finishMove();
 
 		assert(a.getUndoDepth() == 1);
@@ -139,7 +139,7 @@ int main(int argc, char *argv[])
 		Board a(&z, 9);
 
 		a.startMove();
-		a.putAt(Vertex(1, 1, 9), B_BLACK);
+		a.putAt(Vertex(1, 1, 9), board_t::B_BLACK);
 		a.finishMove();
 
 		assert(a.getUndoDepth() == 1);
@@ -153,7 +153,7 @@ int main(int argc, char *argv[])
 		assert(chain.first  == nullptr);
 		assert(chain.second == 0);
 
-		assert(a.getAt(Vertex(1, 1, 9)) == B_EMPTY);
+		assert(a.getAt(Vertex(1, 1, 9)) == board_t::B_EMPTY);
 
 		assert(a.getBlackChains()->empty());
 		assert(a.getWhiteChains()->empty());
@@ -164,11 +164,11 @@ int main(int argc, char *argv[])
 		Board a(&z, 9);
 
 		a.startMove();
-		a.putAt(Vertex(1, 1, 9), B_BLACK);
+		a.putAt(Vertex(1, 1, 9), board_t::B_BLACK);
 		a.finishMove();
 
 		a.startMove();
-		a.putAt(Vertex(7, 7, 9), B_BLACK);
+		a.putAt(Vertex(7, 7, 9), board_t::B_BLACK);
 		a.finishMove();
 
 		a.undoMoveSet();
@@ -183,7 +183,7 @@ int main(int argc, char *argv[])
 		assert(chain.first  == nullptr);
 		assert(chain.second == 0);
 
-		assert(a.getAt(Vertex(7, 7, 9)) == B_EMPTY);
+		assert(a.getAt(Vertex(7, 7, 9)) == board_t::B_EMPTY);
 
 		assert(a.getBlackChains()->size() == 1);
 		assert(a.getWhiteChains()->empty());
@@ -196,15 +196,15 @@ int main(int argc, char *argv[])
 		Board a(&z, 9);
 
 		a.startMove();
-		a.putAt(Vertex(1, 1, 9), B_BLACK);
+		a.putAt(Vertex(1, 1, 9), board_t::B_BLACK);
 		a.finishMove();
 
 		a.startMove();
-		a.putAt(Vertex(3, 1, 9), B_BLACK);
+		a.putAt(Vertex(3, 1, 9), board_t::B_BLACK);
 		a.finishMove();
 
 		a.startMove();
-		a.putAt(Vertex(2, 1, 9), B_BLACK);
+		a.putAt(Vertex(2, 1, 9), board_t::B_BLACK);
 		a.finishMove();
 
 		assert(a.getUndoDepth() == 3);
@@ -230,14 +230,14 @@ int main(int argc, char *argv[])
 		Board a(&z, 9);
 
 		a.startMove();
-		a.putAt(Vertex(4, 4, 9), B_BLACK);
+		a.putAt(Vertex(4, 4, 9), board_t::B_BLACK);
 		a.finishMove();
 
 		a.startMove();
-		a.putAt(Vertex(4, 3, 9), B_WHITE);  // above
-		a.putAt(Vertex(4, 5, 9), B_WHITE);  // below
-		a.putAt(Vertex(3, 4, 9), B_WHITE);  // left
-		a.putAt(Vertex(5, 4, 9), B_WHITE);  // right
+		a.putAt(Vertex(4, 3, 9), board_t::B_WHITE);  // above
+		a.putAt(Vertex(4, 5, 9), board_t::B_WHITE);  // below
+		a.putAt(Vertex(3, 4, 9), board_t::B_WHITE);  // left
+		a.putAt(Vertex(5, 4, 9), board_t::B_WHITE);  // right
 		a.finishMove();
 
 		assert(a.getUndoDepth() == 2);
@@ -260,7 +260,7 @@ int main(int argc, char *argv[])
 
 		Vertex testV(4, 4, 9);
 		a.startMove();
-		a.putAt(testV, B_BLACK);
+		a.putAt(testV, board_t::B_BLACK);
 		a.finishMove();
 
 		auto prev_data = a.getChain(testV);
@@ -268,13 +268,13 @@ int main(int argc, char *argv[])
 		assert(prev_data.second != 0);
 
 		a.startMove();
-		a.putAt(Vertex(4, 3, 9), B_WHITE);  // above
-		a.putAt(Vertex(4, 5, 9), B_WHITE);  // below
-		a.putAt(Vertex(3, 4, 9), B_WHITE);  // left
+		a.putAt(Vertex(4, 3, 9), board_t::B_WHITE);  // above
+		a.putAt(Vertex(4, 5, 9), board_t::B_WHITE);  // below
+		a.putAt(Vertex(3, 4, 9), board_t::B_WHITE);  // left
 		a.finishMove();
 
 		a.startMove();
-		a.putAt(Vertex(5, 4, 9), B_WHITE);  // right
+		a.putAt(Vertex(5, 4, 9), board_t::B_WHITE);  // right
 		a.finishMove();
 
 		assert(a.getUndoDepth() == 3);
@@ -283,7 +283,7 @@ int main(int argc, char *argv[])
 
 		assert(a.getUndoDepth() == 2);
 
-		assert(a.getAt(testV) == B_BLACK);  // board check
+		assert(a.getAt(testV) == board_t::B_BLACK);  // board check
 		assert(a.getChain(testV).first  == prev_data.first);  // chain map check (pointer)
 		assert(a.getChain(testV).second == prev_data.second);  // chain map check (index)
 		assert(a.getChain(testV).first->getLiberties()->size() == 1);
