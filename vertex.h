@@ -33,6 +33,8 @@ public:
 	Vertex left()  const;
 	Vertex right() const;
 
+	std::string to_str(const bool sgf = false) const;
+
 	int getDim() const;
 	int getV() const;
 	int getX() const;
