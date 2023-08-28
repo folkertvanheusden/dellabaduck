@@ -352,7 +352,7 @@ void Board::updateField(const Vertex & v, const board_t bv)
 				if (old_c) {
 					old_c->addLiberty(stone);
 
-					c_undo.back().undos_liberties.push_back({ ch.second, vLeft, true });
+					c_undo.back().undos_liberties.push_back({ ch.second, stone, true });
 				}
 			}
 
@@ -364,7 +364,7 @@ void Board::updateField(const Vertex & v, const board_t bv)
 				if (old_c) {
 					old_c->addLiberty(stone);
 
-					c_undo.back().undos_liberties.push_back({ ch.second, vRight, true });
+					c_undo.back().undos_liberties.push_back({ ch.second, stone, true });
 				}
 			}
 
@@ -376,7 +376,7 @@ void Board::updateField(const Vertex & v, const board_t bv)
 				if (old_c) {
 					old_c->addLiberty(stone);
 
-					c_undo.back().undos_liberties.push_back({ ch.second, vUp, true });
+					c_undo.back().undos_liberties.push_back({ ch.second, stone, true });
 				}
 			}
 
@@ -388,7 +388,7 @@ void Board::updateField(const Vertex & v, const board_t bv)
 				if (old_c) {
 					old_c->addLiberty(stone);
 
-					c_undo.back().undos_liberties.push_back({ ch.second, vDown, true });
+					c_undo.back().undos_liberties.push_back({ ch.second, stone, true });
 				}
 			}
 		}
