@@ -104,6 +104,7 @@ public:
 	~Board();
 
 	void dump();
+	std::string DumpFEN(const board_t next_player, const int pass_depth);
 
 	Board & operator=(const Board & in);
 	bool operator==(const Board & rhs);

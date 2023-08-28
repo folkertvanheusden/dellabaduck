@@ -702,3 +702,30 @@ void Board::dump()
 
         printf("%s\n", line.c_str());
 }
+
+std::string Board::DumpFEN(const board_t next_player, const int pass_depth)
+{
+        std::string out;
+
+        for(int y=dim - 1; y >= 0; y--) {
+                for(int x=0; x<dim; x++) {
+                        auto stone = getAt(x, y);
+
+                        if (stone == board_t::B_EMPTY)
+                                out += ".";
+                        else if (stone == board_t::B_BLACK)
+                                out += "b";
+                        else
+                                out += "w";
+                }
+
+                if (y)
+                        out += "/";
+        }
+
+        out += next_player == board_t::B_WHITE ? " w" : " b";
+
+        out += myformat(" %d", pass_depth);
+
+        return out;
+}
