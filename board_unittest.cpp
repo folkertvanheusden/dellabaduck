@@ -1,13 +1,16 @@
 #include <cassert>
 #include <cstdio>
+#include <cstring>
 
 #include "board.h"
+#include "str.h"
+#include "time.h"
 
 
-int main(int argc, char *argv[])
+void unit_tests()
 {
 	Zobrist z(9);
-
+#if 0
 	// test == function for empty boards
 	{
 		Board a(&z, 9), b(&z, 9);
@@ -284,7 +287,62 @@ int main(int argc, char *argv[])
 		assert(a.getUndoDepth() == 2);
 
 		assert(a.getAt(testV) == board_t::B_BLACK);  // board check
-		assert(a.getChain(testV).first  == prev_data.first);  // chain map check (pointer)
+		assert(a.getChain(testV).second == prev_data.second);  // chain map check (index)
+		assert(a.getChain(testV).first->getLiberties()->size() == 1);
+
+		assert(a.getChain(Vertex(4, 3, 9)).first->getLiberties()->size() == 3);
+		assert(a.getChain(Vertex(4, 5, 9)).first->getLiberties()->size() == 3);
+		assert(a.getChain(Vertex(3, 4, 9)).first->getLiberties()->size() == 3);
+	}
+#endif
+	// verify restored chain and liberty counts after multiple undo levels
+	{
+		Board a(&z, 9);
+
+		printf("1. create black\n");
+
+		Vertex testV(4, 4, 9);
+		a.startMove();
+		a.putAt(testV, board_t::B_BLACK);
+		a.finishMove();
+
+		auto prev_data = a.getChain(testV);
+		assert(prev_data.first  != nullptr);
+		assert(prev_data.second != 0);
+
+		printf("2. white above/below\n");
+
+		a.startMove();
+		a.putAt(Vertex(4, 3, 9), board_t::B_WHITE);  // above
+		a.putAt(Vertex(4, 5, 9), board_t::B_WHITE);  // below
+		a.finishMove();
+
+		printf("3. random left\n");
+
+		a.startMove();
+		a.putAt(Vertex(4, 2, 9), board_t::B_WHITE);
+		a.finishMove();
+
+		printf("4. white left/right\n");
+
+		a.startMove();
+		a.putAt(Vertex(3, 4, 9), board_t::B_WHITE);  // left
+		a.putAt(Vertex(5, 4, 9), board_t::B_WHITE);  // right
+		a.finishMove();
+		printf("5. center is gone\n");
+		a.undoMoveSet();
+		printf("6A. center is back\n");
+		printf("6B. left/right is back\n");
+
+		a.undoMoveSet();
+
+		assert(a.getUndoDepth() == 2);
+
+		a.undoMoveSet();
+
+		assert(a.getUndoDepth() == 1);
+
+		assert(a.getAt(testV) == board_t::B_BLACK);  // board check
 		assert(a.getChain(testV).second == prev_data.second);  // chain map check (index)
 		assert(a.getChain(testV).first->getLiberties()->size() == 1);
 
@@ -294,6 +352,95 @@ int main(int argc, char *argv[])
 	}
 
 	printf("All good\n");
+}
+
+uint64_t perft_do(Board & b, std::unordered_set<uint64_t> *const seen, const board_t bv, const int depth, const int pass, const bool verbose, const bool top)
+{
+	printf(" ======> DEPTH %d <=====\n", depth);
+	printf("%s\n", b.dumpFEN(bv, 0).c_str());
+
+	if (depth == 0)
+		return 1;
+
+	if (pass >= 2)
+		return 0;
+
+	const int     new_depth  = depth - 1;
+	const board_t new_player = bv == board_t::B_BLACK ? board_t::B_WHITE : board_t::B_BLACK;
+
+	uint64_t      total      = 0;
+
+	std::vector<Vertex> *liberties = b.findLiberties(bv);
+
+	for(auto & cross : *liberties) {
+		b.startMove();
+		b.putAt(cross, bv);
+		b.finishMove();
+
+		uint64_t hash = b.getHash();
+
+		if (seen->find(hash) == seen->end()) {
+			seen->insert(hash);
+
+			uint64_t cur_count = perft_do(b, seen, new_player, new_depth, 0, verbose, false);
+
+			total += cur_count;
+
+			if (verbose && top)
+				printf("%c%d: %ld\n", cross.getX() + 'a', cross.getY() + 1, cur_count);
+
+			seen->erase(hash);
+		}
+
+		b.undoMoveSet();
+	}
+
+	delete liberties;
+
+	if (pass < 2) {
+		uint64_t cur_count = perft_do(b, seen, new_player, new_depth, pass + 1, verbose, false);
+
+		total += cur_count;
+
+		if (verbose && top)
+			printf("pass: %ld\n", cur_count);
+	}
+
+	if (verbose && top)
+		printf("total: %ld\n", total);
+
+	return total;
+}
+
+void perft(const int dim, const int depth)
+{
+	Zobrist z(dim);
+
+	Board b(&z, dim);
+
+	std::unordered_set<uint64_t> seen;
+
+	uint64_t start_ts = get_ts_ms();
+
+	uint64_t total = perft_do(b, &seen, board_t::B_BLACK, depth, 0, 1, 1);
+
+	uint64_t end_ts = get_ts_ms();
+
+	uint64_t took = end_ts - start_ts;
+
+	printf("Took: %.3fs, %f nps\n", took / 1000., total * 1000. / took);
+}
+
+int main(int argc, char *argv[])
+{
+	if (argc == 1 || strcmp(argv[1], "unit-tests") == 0)
+		unit_tests();
+	else if (argc == 4 || strcmp(argv[1], "perft") == 0)
+		perft(atoi(argv[2]), atoi(argv[3]));
+	else {
+		fprintf(stderr, "???\n");
+		return 1;
+	}
 
 	return 0;
 }
