@@ -123,6 +123,8 @@ void Board::updateField(const Vertex & v, const board_t bv)
 	// update layout-undo
 	assert(b_undo.back().finished == false);
 	b_undo.back().undos.emplace_back(v, b[place], hash);
+	assert(b[place] == board_t::B_EMPTY);
+	assert(bv != board_t::B_EMPTY);
 
 	// put stone & update
 	if (b[place] != board_t::B_EMPTY)
@@ -332,13 +334,17 @@ void Board::updateField(const Vertex & v, const board_t bv)
 		for(auto & stone : *work_c->getStones()) {
 			assert(b[stone.getV()] == work_b);
 
+			assert(v != stone);
+
 			// update undo record
 			b_undo.back().undos.emplace_back(stone, b[stone.getV()], hash);
+	assert(b[stone.getV()] != board_t::B_EMPTY);
 
 			// remove stone from board
+			assert(b[stone.getV()] != board_t::B_EMPTY);
 			b[stone.getV()] = board_t::B_EMPTY;
 
-			// update hash
+			// update hash to no longer include this stone
 			hash ^= z->get(stone.getV(), bv == board_t::B_BLACK);
 
 			// remove stone from chainmap
@@ -555,6 +561,8 @@ void Board::startMove()
 
 	c_undo_t uc;
 	c_undo.push_back(uc);
+
+	assert(b_undo.size() == c_undo.size());
 }
 
 void Board::finishMove()
@@ -581,9 +589,7 @@ void Board::undoMoveSet()
 	// mostly used for dead chains, not when e.g. replacing chains
 	assert(b_undo.back().finished == true);
 
-	b_undo.back().dump();
-
-	for(auto & tuple: std::ranges::views::reverse(b_undo.back().undos)) {
+	for(auto & tuple: b_undo.back().undos) {
 		Vertex  & v = std::get<0>(tuple);
 		board_t   t = std::get<1>(tuple);
 
@@ -596,8 +602,6 @@ void Board::undoMoveSet()
 
 	// undo chains
 	assert(c_undo.back().finished == true);
-
-	c_undo.back().dump();
 
 	for(auto & tuple: std::ranges::views::reverse(c_undo.back().undos)) {
 		chain_nr_t         nr     = std::get<0>(tuple);
@@ -657,7 +661,7 @@ void Board::undoMoveSet()
 		bool     add = std::get<2>(tuple);
 
 		auto     c   = getChain(v);
-		printf("undo liberty: %s was %s, chain %ld\n", add ? "remove" : "add", v.to_str().c_str(), c.second);
+		printf("undo liberty: was %s %s, chain %ld\n", add ? "add" : "remove", v.to_str().c_str(), c.second);
 
 		// a chain may already have been purged earlier in this method
 		if (c.second == 0)
@@ -667,6 +671,8 @@ void Board::undoMoveSet()
 			c.first->removeLiberty(v);
 		else {
 			c.first->addLiberty(v);
+			if (getAt(v) != board_t::B_EMPTY)
+				printf("FAILURE; not empty at %s: %s\n", v.to_str().c_str(), board_t_name(getAt(v)));
 			assert(getAt(v) == board_t::B_EMPTY);
 		}
 	}
@@ -675,6 +681,8 @@ void Board::undoMoveSet()
 	printf("*** UNDO OUTPUT:\n");
 	dump();
 	printf("* UNDO with hash %016lx finished * --------------------------------\n", hash);
+
+	assert(b_undo.size() == c_undo.size());
 }
 
 void Board::putAt(const Vertex & v, const board_t bv)
@@ -739,6 +747,10 @@ void Board::dump()
 	printf("white chains:\n");
 	for(auto & chain: whiteChains)
 		chain.second->dump();
+
+	printf("board undos:\n");
+	for(auto & record: b_undo)
+		record.dump();
 
         std::string line;
 

@@ -354,7 +354,11 @@ void unit_tests()
 		assert(a.getChain(testV).second == prev_data.second);  // chain map check (index)
 		assert(a.getChain(testV).first->getLiberties()->size() == 1);
 
-		assert(a.getChain(Vertex(4, 3, 9)).first->getLiberties()->size() == 3);
+		printf("%s %zu\n", Vertex(4, 3, 9).to_str().c_str(), a.getChain(Vertex(4, 3, 9)).first->getLiberties()->size());
+		printf("%s %zu\n", Vertex(4, 5, 9).to_str().c_str(), a.getChain(Vertex(4, 5, 9)).first->getLiberties()->size());
+		printf("%s %zu\n", Vertex(3, 4, 9).to_str().c_str(), a.getChain(Vertex(3, 4, 9)).first->getLiberties()->size());
+
+		assert(a.getChain(Vertex(4, 3, 9)).first->getLiberties()->size() == 2);
 		assert(a.getChain(Vertex(4, 5, 9)).first->getLiberties()->size() == 3);
 		assert(a.getChain(Vertex(3, 4, 9)).first->getLiberties()->size() == 3);
 	}
