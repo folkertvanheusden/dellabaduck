@@ -794,6 +794,22 @@ void Board::dump()
                 line += myformat("%c", xc);
         }
 
+        line += "   ";
+
+        for(int x=0; x<dim; x++)
+                line += "     ";
+
+        line += "   ";
+
+        for(int x=0; x<dim; x++) {
+                int xc = 'A' + x;
+
+                if (xc >= 'I')
+                        xc++;
+
+                line += myformat(" %c", xc);
+        }
+
         printf("%s\n", line.c_str());
 }
 
