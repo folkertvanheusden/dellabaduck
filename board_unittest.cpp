@@ -314,6 +314,8 @@ void unit_tests()
 
 		a.startMove();
 		a.putAt(Vertex(4, 3, 9), board_t::B_WHITE);  // above
+		a.finishMove();
+		a.startMove();
 		a.putAt(Vertex(4, 5, 9), board_t::B_WHITE);  // below
 		a.finishMove();
 
@@ -327,6 +329,8 @@ void unit_tests()
 
 		a.startMove();
 		a.putAt(Vertex(3, 4, 9), board_t::B_WHITE);  // left
+		a.finishMove();
+		a.startMove();
 		a.putAt(Vertex(5, 4, 9), board_t::B_WHITE);  // right
 		a.finishMove();
 		printf("5. center is gone\n");
@@ -336,11 +340,11 @@ void unit_tests()
 
 		a.undoMoveSet();
 
-		assert(a.getUndoDepth() == 2);
+		assert(a.getUndoDepth() == 4);
 
 		a.undoMoveSet();
 
-		assert(a.getUndoDepth() == 1);
+		assert(a.getUndoDepth() == 3);
 
 		assert(a.getAt(testV) == board_t::B_BLACK);  // board check
 		assert(a.getChain(testV).second == prev_data.second);  // chain map check (index)
