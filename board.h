@@ -9,17 +9,18 @@
 #include "vertex.h"
 #include "zobrist.h"
 
+#define NO_CHAIN 0
 typedef uint64_t chain_nr_t;
-
-enum class player_t { P_BLACK = 0, P_WHITE };
 
 enum class board_t { B_EMPTY, B_WHITE, B_BLACK, B_LAST };
 
 const char *board_t_name(const board_t v);
 
+board_t opponentColor(const board_t v);
+
 class chain {
 private:
-	std::unordered_set<Vertex, Vertex::HashFunction> squares;
+	std::unordered_set<Vertex, Vertex::HashFunction> stones;
 	std::unordered_set<Vertex, Vertex::HashFunction> liberties;
 
 public:
@@ -32,7 +33,7 @@ public:
 	void dump() {
 		printf("stones:");
 
-		for(auto & v: squares)
+		for(auto & v: stones)
 			printf(" %s", v.to_str().c_str());
 
 		printf("\n");
@@ -46,7 +47,7 @@ public:
 	}
 
 	const std::unordered_set<Vertex, Vertex::HashFunction> * getStones() const {
-		return &squares;
+		return &stones;
 	}
 
 	const std::unordered_set<Vertex, Vertex::HashFunction> * getLiberties() const {
@@ -54,19 +55,34 @@ public:
 	}
 
 	void addStone(const Vertex & v) {
-		bool rc = squares.insert(v).second;
+		bool rc = stones.insert(v).second;
 		assert(rc);
 		assert(liberties.find(v) == liberties.end());
 	}
 
+	void addStones(const std::unordered_set<Vertex, Vertex::HashFunction> & in) {
+		stones.insert(in.begin(), in.end());
+	}
+
 	void removeStone(const Vertex & v) {
-		bool rc = squares.erase(v);
+		bool rc = stones.erase(v);
 		assert(rc);
+	}
+
+	void removeStones(const std::unordered_set<Vertex, Vertex::HashFunction> & in) {
+		for(auto & v: in) {
+			bool rc = stones.erase(v);
+			assert(rc);
+		}
 	}
 
 	void addLiberty(const Vertex & v) {
 		// it is assumed that liberties may be added multiple times
 		liberties.insert(v);
+	}
+
+	void addLiberties(const std::unordered_set<Vertex, Vertex::HashFunction> & in) {
+		liberties.insert(in.begin(), in.end());
 	}
 
 	void removeLiberty(const Vertex & v) {
@@ -82,21 +98,32 @@ public:
 typedef struct {
 	// vertex, stone, hash
 	std::vector<std::tuple<Vertex, board_t, uint64_t> > undos;
-	bool finished { false };
 
 	void dump() {
-		printf("finished: %d\n", finished);
+		printf("board undo actions:");
 
 		for(auto & undo: undos) {
 			Vertex & v = std::get<0>(undo);
 
-			printf("%s: %s\n", v.to_str().c_str(), board_t_name(std::get<1>(undo)));
+			printf(" %s|%s", v.to_str().c_str(), board_t_name(std::get<1>(undo)));
 		}
+
+		printf("\n");
 	}
 } b_undo_t;
 
 typedef struct {
 	enum class modify_t { A_ADD, A_REMOVE, A_MODIFY };
+
+	typedef struct {
+		chain_nr_t nr;
+		modify_t   action;
+		board_t    bv;
+		std::unordered_set<Vertex, Vertex::HashFunction> stones;
+		std::unordered_set<Vertex, Vertex::HashFunction> liberties;
+		std::unordered_set<chain_nr_t> chains_lost_liberty;
+		std::unordered_set<chain_nr_t> chains_gained_liberty;
+	} action_t;
 
 	const char *modify_t_name(const modify_t m) {
 		if (m == modify_t::A_ADD)
@@ -113,21 +140,33 @@ typedef struct {
 		return "?";
 	}
 
-	std::vector<std::tuple<chain_nr_t, modify_t, board_t, std::unordered_set<Vertex, Vertex::HashFunction> > > undos;  // stones
-	std::vector<std::tuple<chain_nr_t, Vertex, bool> > undos_liberties;
-	bool finished { false };
+	std::vector<action_t> undos;
 
 	void dump() {
-		printf("finished: %d\n", finished);
+		printf("chain undo actions:\n");
 
 		for(auto & undo: undos) {
-			printf("chain %ld, %s, %s\n", std::get<0>(undo), modify_t_name(std::get<1>(undo)), board_t_name(std::get<2>(undo)));
-		}
+			printf("  chain: %lu, action: %s, color: %s\n", undo.nr, modify_t_name(undo.action), board_t_name(undo.bv));
 
-		for(auto & undo: undos_liberties) {
-			Vertex & v = std::get<1>(undo);
+			printf("    stones:");
+			for(auto & v: undo.stones)
+				printf(" %s", v.to_str().c_str());
+			printf("\n");
 
-			printf("liberties %s: %s, chain %ld\n", v.to_str().c_str(), std::get<2>(undo) ? "add" : "del", std::get<0>(undo));
+			printf("    liberties:");
+			for(auto & v: undo.liberties)
+				printf(" %s", v.to_str().c_str());
+			printf("\n");
+
+			printf("    chains lost liberty:");
+			for(auto & c: undo.chains_lost_liberty)
+				printf(" %ld", c);
+			printf("\n");
+
+			printf("    chains gained liberty:");
+			for(auto & c: undo.chains_gained_liberty)
+				printf(" %ld", c);
+			printf("\n");
 		}
 	}
 } c_undo_t;
@@ -144,10 +183,18 @@ private:
 	std::map<uint64_t, chain *> blackChains;
 	std::map<uint64_t, chain *> whiteChains;
 
-	uint64_t getHashForField(const int v);
+	void increaseChainNr();
+
 	void updateField(const Vertex & v, const board_t bv);
 
-	void addLiberties(chain *const c, const Vertex & v, std::vector<std::tuple<chain_nr_t, Vertex, bool> > *const undo, const uint64_t cnr);
+	void addChain(const board_t bv, chain_nr_t cnr, chain *const new_c);
+	void mapChain(const Vertex & v, const chain_nr_t nr);
+	void mapChain(const std::unordered_set<Vertex, Vertex::HashFunction> & chain, const chain_nr_t nr);
+	void removeChain(const board_t bv, const chain_nr_t nr);
+
+	auto getLiberties(const Vertex & v);
+	auto getSurroundingNonEmptyVertexes(const Vertex & v);
+	auto getSurroundingChainsOfType(const Vertex & v, const board_t bv);
 
 	void getTo(board_t *const bto) const;
 
