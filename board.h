@@ -161,6 +161,7 @@ public:
 	~Board();
 
 	void dump();
+	void dumpUndoSet(const bool full);
 	std::string dumpFEN(const board_t next_player, const int pass_depth);
 
 	Board & operator=(const Board & in);

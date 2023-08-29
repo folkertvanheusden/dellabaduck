@@ -794,6 +794,28 @@ void Board::dump()
         printf("%s\n", line.c_str());
 }
 
+void Board::dumpUndoSet(const bool full)
+{
+	if (full) {
+		size_t n = b_undo.size();
+
+		for(size_t i=0; i<n; i++) {
+			b_undo.at(i).dump();
+			printf("\n");
+			c_undo.at(i).dump();
+			printf("\n");
+			printf("\n");
+		}
+	}
+	else {
+		b_undo.back().dump();
+		printf("\n");
+		c_undo.back().dump();
+		printf("\n");
+		printf("\n");
+	}
+}
+
 std::string Board::dumpFEN(const board_t next_player, const int pass_depth)
 {
         std::string out;
