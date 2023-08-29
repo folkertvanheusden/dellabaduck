@@ -552,12 +552,10 @@ std::tuple<double, double, int> playout(const Board & in, const double komi, pla
 			x = fields[field_o] % dim;
 			y = fields[field_o] / dim;
 
-			int o = fields[field_o];
-
 			field_o = (field_o + 1) % dimsq;
 
 			// al
-			if (cm.getAt(o)) {
+			if (cm.getAt(x, y)) {
 				attempt_n++;
 
 				continue;
