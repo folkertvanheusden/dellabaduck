@@ -236,6 +236,7 @@ void Board::updateField(const Vertex & v, const board_t bv)
 			// copy the liberties
 			for(auto & liberty: *old_c->getLiberties()) {
 				new_c->addLiberty(liberty);
+				assert(getAt(liberty) == board_t::B_EMPTY);
 
 				// undo-management
 				c_undo.back().undos_liberties.push_back({ old_nr, liberty, false });  // remove from old chain
@@ -664,8 +665,10 @@ void Board::undoMoveSet()
 
 		if (add)  // liberty was added? then remove it now
 			c.first->removeLiberty(v);
-		else
+		else {
 			c.first->addLiberty(v);
+			assert(getAt(v) == board_t::B_EMPTY);
+		}
 	}
 
 	c_undo.pop_back();
