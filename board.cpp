@@ -236,6 +236,7 @@ void Board::updateField(const Vertex & v, const board_t bv)
 			// copy the liberties
 			for(auto & liberty: *old_c->getLiberties()) {
 				new_c->addLiberty(liberty);
+				assert(getAt(liberty) == board_t::B_EMPTY);
 
 				// undo-management
 				c_undo.back().undos_liberties.push_back({ old_nr, liberty, false });  // remove from old chain
@@ -664,8 +665,10 @@ void Board::undoMoveSet()
 
 		if (add)  // liberty was added? then remove it now
 			c.first->removeLiberty(v);
-		else
+		else {
 			c.first->addLiberty(v);
+			assert(getAt(v) == board_t::B_EMPTY);
+		}
 	}
 
 	c_undo.pop_back();
@@ -792,6 +795,28 @@ void Board::dump()
         }
 
         printf("%s\n", line.c_str());
+}
+
+void Board::dumpUndoSet(const bool full)
+{
+	if (full) {
+		size_t n = b_undo.size();
+
+		for(size_t i=0; i<n; i++) {
+			b_undo.at(i).dump();
+			printf("\n");
+			c_undo.at(i).dump();
+			printf("\n");
+			printf("\n");
+		}
+	}
+	else {
+		b_undo.back().dump();
+		printf("\n");
+		c_undo.back().dump();
+		printf("\n");
+		printf("\n");
+	}
 }
 
 std::string Board::dumpFEN(const board_t next_player, const int pass_depth)

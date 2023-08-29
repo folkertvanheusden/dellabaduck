@@ -301,7 +301,7 @@ void unit_tests()
 
 		printf("1. create black\n");
 
-		Vertex testV(4, 4, 9);
+		Vertex testV(4, 4, 9);  // e5
 		a.startMove();
 		a.putAt(testV, board_t::B_BLACK);
 		a.finishMove();
@@ -313,34 +313,42 @@ void unit_tests()
 		printf("2. white above/below\n");
 
 		a.startMove();
-		a.putAt(Vertex(4, 3, 9), board_t::B_WHITE);  // above
-		a.putAt(Vertex(4, 5, 9), board_t::B_WHITE);  // below
+		a.putAt(Vertex(4, 3, 9), board_t::B_WHITE);  // above  e4
+		a.finishMove();
+		a.startMove();
+		a.putAt(Vertex(4, 5, 9), board_t::B_WHITE);  // below  e6
 		a.finishMove();
 
 		printf("3. random left\n");
 
 		a.startMove();
-		a.putAt(Vertex(4, 2, 9), board_t::B_WHITE);
+		a.putAt(Vertex(4, 2, 9), board_t::B_WHITE);  // e3
 		a.finishMove();
 
 		printf("4. white left/right\n");
 
 		a.startMove();
-		a.putAt(Vertex(3, 4, 9), board_t::B_WHITE);  // left
-		a.putAt(Vertex(5, 4, 9), board_t::B_WHITE);  // right
+		a.putAt(Vertex(3, 4, 9), board_t::B_WHITE);  // left  d5
+		a.finishMove();
+		a.startMove();
+		a.putAt(Vertex(5, 4, 9), board_t::B_WHITE);  // right  f5
 		a.finishMove();
 		printf("5. center is gone\n");
-		a.undoMoveSet();
+		a.undoMoveSet();  // undo f5
 		printf("6A. center is back\n");
 		printf("6B. left/right is back\n");
 
-		a.undoMoveSet();
+		a.undoMoveSet();  // undo d5
 
-		assert(a.getUndoDepth() == 2);
+		assert(a.getUndoDepth() == 4);
 
-		a.undoMoveSet();
+		a.dumpUndoSet(false);
 
-		assert(a.getUndoDepth() == 1);
+		a.getChain(Vertex(4, 2, 9)).first->dump();
+
+		a.undoMoveSet();  // undo e3
+
+		assert(a.getUndoDepth() == 3);
 
 		assert(a.getAt(testV) == board_t::B_BLACK);  // board check
 		assert(a.getChain(testV).second == prev_data.second);  // chain map check (index)
