@@ -59,11 +59,24 @@ void unit_tests()
 		Board a(&z, 9), b(&z, 9);
 		b.startMove();
 		b.putAt(Vertex(0, 0, 9), board_t::B_BLACK);
+		b.finishMove();
+
+		b.startMove();
 		b.putAt(Vertex(3, 2, 9), board_t::B_WHITE);
+		b.finishMove();
+
+		b.startMove();
 		b.putAt(Vertex(1, 1, 9), board_t::B_BLACK);
+		b.finishMove();
+
+		b.startMove();
+		b.finishMove();
 		b.putAt(Vertex(7, 8, 9), board_t::B_WHITE);
 		b.finishMove();
 
+		b.undoMoveSet();
+		b.undoMoveSet();
+		b.undoMoveSet();
 		b.undoMoveSet();
 
 		assert(a == b);
@@ -75,27 +88,46 @@ void unit_tests()
 
 		a.startMove();
 		a.putAt(Vertex(1, 3, 9), board_t::B_BLACK);
+		a.finishMove();
+
+		a.startMove();
 		a.putAt(Vertex(4, 4, 9), board_t::B_WHITE);
 		a.finishMove();
 
 		b.startMove();
 		b.putAt(Vertex(1, 3, 9), board_t::B_BLACK);
+		b.finishMove();
+
+		b.startMove();
 		b.putAt(Vertex(4, 4, 9), board_t::B_WHITE);
 		b.finishMove();
 
 		b.startMove();
 		b.putAt(Vertex(0, 0, 9), board_t::B_BLACK);
+		b.finishMove();
+
+		b.startMove();
 		b.putAt(Vertex(3, 2, 9), board_t::B_WHITE);
+		b.finishMove();
+
+		b.startMove();
 		b.putAt(Vertex(1, 1, 9), board_t::B_BLACK);
+		b.finishMove();
+
+		b.startMove();
 		b.putAt(Vertex(7, 8, 9), board_t::B_WHITE);
 		b.finishMove();
 
-		assert(a.getUndoDepth() == 1);
-		assert(b.getUndoDepth() == 2);
+		assert(a.getUndoDepth() == 2);
+		assert(b.getUndoDepth() == 6);
 
 		b.undoMoveSet();
 
-		assert(b.getUndoDepth() == 1);
+		assert(b.getUndoDepth() == 5);
+
+		b.undoMoveSet();
+		b.undoMoveSet();
+		b.undoMoveSet();
 
 		assert(a == b);
 	}
