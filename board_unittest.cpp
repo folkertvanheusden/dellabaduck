@@ -10,7 +10,7 @@
 void unit_tests()
 {
 	Zobrist z(9);
-#if 0
+
 	// test == function for empty boards
 	{
 		Board a(&z, 9), b(&z, 9);
@@ -294,7 +294,7 @@ void unit_tests()
 		assert(a.getChain(Vertex(4, 5, 9)).first->getLiberties()->size() == 3);
 		assert(a.getChain(Vertex(3, 4, 9)).first->getLiberties()->size() == 3);
 	}
-#endif
+
 	// verify restored chain and liberty counts after multiple undo levels
 	{
 		Board a(&z, 9);
@@ -315,6 +315,7 @@ void unit_tests()
 		a.startMove();
 		a.putAt(Vertex(4, 3, 9), board_t::B_WHITE);  // above  e4
 		a.finishMove();
+
 		a.startMove();
 		a.putAt(Vertex(4, 5, 9), board_t::B_WHITE);  // below  e6
 		a.finishMove();
@@ -330,11 +331,14 @@ void unit_tests()
 		a.startMove();
 		a.putAt(Vertex(3, 4, 9), board_t::B_WHITE);  // left  d5
 		a.finishMove();
+
 		a.startMove();
 		a.putAt(Vertex(5, 4, 9), board_t::B_WHITE);  // right  f5
 		a.finishMove();
 		printf("5. center is gone\n");
+
 		a.undoMoveSet();  // undo f5
+
 		printf("6A. center is back\n");
 		printf("6B. left/right is back\n");
 
@@ -352,15 +356,15 @@ void unit_tests()
 
 		assert(a.getAt(testV) == board_t::B_BLACK);  // board check
 		assert(a.getChain(testV).second == prev_data.second);  // chain map check (index)
-		assert(a.getChain(testV).first->getLiberties()->size() == 1);
 
-		printf("%s %zu\n", Vertex(4, 3, 9).to_str().c_str(), a.getChain(Vertex(4, 3, 9)).first->getLiberties()->size());
-		printf("%s %zu\n", Vertex(4, 5, 9).to_str().c_str(), a.getChain(Vertex(4, 5, 9)).first->getLiberties()->size());
-		printf("%s %zu\n", Vertex(3, 4, 9).to_str().c_str(), a.getChain(Vertex(3, 4, 9)).first->getLiberties()->size());
+printf("GREP001\n");
+a.dump();
+printf("GREP002\n");
 
-		assert(a.getChain(Vertex(4, 3, 9)).first->getLiberties()->size() == 2);
-		assert(a.getChain(Vertex(4, 5, 9)).first->getLiberties()->size() == 3);
-		assert(a.getChain(Vertex(3, 4, 9)).first->getLiberties()->size() == 3);
+		assert(a.getChain(testV).first->getLiberties()->size() == 2);
+
+		assert(a.getChain(Vertex::from_str("e4", 9)).first->getLiberties()->size() == 3);
+		assert(a.getChain(Vertex::from_str("e6", 9)).first->getLiberties()->size() == 3);
 	}
 
 	printf("All good\n");

@@ -76,6 +76,10 @@ public:
 		}
 	}
 
+	void clearLiberties() {
+		liberties.clear();
+	}
+
 	void addLiberty(const Vertex & v) {
 		// it is assumed that liberties may be added multiple times
 		liberties.insert(v);
@@ -120,9 +124,6 @@ typedef struct {
 		modify_t   action;
 		board_t    bv;
 		std::unordered_set<Vertex, Vertex::HashFunction> stones;
-		std::unordered_set<Vertex, Vertex::HashFunction> liberties;
-		std::unordered_set<chain_nr_t> chains_lost_liberty;
-		std::unordered_set<chain_nr_t> chains_gained_liberty;
 	} action_t;
 
 	const char *modify_t_name(const modify_t m) {
@@ -152,21 +153,6 @@ typedef struct {
 			for(auto & v: undo.stones)
 				printf(" %s", v.to_str().c_str());
 			printf("\n");
-
-			printf("    liberties:");
-			for(auto & v: undo.liberties)
-				printf(" %s", v.to_str().c_str());
-			printf("\n");
-
-			printf("    chains lost liberty:");
-			for(auto & c: undo.chains_lost_liberty)
-				printf(" %ld", c);
-			printf("\n");
-
-			printf("    chains gained liberty:");
-			for(auto & c: undo.chains_gained_liberty)
-				printf(" %ld", c);
-			printf("\n");
 		}
 	}
 } c_undo_t;
@@ -192,6 +178,7 @@ private:
 	void mapChain(const std::unordered_set<Vertex, Vertex::HashFunction> & chain, const chain_nr_t nr);
 	void removeChain(const board_t bv, const chain_nr_t nr);
 
+	void liberty_scan(const std::unordered_set<chain *> & chains);
 	auto getLiberties(const Vertex & v);
 	auto getSurroundingNonEmptyVertexes(const Vertex & v);
 	auto getSurroundingChainsOfType(const Vertex & v, const board_t bv);
