@@ -175,7 +175,7 @@ void Board::removeChain(const board_t bv, const chain_nr_t nr)
 
 void Board::mapChain(const Vertex & v, const chain_nr_t nr)
 {
-	assert(cm[v.getV()] == NO_CHAIN);
+	assert(cm[v.getV()] != nr);
 
 	cm[v.getV()] = nr;
 }
@@ -184,6 +184,20 @@ void Board::mapChain(const std::unordered_set<Vertex, Vertex::HashFunction> & ch
 {
 	for(auto & v: chain)
 		mapChain(v, nr);
+}
+
+void Board::liberty_scan(const std::unordered_set<chain *> & chains)
+{
+	for(auto & ch: chains) {
+		ch->clearLiberties();
+
+		printf("GREP003 %zu   ", ch->getLiberties()->size());
+
+		for(auto & v: *ch->getStones())
+			ch->addLiberties(getLiberties(v));
+
+		printf("%zu\n", ch->getLiberties()->size());
+	}
 }
 
 void Board::updateField(const Vertex & v, const board_t bv)
@@ -260,6 +274,8 @@ void Board::updateField(const Vertex & v, const board_t bv)
 	auto & adjacentMine   = bv == board_t::B_BLACK ? adjacentBlack : adjacentWhite;
 	auto & adjacentTheirs = bv == board_t::B_BLACK ? adjacentWhite : adjacentBlack;
 
+	std::unordered_set<chain *> rescan_chains;
+
 	// connect new stone to existing chain
 	if (adjacentMine.size() == 1) {
 		// get chain to connect to
@@ -269,16 +285,10 @@ void Board::updateField(const Vertex & v, const board_t bv)
 		assert(ch.second != NO_CHAIN);
 		assert(ch.first->getStones()->empty() == false);
 
-		// as this stone connects to the (existing) chain, a liberty
-		// is removed (and new ones added later on)
 		ch.first->removeLiberty(v);
 
 		// connect the new stone to the chain it is adjacent to
 		ch.first->addStone(v);
-
-		auto new_liberties = getLiberties(v);
-
-		ch.first->addLiberties(new_liberties);
 
 		// update chainmap for the new stone to the chain it is connected to
 		mapChain(v, ch.second);
@@ -288,10 +298,10 @@ void Board::updateField(const Vertex & v, const board_t bv)
 		action.action = c_undo_t::modify_t::A_MODIFY;
 		action.bv     = bv;  // stone type added
 		action.stones = { v };
-		action.liberties = new_liberties;  // add liberties of this new stone
-		action.chains_lost_liberty = getSurroundingChainsOfType(v, bv == board_t::B_BLACK ? board_t::B_WHITE : board_t::B_BLACK);  // see what chains lost a liberty
 
 		c_undo.back().undos.push_back(std::move(action));
+
+		rescan_chains.insert(ch.first);
 	}
 	// connect adjacent chains
 	else if (adjacentMine.empty() == false) {
@@ -313,16 +323,12 @@ void Board::updateField(const Vertex & v, const board_t bv)
 			// add stones of the to-connect-chains to the target chain
 			target_c->addStones(*old_c->getStones());
 
-			// copy the liberties
-			target_c->addLiberties(*old_c->getLiberties());
-
 			// register the modification
 			c_undo_t::action_t action_mod;
 			action_mod.nr        = target_nr;
 			action_mod.action    = c_undo_t::modify_t::A_MODIFY;
 			action_mod.bv        = bv;
 			action_mod.stones    = *old_c->getStones();
-			action_mod.liberties = *old_c->getLiberties();
 
 			c_undo.back().undos.push_back(std::move(action_mod));
 
@@ -332,7 +338,6 @@ void Board::updateField(const Vertex & v, const board_t bv)
 			action_rm.action    = c_undo_t::modify_t::A_REMOVE;
 			action_rm.bv        = bv;  // stone type added
 			action_rm.stones    = *old_c->getStones();  // these are removed
-			action_rm.liberties = *old_c->getLiberties();
 
 			c_undo.back().undos.push_back(std::move(action_rm));
 
@@ -342,15 +347,8 @@ void Board::updateField(const Vertex & v, const board_t bv)
 			delete old_c;
 		}
 
-		// remove the liberty where the new stone is placed
-		target_c->removeLiberty(v);
-
 		// merge the new stone
 		target_c->addStone(v);  // add to (new) chain
-
-		// adjacent liberties
-		auto new_liberties = getLiberties(v);
-		target_c->addLiberties(new_liberties);
 
 		mapChain(v, target_nr);
 
@@ -360,12 +358,12 @@ void Board::updateField(const Vertex & v, const board_t bv)
 		action_add.action = c_undo_t::modify_t::A_MODIFY;
 		action_add.bv     = bv;  // stone type added
 		action_add.stones = { v };
-		action_add.liberties = new_liberties;  // add liberties of this new stone
-		action_add.chains_lost_liberty = getSurroundingChainsOfType(v, bv == board_t::B_BLACK ? board_t::B_WHITE : board_t::B_BLACK);  // see what chains lost a liberty
 
 		c_undo.back().undos.push_back(std::move(action_add));
 
 		increaseChainNr();
+
+		rescan_chains.insert(target_c);
 	}
 	else {  // new chain
 		printf("new chain\n");
@@ -379,21 +377,18 @@ void Board::updateField(const Vertex & v, const board_t bv)
 		// register new chain in the maps
 		addChain(bv, cnr, new_c);
 
-		// give the chain its liberties
-		new_c->addLiberties(getLiberties(v));
-
 		// register that a new chain was registered
 		c_undo_t::action_t action;
 		action.nr     = cnr;
 		action.action = c_undo_t::modify_t::A_ADD;
 		action.bv     = bv;  // stone type added
 		action.stones = { v };
-		action.liberties = *new_c->getLiberties();  // add liberties of this new stone and older chains
-		action.chains_lost_liberty = getSurroundingChainsOfType(v, bv == board_t::B_BLACK ? board_t::B_WHITE : board_t::B_BLACK);  // see what chains lost a liberty
 
 		c_undo.back().undos.push_back(std::move(action));
 
 		increaseChainNr();
+
+		rescan_chains.insert(new_c);
 	}
 
 	// check if any surrounding chains are dead
@@ -407,8 +402,6 @@ void Board::updateField(const Vertex & v, const board_t bv)
 			continue;
 
 		printf("delete dead chain\n");
-
-		std::unordered_set<chain_nr_t> liberty_gainers;
 
 		// clean-up
 		for(auto & stone : *work_c->getStones()) {
@@ -437,9 +430,7 @@ void Board::updateField(const Vertex & v, const board_t bv)
 				auto   ch    = getChain(adjacentV);
 				chain *old_c = ch.first;
 
-				old_c->addLiberty(v);
-
-				liberty_gainers.insert(ch.second);
+				rescan_chains.insert(old_c);
 			}
 		}
 
@@ -449,7 +440,6 @@ void Board::updateField(const Vertex & v, const board_t bv)
 		action_rm.action = c_undo_t::modify_t::A_REMOVE;
 		action_rm.bv     = bv == board_t::B_BLACK ? board_t::B_WHITE : board_t::B_BLACK;
 		action_rm.stones = *work_c->getStones();  // these are removed
-		action_rm.chains_gained_liberty = liberty_gainers;
 
 		c_undo.back().undos.push_back(std::move(action_rm));
 
@@ -458,6 +448,8 @@ void Board::updateField(const Vertex & v, const board_t bv)
 
 		delete work_c;
 	}
+
+	liberty_scan(rescan_chains);
 
 	dump();
 
@@ -643,25 +635,12 @@ void Board::undoMoveSet()
 	b_undo.pop_back();
 
 	// undo chains
+	std::unordered_set<chain *> rescan_chains;
+
 	for(auto & a: std::ranges::views::reverse(c_undo.back().undos)) {
 		chain_nr_t         nr     = a.nr;
 		c_undo_t::modify_t action = a.action;
 		board_t            col    = a.bv;
-
-		// get pointers to adjacent chains
-		std::vector<chain *> work_chains_gained_liberty;
-		for(auto & v: a.chains_gained_liberty) {
-			chain *ch = getChain(v, opponentColor(col)).first;
-			assert(ch != nullptr);
-			work_chains_gained_liberty.emplace_back(ch);
-		}
-
-		std::vector<chain *> work_chains_lost_liberty;
-		for(auto & v: a.chains_lost_liberty) {
-			chain *ch = getChain(v, opponentColor(col)).first;
-			assert(ch != nullptr);
-			work_chains_lost_liberty.emplace_back(ch);
-		}
 
 		// chain was added? then remove it now
 		// should be 1 element
@@ -675,14 +654,6 @@ void Board::undoMoveSet()
 				// remove stone from chainmap
 				assert(cm[place] != NO_CHAIN);
 				cm[place] = NO_CHAIN;
-
-				// remove liberty from adjacent chains
-				for(auto & ch: work_chains_gained_liberty)
-					ch->removeLiberty(stone);
-
-				// and add back to who lost them
-				for(auto & ch: work_chains_lost_liberty)
-					ch->addLiberty(stone);
 			}
 
 			removeChain(col, nr);
@@ -697,27 +668,16 @@ void Board::undoMoveSet()
 
 			// recreate chain
 			c->addStones(a.stones);
-			c->addLiberties(a.liberties);
 
 			// add the stones to the chainmap
-			for(auto & stone: a.stones) {
-				mapChain(stone, nr);
-
-				// remove liberty from adjacent chains
-				for(auto & ch: work_chains_gained_liberty)
-					ch->removeLiberty(stone);
-
-				// and add back to who lost them
-				for(auto & ch: work_chains_lost_liberty)
-					ch->addLiberty(stone);
-			}
+			mapChain(a.stones, nr);
 		}
 		else if (action == c_undo_t::modify_t::A_MODIFY) {
 			auto c = getChain(nr, col);
 
 			c.first->removeStones(a.stones);
-			printf("*** HALLO ***\n");
-			// TODO etc
+
+			mapChain(a.stones, NO_CHAIN);
 		}
 		else {
 			assert(0);
@@ -728,6 +688,14 @@ void Board::undoMoveSet()
 	printf("*** UNDO OUTPUT:\n");
 	dump();
 	printf("* UNDO with hash %016lx finished * --------------------------------\n", hash);
+
+	// TODO: replace this by something that only selects affected chains
+	for(auto & ch: blackChains)
+		rescan_chains.insert(ch.second);
+	for(auto & ch: whiteChains)
+		rescan_chains.insert(ch.second);
+
+	liberty_scan(rescan_chains);
 
 	assert(b_undo.size() == c_undo.size());
 }
@@ -798,6 +766,21 @@ void Board::dump()
 	dumpUndoSet(true);
 
         std::string line;
+
+	printf("\n");
+        line = "#      board";
+
+	for(int x=0; x<dim-5; x++)
+		line += " ";
+
+        line += "   chain";
+
+        for(int x=0; x<dim * 5 - 1; x++)
+                line += " ";
+
+	line += "liberties";
+
+        printf("%s\n", line.c_str());
 
         for(int y=dim - 1; y>=0; y--) {
                 line = myformat("# %2d | ", y + 1);
