@@ -74,6 +74,9 @@ std::pair<chain *, chain_nr_t> Board::getChainConst(const Vertex & v) const
 
 	auto it = b[o] == board_t::B_BLACK ? blackChains.find(nr) : whiteChains.find(nr);
 
+	if (it == (b[o] == board_t::B_BLACK ? blackChains.end() : whiteChains.end()))
+		printf("vertex %s has chain-nr %lu which is not found\n", v.to_str().c_str(), nr);
+
 	assert(it != (b[o] == board_t::B_BLACK ? blackChains.end() : whiteChains.end()));
 
 	return { it->second, nr };
@@ -336,10 +339,12 @@ void Board::updateField(const Vertex & v, const board_t bv)
 			c_undo_t::action_t action_rm;
 			action_rm.nr        = old_nr;
 			action_rm.action    = c_undo_t::modify_t::A_REMOVE;
-			action_rm.bv        = bv;  // stone type added
+			action_rm.bv        = bv;  // stone type removed
 			action_rm.stones    = *old_c->getStones();  // these are removed
 
 			c_undo.back().undos.push_back(std::move(action_rm));
+
+			mapChain(*old_c->getStones(), target_nr);
 
 			// delete chain from lists
 			removeChain(bv, old_nr);
@@ -348,11 +353,12 @@ void Board::updateField(const Vertex & v, const board_t bv)
 		}
 
 		// merge the new stone
+		target_c->removeLiberty(v);
 		target_c->addStone(v);  // add to (new) chain
 
 		mapChain(v, target_nr);
 
-		// register the new chain
+		// register the modification
 		c_undo_t::action_t action_add;
 		action_add.nr     = cnr;
 		action_add.action = c_undo_t::modify_t::A_MODIFY;
@@ -360,8 +366,6 @@ void Board::updateField(const Vertex & v, const board_t bv)
 		action_add.stones = { v };
 
 		c_undo.back().undos.push_back(std::move(action_add));
-
-		increaseChainNr();
 
 		rescan_chains.insert(target_c);
 	}
@@ -390,6 +394,18 @@ void Board::updateField(const Vertex & v, const board_t bv)
 
 		rescan_chains.insert(new_c);
 	}
+
+	for(auto & ac: adjacentTheirs) {
+		auto       ch      = getChain(ac);
+		chain     *work_c  = ch.first;
+		work_c->removeLiberty(v);
+	}
+
+	liberty_scan(rescan_chains);
+
+	printf("_______________ after scan___\n");
+
+	rescan_chains.clear();
 
 	// check if any surrounding chains are dead
 	for(auto & ac: adjacentTheirs) {
@@ -448,8 +464,6 @@ void Board::updateField(const Vertex & v, const board_t bv)
 
 		delete work_c;
 	}
-
-	liberty_scan(rescan_chains);
 
 	dump();
 

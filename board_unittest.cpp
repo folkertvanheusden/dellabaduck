@@ -270,12 +270,21 @@ void unit_tests()
 
 		a.startMove();
 		a.putAt(Vertex(4, 3, 9), board_t::B_WHITE);  // above
+		a.finishMove();
+
+		a.startMove();
 		a.putAt(Vertex(4, 5, 9), board_t::B_WHITE);  // below
+		a.finishMove();
+
+		a.startMove();
 		a.putAt(Vertex(3, 4, 9), board_t::B_WHITE);  // left
+		a.finishMove();
+
+		a.startMove();
 		a.putAt(Vertex(5, 4, 9), board_t::B_WHITE);  // right
 		a.finishMove();
 
-		assert(a.getUndoDepth() == 2);
+		assert(a.getUndoDepth() == 5);
 
 		auto chain = a.getChain(Vertex(4, 4, 9));
 
