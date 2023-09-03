@@ -16,6 +16,8 @@ public:
 	Vertex(const Vertex & v);
 	virtual ~Vertex();
 
+	static Vertex from_str(const std::string & descr, const int dim);
+
 	bool operator<(const Vertex & rhs) const;
 	bool operator==(const Vertex & rhs) const;
 	bool operator()(const Vertex & a, const Vertex & b) const;

@@ -20,6 +20,14 @@ Vertex::~Vertex()
 {
 }
 
+Vertex Vertex::from_str(const std::string & descr, const int dim)
+{
+	int x = toupper(descr.at(0)) - 'A';
+	int y = atoi(descr.substr(1).c_str()) - 1;
+
+	return Vertex(x, y, dim);
+}
+
 bool Vertex::operator<(const Vertex & rhs) const
 {
        return v < rhs.v;
