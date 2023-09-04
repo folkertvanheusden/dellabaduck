@@ -513,6 +513,8 @@ Board::Board(Zobrist *const z, const std::string & str) : z(z)
 			str_o++;
 		}
 
+		assert(y == 0 || str[str_o] == '/');
+
 		str_o++;  // skip slash
 	}
 }
