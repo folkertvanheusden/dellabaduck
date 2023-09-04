@@ -124,6 +124,7 @@ typedef struct {
 		modify_t   action;
 		board_t    bv;
 		std::unordered_set<Vertex, Vertex::HashFunction> stones;
+		int        debug;
 	} action_t;
 
 	const char *modify_t_name(const modify_t m) {

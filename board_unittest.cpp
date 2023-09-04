@@ -226,7 +226,36 @@ void unit_tests()
 		assert(a.getBlackChains()->begin()->second->getLiberties()->size() == 4);
 	}
 
-	// see if chains are merged
+	// see if chains are merged (1)
+	{
+		Board a(&z, 9);
+
+		a.startMove();
+		a.putAt(Vertex(1, 1, 9), board_t::B_BLACK);
+		a.finishMove();
+
+		a.startMove();
+		a.putAt(Vertex(2, 1, 9), board_t::B_BLACK);
+		a.finishMove();
+
+		assert(a.getUndoDepth() == 2);
+
+		auto chain1 = a.getChain(Vertex(1, 1, 9));
+		auto chain2 = a.getChain(Vertex(2, 1, 9));
+
+		assert(chain1.first  == chain2.first);
+		assert(chain1.second == chain2.second);
+
+		assert(chain1.first  != nullptr);
+		assert(chain1.second != 0);
+
+		assert(a.getBlackChains()->size() == 1);
+		assert(a.getWhiteChains()->empty());
+
+		assert(a.getBlackChains()->begin()->second->getLiberties()->size() == 6);
+	}
+
+	// see if chains are merged (2)
 	{
 		Board a(&z, 9);
 
@@ -340,8 +369,6 @@ void unit_tests()
 	{
 		Board a(&z, 9);
 
-		printf("1. create black\n");
-
 		Vertex testV(4, 4, 9);  // e5
 		a.startMove();
 		a.putAt(testV, board_t::B_BLACK);
@@ -351,8 +378,6 @@ void unit_tests()
 		assert(prev_data.first  != nullptr);
 		assert(prev_data.second != 0);
 
-		printf("2. white above/below\n");
-
 		a.startMove();
 		a.putAt(Vertex(4, 3, 9), board_t::B_WHITE);  // above  e4
 		a.finishMove();
@@ -361,13 +386,9 @@ void unit_tests()
 		a.putAt(Vertex(4, 5, 9), board_t::B_WHITE);  // below  e6
 		a.finishMove();
 
-		printf("3. random left\n");
-
 		a.startMove();
 		a.putAt(Vertex(4, 2, 9), board_t::B_WHITE);  // e3
 		a.finishMove();
-
-		printf("4. white left/right\n");
 
 		a.startMove();
 		a.putAt(Vertex(3, 4, 9), board_t::B_WHITE);  // left  d5
@@ -376,20 +397,16 @@ void unit_tests()
 		a.startMove();
 		a.putAt(Vertex(5, 4, 9), board_t::B_WHITE);  // right  f5
 		a.finishMove();
-		printf("5. center is gone\n");
 
 		a.undoMoveSet();  // undo f5
-
-		printf("6A. center is back\n");
-		printf("6B. left/right is back\n");
 
 		a.undoMoveSet();  // undo d5
 
 		assert(a.getUndoDepth() == 4);
 
-		a.dumpUndoSet(false);
+//		a.dumpUndoSet(false);
 
-		a.getChain(Vertex(4, 2, 9)).first->dump();
+//		a.getChain(Vertex(4, 2, 9)).first->dump();
 
 		a.undoMoveSet();  // undo e3
 
@@ -398,14 +415,19 @@ void unit_tests()
 		assert(a.getAt(testV) == board_t::B_BLACK);  // board check
 		assert(a.getChain(testV).second == prev_data.second);  // chain map check (index)
 
-printf("GREP001\n");
-a.dump();
-printf("GREP002\n");
-
 		assert(a.getChain(testV).first->getLiberties()->size() == 2);
 
 		assert(a.getChain(Vertex::from_str("e4", 9)).first->getLiberties()->size() == 3);
 		assert(a.getChain(Vertex::from_str("e6", 9)).first->getLiberties()->size() == 3);
+	}
+
+	/// situations
+	{
+		Board a(&z, "...../...../...../..bb./w.b.b b");
+
+		a.startMove();
+		a.putAt(Vertex::from_str("d1", 5), board_t::B_BLACK);
+		a.finishMove();
 	}
 
 	printf("All good\n");
@@ -413,8 +435,8 @@ printf("GREP002\n");
 
 uint64_t perft_do(Board & b, std::unordered_set<uint64_t> *const seen, const board_t bv, const int depth, const int pass, const bool verbose, const bool top)
 {
-	printf(" ======> DEPTH %d <=====\n", depth);
-	printf("%s\n", b.dumpFEN(bv, 0).c_str());
+//	printf(" ======> DEPTH %d <=====\n", depth);
+//	printf("%s\n", b.dumpFEN(bv, 0).c_str());
 
 	if (depth == 0)
 		return 1;
@@ -430,9 +452,23 @@ uint64_t perft_do(Board & b, std::unordered_set<uint64_t> *const seen, const boa
 	std::vector<Vertex> *liberties = b.findLiberties(bv);
 
 	for(auto & cross : *liberties) {
+/*		if (top) {
+		b.dump();
+
+		printf("____ do it: %s\n", cross.to_str().c_str());
+		} */
+
 		b.startMove();
 		b.putAt(cross, bv);
 		b.finishMove();
+
+/*		if (top) {
+			printf("%s %s\n", cross.to_str().c_str(), b.dumpFEN(new_player, 0).c_str());
+
+		printf("____ done it\n");
+
+		b.dump();
+		} */
 
 		uint64_t hash = b.getHash();
 
@@ -448,6 +484,8 @@ uint64_t perft_do(Board & b, std::unordered_set<uint64_t> *const seen, const boa
 
 			seen->erase(hash);
 		}
+
+	//	printf("UNDO %s for %s\n", cross.to_str().c_str(), b.dumpFEN(bv, 0).c_str());
 
 		b.undoMoveSet();
 	}
@@ -469,7 +507,7 @@ uint64_t perft_do(Board & b, std::unordered_set<uint64_t> *const seen, const boa
 	return total;
 }
 
-void perft(const int dim, const int depth)
+void perft(const int dim, const int depth, const bool verbose)
 {
 	Zobrist z(dim);
 
@@ -479,21 +517,55 @@ void perft(const int dim, const int depth)
 
 	uint64_t start_ts = get_ts_ms();
 
-	uint64_t total = perft_do(b, &seen, board_t::B_BLACK, depth, 0, 1, 1);
+	uint64_t total = perft_do(b, &seen, board_t::B_BLACK, depth, 0, verbose, 1);
 
 	uint64_t end_ts = get_ts_ms();
 
 	uint64_t took = end_ts - start_ts;
 
-	printf("Took: %.3fs, %f nps\n", took / 1000., total * 1000. / took);
+	printf("Depth %d took: %.3fs, %f nps, sum: %lu\n", depth, took / 1000., total * 1000. / took, total);
+}
+
+void perft_fen(const std::string & board_setup, const board_t player, const int depth, const bool verbose)
+{
+	Zobrist z(1);
+
+	Board b(&z, board_setup);
+
+	std::unordered_set<uint64_t> seen;
+
+	uint64_t start_ts = get_ts_ms();
+
+	uint64_t total = perft_do(b, &seen, player, depth, 0, verbose, 1);
+
+	uint64_t end_ts = get_ts_ms();
+
+	uint64_t took = end_ts - start_ts;
+
+	printf("Depth %d took: %.3fs, %f nps, sum: %lu\n", depth, took / 1000., total * 1000. / took, total);
 }
 
 int main(int argc, char *argv[])
 {
 	if (argc == 1 || strcmp(argv[1], "unit-tests") == 0)
 		unit_tests();
-	else if (argc == 4 || strcmp(argv[1], "perft") == 0)
-		perft(atoi(argv[2]), atoi(argv[3]));
+	else if (argc >= 4 && strcmp(argv[1], "perft") == 0) {
+		int dim = atoi(argv[2]);
+		int max = atoi(argv[3]);
+
+		for(int i=1; i<=max; i++)
+			perft(dim, i, argc == 5);
+	}
+	else if (argc == 4 && strcmp(argv[1], "perftone") == 0)
+		perft(atoi(argv[2]), atoi(argv[3]), true);
+	else if (argc >= 5 && strcmp(argv[1], "perftfen") == 0) {
+		int max = atoi(argv[2]);
+		std::string fen = argv[3];
+		board_t col = toupper(argv[4][0]) == 'B' ? board_t::B_BLACK : board_t::B_WHITE;
+
+		for(int i=1; i<=max; i++)
+			perft_fen(fen, col, i, argc >= 6);
+	}
 	else {
 		fprintf(stderr, "???\n");
 		return 1;

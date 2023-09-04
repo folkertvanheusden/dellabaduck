@@ -74,9 +74,6 @@ std::pair<chain *, chain_nr_t> Board::getChainConst(const Vertex & v) const
 
 	auto it = b[o] == board_t::B_BLACK ? blackChains.find(nr) : whiteChains.find(nr);
 
-	if (it == (b[o] == board_t::B_BLACK ? blackChains.end() : whiteChains.end()))
-		printf("vertex %s has chain-nr %lu which is not found\n", v.to_str().c_str(), nr);
-
 	assert(it != (b[o] == board_t::B_BLACK ? blackChains.end() : whiteChains.end()));
 
 	return { it->second, nr };
@@ -194,21 +191,13 @@ void Board::liberty_scan(const std::unordered_set<chain *> & chains)
 	for(auto & ch: chains) {
 		ch->clearLiberties();
 
-		printf("GREP003 %zu   ", ch->getLiberties()->size());
-
 		for(auto & v: *ch->getStones())
 			ch->addLiberties(getLiberties(v));
-
-		printf("%zu\n", ch->getLiberties()->size());
 	}
 }
 
 void Board::updateField(const Vertex & v, const board_t bv)
 {
-	printf(" * updateField(%s, %s) started *\n", v.to_str().c_str(), board_t_name(bv));
-
-//	dump();
-
 	assert(v.isValid());
 	assert(v.getDim() == dim);
 
@@ -283,7 +272,6 @@ void Board::updateField(const Vertex & v, const board_t bv)
 	if (adjacentMine.size() == 1) {
 		// get chain to connect to
 		auto ch = getChain(*adjacentMine.begin());
-		printf("connect new stone to chain nr %lu\n", ch.second);
 		assert(ch.first  != nullptr);
 		assert(ch.second != NO_CHAIN);
 		assert(ch.first->getStones()->empty() == false);
@@ -301,6 +289,7 @@ void Board::updateField(const Vertex & v, const board_t bv)
 		action.action = c_undo_t::modify_t::A_MODIFY;
 		action.bv     = bv;  // stone type added
 		action.stones = { v };
+		action.debug  = 1;
 
 		c_undo.back().undos.push_back(std::move(action));
 
@@ -308,8 +297,6 @@ void Board::updateField(const Vertex & v, const board_t bv)
 	}
 	// connect adjacent chains
 	else if (adjacentMine.empty() == false) {
-		printf("connect adjacent %zu chains\n", adjacentMine.size());
-
 		auto temp = getChain(*adjacentMine.begin());
 		chain     *target_c  = temp.first;
 		chain_nr_t target_nr = temp.second;
@@ -321,7 +308,10 @@ void Board::updateField(const Vertex & v, const board_t bv)
 			auto       ch     = getChain(ac);
 			chain     *old_c  = ch.first;
 			chain_nr_t old_nr = ch.second;  // get chain number of old chain
-			assert(old_nr != target_nr);
+
+			// in case this chain is wrapped around the first
+			if (old_nr == target_nr)
+				continue;
 
 			// add stones of the to-connect-chains to the target chain
 			target_c->addStones(*old_c->getStones());
@@ -332,6 +322,7 @@ void Board::updateField(const Vertex & v, const board_t bv)
 			action_mod.action    = c_undo_t::modify_t::A_MODIFY;
 			action_mod.bv        = bv;
 			action_mod.stones    = *old_c->getStones();
+			action_mod.debug     = 2;
 
 			c_undo.back().undos.push_back(std::move(action_mod));
 
@@ -341,6 +332,7 @@ void Board::updateField(const Vertex & v, const board_t bv)
 			action_rm.action    = c_undo_t::modify_t::A_REMOVE;
 			action_rm.bv        = bv;  // stone type removed
 			action_rm.stones    = *old_c->getStones();  // these are removed
+			action_rm.debug     = 3;
 
 			c_undo.back().undos.push_back(std::move(action_rm));
 
@@ -360,17 +352,17 @@ void Board::updateField(const Vertex & v, const board_t bv)
 
 		// register the modification
 		c_undo_t::action_t action_add;
-		action_add.nr     = cnr;
+		action_add.nr     = target_nr;
 		action_add.action = c_undo_t::modify_t::A_MODIFY;
 		action_add.bv     = bv;  // stone type added
 		action_add.stones = { v };
+		action_add.debug  = 4;
 
 		c_undo.back().undos.push_back(std::move(action_add));
 
 		rescan_chains.insert(target_c);
 	}
 	else {  // new chain
-		printf("new chain\n");
 		chain *new_c = new chain();
 		// add the new stone in the new chain
 		new_c->addStone(v);
@@ -387,6 +379,7 @@ void Board::updateField(const Vertex & v, const board_t bv)
 		action.action = c_undo_t::modify_t::A_ADD;
 		action.bv     = bv;  // stone type added
 		action.stones = { v };
+		action.debug  = 5;
 
 		c_undo.back().undos.push_back(std::move(action));
 
@@ -403,8 +396,6 @@ void Board::updateField(const Vertex & v, const board_t bv)
 
 	liberty_scan(rescan_chains);
 
-	printf("_______________ after scan___\n");
-
 	rescan_chains.clear();
 
 	// check if any surrounding chains are dead
@@ -416,8 +407,6 @@ void Board::updateField(const Vertex & v, const board_t bv)
 
 		if (work_c->isDead() == false)
 			continue;
-
-		printf("delete dead chain\n");
 
 		// clean-up
 		for(auto & stone : *work_c->getStones()) {
@@ -456,6 +445,7 @@ void Board::updateField(const Vertex & v, const board_t bv)
 		action_rm.action = c_undo_t::modify_t::A_REMOVE;
 		action_rm.bv     = bv == board_t::B_BLACK ? board_t::B_WHITE : board_t::B_BLACK;
 		action_rm.stones = *work_c->getStones();  // these are removed
+		action_rm.debug  = 6;
 
 		c_undo.back().undos.push_back(std::move(action_rm));
 
@@ -464,10 +454,6 @@ void Board::updateField(const Vertex & v, const board_t bv)
 
 		delete work_c;
 	}
-
-	dump();
-
-	printf("updateField(%s) finishes with hash %016lx\n", v.to_str().c_str(), hash);
 }
 
 uint64_t Board::getHashForMove(const int v, const board_t bv)
@@ -510,12 +496,19 @@ Board::Board(Zobrist *const z, const std::string & str) : z(z)
 		for(int x=0; x<dim; x++) {
 			char c = str[str_o];
 
-			if (c == 'w' || c == 'W')
+			if (c == 'w' || c == 'W') {
+				startMove();
 				putAt(x, y, board_t::B_WHITE);
-			else if (c == 'b' || c == 'B')
+				finishMove();
+			}
+			else if (c == 'b' || c == 'B') {
+				startMove();
 				putAt(x, y, board_t::B_BLACK);
-			else
+				finishMove();
+			}
+			else {
 				assert(c == '.');
+			}
 
 			str_o++;
 		}
@@ -619,8 +612,6 @@ void Board::startMove()
 void Board::finishMove()
 {
 	assert(b_undo.size() == c_undo.size());
-
-	printf("finish setup with %s\n", dumpFEN(board_t::B_BLACK, 0).c_str());
 }
 
 size_t Board::getUndoDepth()
@@ -632,9 +623,6 @@ size_t Board::getUndoDepth()
 
 void Board::undoMoveSet()
 {
-	printf("-------------------------------- * UNDO with hash %016lx *\n", hash);
-	printf("*** UNDO INPUT:\n");
-	dump();
 	// undo stones
 	// mostly used for dead chains, not when e.g. replacing chains
 	for(auto & tuple: b_undo.back().undos) {
@@ -699,9 +687,6 @@ void Board::undoMoveSet()
 	}
 
 	c_undo.pop_back();
-	printf("*** UNDO OUTPUT:\n");
-	dump();
-	printf("* UNDO with hash %016lx finished * --------------------------------\n", hash);
 
 	// TODO: replace this by something that only selects affected chains
 	for(auto & ch: blackChains)
@@ -769,6 +754,7 @@ std::vector<Vertex> * Board::findLiberties(const board_t for_whom)
 
 void Board::dump()
 {
+#if 0
 	printf("black chains:\n");
 	for(auto & chain: blackChains)
 		chain.second->dump();
@@ -778,6 +764,7 @@ void Board::dump()
 		chain.second->dump();
 
 	dumpUndoSet(true);
+#endif
 
         std::string line;
 
