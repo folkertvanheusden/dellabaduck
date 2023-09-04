@@ -316,16 +316,6 @@ void Board::updateField(const Vertex & v, const board_t bv)
 			// add stones of the to-connect-chains to the target chain
 			target_c->addStones(*old_c->getStones());
 
-			// register the modification
-			c_undo_t::action_t action_mod;
-			action_mod.nr        = target_nr;
-			action_mod.action    = c_undo_t::modify_t::A_MODIFY;
-			action_mod.bv        = bv;
-			action_mod.stones    = *old_c->getStones();
-			action_mod.debug     = 2;
-
-			c_undo.back().undos.push_back(std::move(action_mod));
-
 			// register a chain deletion
 			c_undo_t::action_t action_rm;
 			action_rm.nr        = old_nr;
@@ -335,6 +325,16 @@ void Board::updateField(const Vertex & v, const board_t bv)
 			action_rm.debug     = 3;
 
 			c_undo.back().undos.push_back(std::move(action_rm));
+
+			// register the modification
+			c_undo_t::action_t action_mod;
+			action_mod.nr        = target_nr;
+			action_mod.action    = c_undo_t::modify_t::A_MODIFY;
+			action_mod.bv        = bv;
+			action_mod.stones    = *old_c->getStones();
+			action_mod.debug     = 2;
+
+			c_undo.back().undos.push_back(std::move(action_mod));
 
 			mapChain(*old_c->getStones(), target_nr);
 

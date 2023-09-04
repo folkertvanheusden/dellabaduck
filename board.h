@@ -148,7 +148,7 @@ typedef struct {
 		printf("chain undo actions:\n");
 
 		for(auto & undo: undos) {
-			printf("  chain: %lu, action: %s, color: %s\n", undo.nr, modify_t_name(undo.action), board_t_name(undo.bv));
+			printf("  chain: %lu, action: %s, color: %s, debug: %d\n", undo.nr, modify_t_name(undo.action), board_t_name(undo.bv), undo.debug);
 
 			printf("    stones:");
 			for(auto & v: undo.stones)

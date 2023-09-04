@@ -430,10 +430,32 @@ void unit_tests()
 		a.finishMove();
 	}
 
+	{
+		Board a(&z, "........./........./........./........./........./........./........./.bw....../bww...... b");
+
+		a.dump();
+
+		a.startMove();
+		a.putAt(Vertex::from_str("a2", 9), board_t::B_BLACK);
+		a.finishMove();
+
+		a.dump();
+
+		a.dumpUndoSet(true);
+
+		a.undoMoveSet();
+
+		a.dump();
+
+		a.startMove();
+		a.putAt(Vertex::from_str("b3", 9), board_t::B_BLACK);
+		a.finishMove();
+	}
+
 	printf("All good\n");
 }
 
-uint64_t perft_do(Board & b, std::unordered_set<uint64_t> *const seen, const board_t bv, const int depth, const int pass, const bool verbose, const bool top)
+uint64_t perft_do(Board & b, std::unordered_set<uint64_t> *const seen, const board_t bv, const int depth, const int pass, const bool verbose, const bool top, std::vector<std::pair<std::string, std::string> > & history)
 {
 //	printf(" ======> DEPTH %d <=====\n", depth);
 //	printf("%s\n", b.dumpFEN(bv, 0).c_str());
@@ -458,6 +480,8 @@ uint64_t perft_do(Board & b, std::unordered_set<uint64_t> *const seen, const boa
 		printf("____ do it: %s\n", cross.to_str().c_str());
 		} */
 
+		history.push_back({ cross.to_str(), b.dumpFEN(new_player, 0) });
+
 		b.startMove();
 		b.putAt(cross, bv);
 		b.finishMove();
@@ -475,7 +499,7 @@ uint64_t perft_do(Board & b, std::unordered_set<uint64_t> *const seen, const boa
 		if (seen->find(hash) == seen->end()) {
 			seen->insert(hash);
 
-			uint64_t cur_count = perft_do(b, seen, new_player, new_depth, 0, verbose, false);
+			uint64_t cur_count = perft_do(b, seen, new_player, new_depth, 0, verbose, false, history);
 
 			total += cur_count;
 
@@ -487,13 +511,15 @@ uint64_t perft_do(Board & b, std::unordered_set<uint64_t> *const seen, const boa
 
 	//	printf("UNDO %s for %s\n", cross.to_str().c_str(), b.dumpFEN(bv, 0).c_str());
 
+		history.pop_back();
+
 		b.undoMoveSet();
 	}
 
 	delete liberties;
 
 	if (pass < 2) {
-		uint64_t cur_count = perft_do(b, seen, new_player, new_depth, pass + 1, verbose, false);
+		uint64_t cur_count = perft_do(b, seen, new_player, new_depth, pass + 1, verbose, false, history);
 
 		total += cur_count;
 
@@ -517,7 +543,9 @@ void perft(const int dim, const int depth, const bool verbose)
 
 	uint64_t start_ts = get_ts_ms();
 
-	uint64_t total = perft_do(b, &seen, board_t::B_BLACK, depth, 0, verbose, 1);
+	std::vector<std::pair<std::string, std::string> > history;
+
+	uint64_t total = perft_do(b, &seen, board_t::B_BLACK, depth, 0, verbose, 1, history);
 
 	uint64_t end_ts = get_ts_ms();
 
@@ -536,7 +564,9 @@ void perft_fen(const std::string & board_setup, const board_t player, const int 
 
 	uint64_t start_ts = get_ts_ms();
 
-	uint64_t total = perft_do(b, &seen, player, depth, 0, verbose, 1);
+	std::vector<std::pair<std::string, std::string> > history;
+
+	uint64_t total = perft_do(b, &seen, player, depth, 0, verbose, 1, history);
 
 	uint64_t end_ts = get_ts_ms();
 
