@@ -12,7 +12,7 @@ Vertex::Vertex(const int x, const int y, const int dim) : v(y * dim + x), dim(di
 {
 }
 
-Vertex::Vertex(const Vertex & v) : v(v.getV()), dim(v.getDim()), valid(v.getV())
+Vertex::Vertex(const Vertex & v) : v(v.getV()), dim(v.getDim()), valid(v.isValid())
 {
 }
 
