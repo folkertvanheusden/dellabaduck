@@ -405,6 +405,8 @@ void Board::updateField(const Vertex & v, const board_t bv)
 		chain_nr_t work_nr = ch.second;
 		board_t    work_b  = bv == board_t::B_BLACK ? board_t::B_WHITE : board_t::B_BLACK;
 
+		assert(work_nr != NO_CHAIN);
+
 		if (work_c->isDead() == false)
 			continue;
 
