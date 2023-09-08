@@ -62,6 +62,11 @@ public:
 
 	void addStones(const std::unordered_set<Vertex, Vertex::HashFunction> & in) {
 		stones.insert(in.begin(), in.end());
+
+#ifndef NDEBUG
+		for(auto & v: in)
+			assert(liberties.find(v) == liberties.end());
+#endif
 	}
 
 	void removeStone(const Vertex & v) {
@@ -179,7 +184,8 @@ private:
 	void mapChain(const std::unordered_set<Vertex, Vertex::HashFunction> & chain, const chain_nr_t nr);
 	void removeChain(const board_t bv, const chain_nr_t nr);
 
-	void liberty_scan(const std::unordered_set<chain *> & chains);
+	void libertyScan(const std::unordered_set<chain *> & chains);
+	void libertyScan(const std::unordered_set<Vertex, Vertex::HashFunction> & chain);
 	auto getLiberties(const Vertex & v);
 	auto getSurroundingNonEmptyVertexes(const Vertex & v);
 	auto getSurroundingChainsOfType(const Vertex & v, const board_t bv);
@@ -194,6 +200,8 @@ public:
 	Board(Zobrist *const z, const int dim);
 	Board(Zobrist *const z, const std::string & str);
 	~Board();
+
+	void validateBoard();
 
 	void dump();
 	void dumpUndoSet(const bool full);

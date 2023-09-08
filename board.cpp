@@ -37,6 +37,8 @@ board_t opponentColor(const board_t v)
 
 std::pair<chain *, chain_nr_t> Board::getChain(const Vertex & v)
 {
+	assert(v.isValid());
+
 	const int o = v.getV();
 
 	// get chain number from map
@@ -45,9 +47,9 @@ std::pair<chain *, chain_nr_t> Board::getChain(const Vertex & v)
 	if (nr == NO_CHAIN)
 		return { nullptr, nr };
 
-	board_t  bv = b[o];
+	board_t    bv = b[o];
 
-	auto it = bv == board_t::B_BLACK ? blackChains.find(nr) : whiteChains.find(nr);
+	auto it       = bv == board_t::B_BLACK ? blackChains.find(nr) : whiteChains.find(nr);
 
 	assert(it != (bv == board_t::B_BLACK ? blackChains.end() : whiteChains.end()));
 
@@ -56,6 +58,9 @@ std::pair<chain *, chain_nr_t> Board::getChain(const Vertex & v)
 
 std::pair<chain *, chain_nr_t> Board::getChain(const chain_nr_t nr, const board_t bv)
 {
+	assert(nr != NO_CHAIN);
+	assert(bv != board_t::B_EMPTY);
+
 	auto it = bv == board_t::B_BLACK ? blackChains.find(nr) : whiteChains.find(nr);
 
 	assert(it != (bv == board_t::B_BLACK ? blackChains.end() : whiteChains.end()));
@@ -65,12 +70,16 @@ std::pair<chain *, chain_nr_t> Board::getChain(const chain_nr_t nr, const board_
 
 std::pair<chain *, chain_nr_t> Board::getChainConst(const Vertex & v) const
 {
+	assert(v.isValid());
+
 	const int o = v.getV();
 
 	chain_nr_t nr = cm[o];
 
 	if (nr == NO_CHAIN)
 		return { nullptr, nr };
+
+	assert(b[o] != board_t::B_EMPTY);
 
 	auto it = b[o] == board_t::B_BLACK ? blackChains.find(nr) : whiteChains.find(nr);
 
@@ -86,8 +95,53 @@ void Board::increaseChainNr()
 	assert(cnr != NO_CHAIN);
 }
 
+void Board::validateBoard()
+{
+#ifndef NDEBUG
+	int dimsq = dim * dim;
+
+	for(int i=0; i<dimsq; i++) {
+		if (b[i] != board_t::B_EMPTY) {
+			assert(cm[i] != NO_CHAIN);
+
+			if (b[i] == board_t::B_BLACK)
+				assert(blackChains.find(cm[i]) != blackChains.end());
+			else
+				assert(whiteChains.find(cm[i]) != whiteChains.end());
+		}
+		else {
+			assert(cm[i] == NO_CHAIN);
+		}
+	}
+
+	for(auto & chain: blackChains) {
+		for(auto & v: *chain.second->getStones()) {
+			assert(b[v.getV()] != board_t::B_EMPTY);
+
+			assert(cm[v.getV()] == chain.first);
+		}
+
+		for(auto & v: *chain.second->getLiberties())
+			assert(b[v.getV()] == board_t::B_EMPTY);
+	}
+
+	for(auto & chain: whiteChains) {
+		for(auto & v: *chain.second->getStones()) {
+			assert(b[v.getV()] != board_t::B_EMPTY);
+
+			assert(cm[v.getV()] == chain.first);
+		}
+
+		for(auto & v: *chain.second->getLiberties())
+			assert(b[v.getV()] == board_t::B_EMPTY);
+	}
+#endif
+}
+
 auto Board::getLiberties(const Vertex & v)
 {
+	assert(v.isValid());
+
 	std::unordered_set<Vertex, Vertex::HashFunction> out;
 
 	Vertex vLeft(v.left());
@@ -137,20 +191,28 @@ auto Board::getSurroundingChainsOfType(const Vertex & v, const board_t bv)
 	std::unordered_set<chain_nr_t> out;
 
 	Vertex vLeft(v.left());
-	if (vLeft.isValid() && getAt(vLeft) == bv)
+	if (vLeft.isValid() && getAt(vLeft) == bv) {
+		assert(cm[vLeft.getV()] != NO_CHAIN);
 		out.insert(cm[vLeft.getV()]);
+	}
 
 	Vertex vRight(v.right());
-	if (vRight.isValid() && getAt(vRight) == bv)
+	if (vRight.isValid() && getAt(vRight) == bv) {
+		assert(cm[vRight.getV()] != NO_CHAIN);
 		out.insert(cm[vRight.getV()]);
+	}
 
 	Vertex vUp(v.up());
-	if (vUp.isValid() && getAt(vUp) == bv)
+	if (vUp.isValid() && getAt(vUp) == bv) {
+		assert(cm[vUp.getV()] != NO_CHAIN);
 		out.insert(cm[vUp.getV()]);
+	}
 
 	Vertex vDown(v.down());
-	if (vDown.isValid() && getAt(vDown) == bv)
+	if (vDown.isValid() && getAt(vDown) == bv) {
+		assert(cm[vDown.getV()] != NO_CHAIN);
 		out.insert(cm[vDown.getV()]);
+	}
 
 	return out;
 }
@@ -186,9 +248,21 @@ void Board::mapChain(const std::unordered_set<Vertex, Vertex::HashFunction> & ch
 		mapChain(v, nr);
 }
 
-void Board::liberty_scan(const std::unordered_set<chain *> & chains)
+void Board::libertyScan(const std::unordered_set<chain *> & chains)
 {
 	for(auto & ch: chains) {
+		ch->clearLiberties();
+
+		for(auto & v: *ch->getStones())
+			ch->addLiberties(getLiberties(v));
+	}
+}
+
+void Board::libertyScan(const std::unordered_set<Vertex, Vertex::HashFunction> & c)
+{
+	for(auto & v: c) {
+		chain *ch = getChain(v).first;
+
 		ch->clearLiberties();
 
 		for(auto & v: *ch->getStones())
@@ -200,6 +274,9 @@ void Board::updateField(const Vertex & v, const board_t bv)
 {
 	assert(v.isValid());
 	assert(v.getDim() == dim);
+	assert(bv == board_t::B_BLACK || bv == board_t::B_WHITE);
+
+	validateBoard();
 
 	const int place = v.getV();
 
@@ -266,16 +343,20 @@ void Board::updateField(const Vertex & v, const board_t bv)
 	auto & adjacentMine   = bv == board_t::B_BLACK ? adjacentBlack : adjacentWhite;
 	auto & adjacentTheirs = bv == board_t::B_BLACK ? adjacentWhite : adjacentBlack;
 
+	assert(adjacentMine.size() + adjacentTheirs.size() <= 4);
+
 	std::unordered_set<chain *> rescan_chains;
 
 	// connect new stone to existing chain
 	if (adjacentMine.size() == 1) {
+		printf("connect new stone to existing chain\n");
 		// get chain to connect to
 		auto ch = getChain(*adjacentMine.begin());
 		assert(ch.first  != nullptr);
 		assert(ch.second != NO_CHAIN);
 		assert(ch.first->getStones()->empty() == false);
 
+		assert(ch.first->getLiberties()->find(v) != ch.first->getLiberties()->end());
 		ch.first->removeLiberty(v);
 
 		// connect the new stone to the chain it is adjacent to
@@ -290,13 +371,13 @@ void Board::updateField(const Vertex & v, const board_t bv)
 		action.bv     = bv;  // stone type added
 		action.stones = { v };
 		action.debug  = 1;
-
 		c_undo.back().undos.push_back(std::move(action));
 
 		rescan_chains.insert(ch.first);
 	}
 	// connect adjacent chains
 	else if (adjacentMine.empty() == false) {
+		printf("connect adjacent chains\n");
 		auto temp = getChain(*adjacentMine.begin());
 		chain     *target_c  = temp.first;
 		chain_nr_t target_nr = temp.second;
@@ -316,6 +397,8 @@ void Board::updateField(const Vertex & v, const board_t bv)
 			// add stones of the to-connect-chains to the target chain
 			target_c->addStones(*old_c->getStones());
 
+			assert(b[old_c->getStones()->begin()->getV()] == bv);
+
 			// register a chain deletion
 			c_undo_t::action_t action_rm;
 			action_rm.nr        = old_nr;
@@ -323,7 +406,6 @@ void Board::updateField(const Vertex & v, const board_t bv)
 			action_rm.bv        = bv;  // stone type removed
 			action_rm.stones    = *old_c->getStones();  // these are removed
 			action_rm.debug     = 3;
-
 			c_undo.back().undos.push_back(std::move(action_rm));
 
 			// register the modification
@@ -333,7 +415,6 @@ void Board::updateField(const Vertex & v, const board_t bv)
 			action_mod.bv        = bv;
 			action_mod.stones    = *old_c->getStones();
 			action_mod.debug     = 2;
-
 			c_undo.back().undos.push_back(std::move(action_mod));
 
 			mapChain(*old_c->getStones(), target_nr);
@@ -345,6 +426,7 @@ void Board::updateField(const Vertex & v, const board_t bv)
 		}
 
 		// merge the new stone
+		assert(target_c->getLiberties()->find(v) != target_c->getLiberties()->end());
 		target_c->removeLiberty(v);
 		target_c->addStone(v);  // add to (new) chain
 
@@ -357,18 +439,18 @@ void Board::updateField(const Vertex & v, const board_t bv)
 		action_add.bv     = bv;  // stone type added
 		action_add.stones = { v };
 		action_add.debug  = 4;
-
 		c_undo.back().undos.push_back(std::move(action_add));
 
 		rescan_chains.insert(target_c);
 	}
 	else {  // new chain
+		printf("new chain\n");
 		chain *new_c = new chain();
 		// add the new stone in the new chain
 		new_c->addStone(v);
 
 		// put in chainmap
-		cm[v.getV()] = cnr;
+		mapChain(v, cnr);
 
 		// register new chain in the maps
 		addChain(bv, cnr, new_c);
@@ -380,7 +462,6 @@ void Board::updateField(const Vertex & v, const board_t bv)
 		action.bv     = bv;  // stone type added
 		action.stones = { v };
 		action.debug  = 5;
-
 		c_undo.back().undos.push_back(std::move(action));
 
 		increaseChainNr();
@@ -388,13 +469,27 @@ void Board::updateField(const Vertex & v, const board_t bv)
 		rescan_chains.insert(new_c);
 	}
 
+	libertyScan(adjacentTheirs);
+
+	if (adjacentTheirs.empty() == false) {
+		printf("remove liberty %s from 'theirs':\n", v.to_str().c_str());
+	}
+
 	for(auto & ac: adjacentTheirs) {
 		auto       ch      = getChain(ac);
 		chain     *work_c  = ch.first;
+		work_c->dump();
+		assert(work_c->getLiberties()->find(v) != work_c->getLiberties()->end());
 		work_c->removeLiberty(v);
 	}
 
-	liberty_scan(rescan_chains);
+	//libertyScan(adjacentMine);
+	for(auto & ch: blackChains)  // test
+		rescan_chains.insert(ch.second);
+	for(auto & ch: whiteChains)
+		rescan_chains.insert(ch.second);
+
+	validateBoard();
 
 	rescan_chains.clear();
 
@@ -448,7 +543,6 @@ void Board::updateField(const Vertex & v, const board_t bv)
 		action_rm.bv     = bv == board_t::B_BLACK ? board_t::B_WHITE : board_t::B_BLACK;
 		action_rm.stones = *work_c->getStones();  // these are removed
 		action_rm.debug  = 6;
-
 		c_undo.back().undos.push_back(std::move(action_rm));
 
 		// remove chain from lists
@@ -456,6 +550,25 @@ void Board::updateField(const Vertex & v, const board_t bv)
 
 		delete work_c;
 	}
+
+	/*
+	libertyScan(adjacentTheirs);
+	libertyScan(adjacentMine);
+	*/
+	for(auto & ch: blackChains)
+		rescan_chains.insert(ch.second);
+	for(auto & ch: whiteChains)
+		rescan_chains.insert(ch.second);
+
+	libertyScan(rescan_chains);
+
+#ifndef NDEBUG
+	assert(b[v.getV()] != board_t::B_EMPTY);
+
+	assert(cm[v.getV()] != NO_CHAIN);
+#endif
+
+	validateBoard();
 }
 
 uint64_t Board::getHashForMove(const int v, const board_t bv)
@@ -698,22 +811,18 @@ void Board::undoMoveSet()
 	for(auto & ch: whiteChains)
 		rescan_chains.insert(ch.second);
 
-	liberty_scan(rescan_chains);
+	libertyScan(rescan_chains);
 
 	assert(b_undo.size() == c_undo.size());
 }
 
 void Board::putAt(const Vertex & v, const board_t bv)
 {
-	assert(bv == board_t::B_BLACK || bv == board_t::B_WHITE);
-
 	updateField(v, bv);
 }
 
 void Board::putAt(const int x, const int y, const board_t bv)
 {
-	assert(bv == board_t::B_BLACK || bv == board_t::B_WHITE);
-
 	updateField({ x, y, dim }, bv);
 }
 

@@ -3,6 +3,7 @@
 #include <cstring>
 
 #include "board.h"
+#include "random.h"
 #include "str.h"
 #include "time.h"
 
@@ -433,24 +434,95 @@ void unit_tests()
 	{
 		Board a(&z, "........./........./........./........./........./........./........./.bw....../bww...... b");
 
-		a.dump();
-
 		a.startMove();
 		a.putAt(Vertex::from_str("a2", 9), board_t::B_BLACK);
 		a.finishMove();
 
-		a.dump();
-
-		a.dumpUndoSet(true);
-
 		a.undoMoveSet();
-
-		a.dump();
 
 		a.startMove();
 		a.putAt(Vertex::from_str("b3", 9), board_t::B_BLACK);
 		a.finishMove();
 	}
+
+	{
+		Board a(&z, "bww../bww../bbwww/w.w../wbw.. b 0");
+
+		a.startMove();
+		a.putAt(Vertex::from_str("d1", 5), board_t::B_BLACK);
+		a.finishMove();
+	}
+
+#if 0
+// .w.bw/wbbbw/w.bww/bbbw./wwww. w 0  b3 e1
+// .w.bw/wbbbw/w.bww/bbbw./wwww. w 0  b3 e2
+// .w.bw/wbbbw/w.bww/bbbw./wwww. w 0  b3 a5
+// .w.bw/wbbbw/w.bww/bbbw./wwww. w 0  b3 c5
+
+	{
+		Board a(&z, ".w.bw/wbbbw/w.bww/bbbw./wwww.");
+
+		a.startMove();
+		a.putAt(Vertex::from_str("e2", 5), board_t::B_WHITE);
+		a.finishMove();
+
+		a.startMove();
+		a.putAt(Vertex::from_str("c5", 5), board_t::B_BLACK);
+		a.finishMove();
+
+		a.undoMoveSet();
+
+		a.undoMoveSet();
+
+		a.startMove();
+		a.putAt(Vertex::from_str("b3", 5), board_t::B_WHITE);
+		a.finishMove();
+
+		///
+
+		a.startMove();
+		a.putAt(Vertex::from_str("e1", 5), board_t::B_BLACK);
+		a.finishMove();
+
+		a.undoMoveSet();
+
+		a.startMove();
+		a.putAt(Vertex::from_str("e2", 5), board_t::B_BLACK);
+		a.finishMove();
+
+		a.undoMoveSet();
+
+		a.startMove();
+		a.putAt(Vertex::from_str("a5", 5), board_t::B_BLACK);
+		a.finishMove();
+
+		a.undoMoveSet();
+
+		a.startMove();
+		a.putAt(Vertex::from_str("c5", 5), board_t::B_BLACK);
+		a.finishMove();
+
+		a.undoMoveSet();
+
+		a.undoMoveSet();
+	}
+
+	/*
+	{
+		Board a(&z, ".w.bw/wbbbw/wbbww/bbbw./wwww. b 0");
+
+		std::vector<Vertex> *liberties = a.findLiberties(board_t::B_BLACK);
+
+		for(auto & cross : *liberties) {
+			a.startMove();
+			a.putAt(cross, board_t::B_BLACK);
+			a.finishMove();
+
+			a.undoMoveSet();
+		}
+	}
+	*/
+#endif
 
 	printf("All good\n");
 }
@@ -471,6 +543,8 @@ uint64_t perft_do(Board & b, std::unordered_set<uint64_t> *const seen, const boa
 
 	uint64_t      total      = 0;
 
+	b.dump();
+
 	std::vector<Vertex> *liberties = b.findLiberties(bv);
 
 	for(auto & cross : *liberties) {
@@ -480,8 +554,16 @@ uint64_t perft_do(Board & b, std::unordered_set<uint64_t> *const seen, const boa
 		printf("____ do it: %s\n", cross.to_str().c_str());
 		} */
 
+#ifndef NDEBUG
 		history.push_back({ cross.to_str(), b.dumpFEN(new_player, 0) });
 
+		printf("%s ", history.begin()->second.c_str());
+		for(auto & h: history)
+			printf(" %s", h.first.c_str());
+		printf("\n");
+#endif
+
+//		printf("%s for %s\n", history.back().second.c_str(), history.back().first.c_str());
 		b.startMove();
 		b.putAt(cross, bv);
 		b.finishMove();
@@ -511,7 +593,9 @@ uint64_t perft_do(Board & b, std::unordered_set<uint64_t> *const seen, const boa
 
 	//	printf("UNDO %s for %s\n", cross.to_str().c_str(), b.dumpFEN(bv, 0).c_str());
 
+#ifndef NDEBUG
 		history.pop_back();
+#endif
 
 		b.undoMoveSet();
 	}
@@ -551,10 +635,10 @@ void perft(const int dim, const int depth, const bool verbose)
 
 	uint64_t took = end_ts - start_ts;
 
-	printf("Depth %d took: %.3fs, %f nps, sum: %lu\n", depth, took / 1000., total * 1000. / took, total);
+	printf("Depth %d took: %.3fs, %.2f nps, sum: %lu\n", depth, took / 1000., total * 1000. / took, total);
 }
 
-void perft_fen(const std::string & board_setup, const board_t player, const int depth, const bool verbose)
+uint64_t perft_fen(const std::string & board_setup, const board_t player, const int depth, const bool verbose)
 {
 	Zobrist z(1);
 
@@ -573,6 +657,71 @@ void perft_fen(const std::string & board_setup, const board_t player, const int 
 	uint64_t took = end_ts - start_ts;
 
 	printf("Depth %d took: %.3fs, %f nps, sum: %lu\n", depth, took / 1000., total * 1000. / took, total);
+
+	return total;
+}
+
+void perfttests()
+{
+	struct test {
+		std::string fen;
+
+		std::vector<uint64_t> counts;
+	};
+
+	std::vector<test> tests {
+			{ ".w.bw/wbbbw/w.bww/bbbw./wwww. b 0", { 5, 26, 109, 739, 6347, 62970 } },
+		};
+
+	for(auto & item: tests) {
+		printf("%s\n", item.fen.c_str());
+
+		auto parts = split(item.fen, " ");
+
+		for(size_t depth=1; depth<=item.counts.size(); depth++) {
+			uint64_t sum = perft_fen(item.fen, parts.at(1) == "b" ? board_t::B_BLACK : board_t::B_WHITE, depth, false);
+
+			if (sum != item.counts.at(depth - 1))
+				printf("Expected sum %lu, got %lu\n", item.counts.at(depth - 1), sum);
+		}
+	}
+}
+
+void randomfill()
+{
+	const int dim = 5;
+
+	Zobrist z(dim);
+
+	for(;;) {
+		Board b(&z, dim);
+
+		board_t player = board_t::B_BLACK;
+
+		for(int i=0; i<dim*dim; i++) {
+			std::vector<Vertex> *liberties = b.findLiberties(player);
+			if (liberties->empty()) {
+				delete liberties;
+				break;
+			}
+
+			std::uniform_int_distribution<> rng(0, liberties->size() - 1);
+
+			Vertex & v = liberties->at(rng(gen_debug));
+
+			printf("%s %s\n", b.dumpFEN(player, 0).c_str(), v.to_str().c_str());
+
+			b.startMove();
+			b.putAt(v, player);
+			b.finishMove();
+
+			delete liberties;
+
+			player = opponentColor(player);
+		}
+
+		printf("\n---\n");
+	}
 }
 
 int main(int argc, char *argv[])
@@ -596,6 +745,10 @@ int main(int argc, char *argv[])
 		for(int i=1; i<=max; i++)
 			perft_fen(fen, col, i, argc >= 6);
 	}
+	else if (strcmp(argv[1], "perfttests") == 0)
+		perfttests();
+	else if (strcmp(argv[1], "randomfill") == 0)
+		randomfill();
 	else {
 		fprintf(stderr, "???\n");
 		return 1;
