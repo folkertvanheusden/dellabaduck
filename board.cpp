@@ -272,6 +272,8 @@ void Board::libertyScan(const std::unordered_set<Vertex, Vertex::HashFunction> &
 
 void Board::updateField(const Vertex & v, const board_t bv)
 {
+	printf("\n");
+	printf("%s with color %s\n",  v.to_str().c_str(), board_t_name(bv));
 	assert(v.isValid());
 	assert(v.getDim() == dim);
 	assert(bv == board_t::B_BLACK || bv == board_t::B_WHITE);
@@ -470,8 +472,8 @@ void Board::updateField(const Vertex & v, const board_t bv)
 	for(auto & ac: adjacentTheirs) {
 		auto       ch      = getChain(ac);
 		chain     *work_c  = ch.first;
-		work_c->dump();
-		assert(work_c->getLiberties()->find(v) != work_c->getLiberties()->end());
+		// adjacenttheirs are unique x,y pairs, not chain_nrs
+		// so it may have been removed already
 		work_c->removeLiberty(v);
 	}
 
@@ -613,11 +615,13 @@ Board::Board(Zobrist *const z, const std::string & str) : z(z)
 				startMove();
 				putAt(x, y, board_t::B_WHITE);
 				finishMove();
+				dump();
 			}
 			else if (c == 'b' || c == 'B') {
 				startMove();
 				putAt(x, y, board_t::B_BLACK);
 				finishMove();
+				dump();
 			}
 			else {
 				assert(c == '.');
@@ -762,7 +766,10 @@ void Board::undoMoveSet()
 		// chain was added? then remove it now
 		// should be 1 element
 		if (action == c_undo_t::modify_t::A_ADD) {
+			printf("revert ADD\n");
 			auto c = getChain(nr, col);
+
+			assert(c.first->getStones()->size() == 1);
 
 			// remove chain
 			for(auto & stone: *c.first->getStones()) {
@@ -778,10 +785,13 @@ void Board::undoMoveSet()
 			delete c.first;
 		}
 		else if (action == c_undo_t::modify_t::A_REMOVE) {
+			printf("revert REMOVE\n");
 			chain *c = new chain();
 
 			// re-register the re-created old chain
 			addChain(col, nr, c);
+
+			assert(a.stones.size() >= 1);
 
 			// recreate chain
 			c->addStones(a.stones);
@@ -790,7 +800,10 @@ void Board::undoMoveSet()
 			mapChain(a.stones, nr);
 		}
 		else if (action == c_undo_t::modify_t::A_MODIFY) {
+			printf("revert MODIFY\n");
 			auto c = getChain(nr, col);
+
+			assert(a.stones.size() >= 1);
 
 			c.first->removeStones(a.stones);
 
