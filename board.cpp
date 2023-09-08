@@ -502,10 +502,14 @@ void Board::updateField(const Vertex & v, const board_t bv)
 	for(auto & ac: adjacentTheirs) {
 		auto       ch      = getChain(ac);
 		chain     *work_c  = ch.first;
+
+		// in case the chain wrapped around the 'v' vertex and thus may have been
+		// deleted already
+		if (work_c == nullptr)
+			continue;
+
 		chain_nr_t work_nr = ch.second;
 		board_t    work_b  = opponentColor(bv);  // their color
-
-		assert(work_nr != NO_CHAIN);
 
 		if (work_c->isDead() == false)
 			continue;
