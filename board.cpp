@@ -313,7 +313,7 @@ void Board::updateField(const Vertex & v, const board_t bv)
 	if (vRight.isValid()) {
 		board_t bv = getAt(vRight);
 
-		if (bv == board_t::B_BLACK)  // mine
+		if (bv == board_t::B_BLACK)
 			adjacentBlack.insert(vRight);
 		else if (bv == board_t::B_WHITE)
 			adjacentWhite.insert(vRight);
@@ -323,7 +323,7 @@ void Board::updateField(const Vertex & v, const board_t bv)
 	if (vUp.isValid()) {
 		board_t bv = getAt(vUp);
 
-		if (bv == board_t::B_BLACK)  // mine
+		if (bv == board_t::B_BLACK)
 			adjacentBlack.insert(vUp);
 		else if (bv == board_t::B_WHITE)
 			adjacentWhite.insert(vUp);
@@ -333,7 +333,7 @@ void Board::updateField(const Vertex & v, const board_t bv)
 	if (vDown.isValid()) {
 		board_t bv = getAt(vDown);
 
-		if (bv == board_t::B_BLACK)  // mine
+		if (bv == board_t::B_BLACK)
 			adjacentBlack.insert(vDown);
 		else if (bv == board_t::B_WHITE)
 			adjacentWhite.insert(vDown);
@@ -390,9 +390,7 @@ void Board::updateField(const Vertex & v, const board_t bv)
 			chain     *old_c  = ch.first;
 			chain_nr_t old_nr = ch.second;  // get chain number of old chain
 
-			// in case this chain is wrapped around the first
-			if (old_nr == target_nr)
-				continue;
+			assert(old_nr != target_nr);
 
 			// add stones of the to-connect-chains to the target chain
 			target_c->addStones(*old_c->getStones());
@@ -469,18 +467,18 @@ void Board::updateField(const Vertex & v, const board_t bv)
 		rescan_chains.insert(new_c);
 	}
 
-	libertyScan(adjacentTheirs);
-
-	if (adjacentTheirs.empty() == false) {
-		printf("remove liberty %s from 'theirs':\n", v.to_str().c_str());
-	}
-
 	for(auto & ac: adjacentTheirs) {
 		auto       ch      = getChain(ac);
 		chain     *work_c  = ch.first;
 		work_c->dump();
 		assert(work_c->getLiberties()->find(v) != work_c->getLiberties()->end());
 		work_c->removeLiberty(v);
+	}
+
+	libertyScan(adjacentTheirs);
+
+	if (adjacentTheirs.empty() == false) {
+		printf("remove liberty %s from 'theirs':\n", v.to_str().c_str());
 	}
 
 	//libertyScan(adjacentMine);
@@ -498,7 +496,7 @@ void Board::updateField(const Vertex & v, const board_t bv)
 		auto       ch      = getChain(ac);
 		chain     *work_c  = ch.first;
 		chain_nr_t work_nr = ch.second;
-		board_t    work_b  = bv == board_t::B_BLACK ? board_t::B_WHITE : board_t::B_BLACK;
+		board_t    work_b  = opponentColor(bv);  // their color
 
 		assert(work_nr != NO_CHAIN);
 
