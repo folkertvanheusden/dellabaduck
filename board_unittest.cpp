@@ -548,11 +548,10 @@ uint64_t perft_do(Board & b, std::unordered_set<uint64_t> *const seen, const boa
 	std::vector<Vertex> *liberties = b.findLiberties(bv);
 
 	for(auto & cross : *liberties) {
-/*		if (top) {
+		printf("____ do it: %s with color %s\n", cross.to_str().c_str(), board_t_name(bv));
+		Board copy(b);
 		b.dump();
-
-		printf("____ do it: %s\n", cross.to_str().c_str());
-		} */
+		b.dumpChains();
 
 #ifndef NDEBUG
 		history.push_back({ cross.to_str(), b.dumpFEN(new_player, 0) });
@@ -561,9 +560,10 @@ uint64_t perft_do(Board & b, std::unordered_set<uint64_t> *const seen, const boa
 		for(auto & h: history)
 			printf(" %s", h.first.c_str());
 		printf("\n");
+
+		printf("%s for %s\n", history.back().second.c_str(), history.back().first.c_str());
 #endif
 
-//		printf("%s for %s\n", history.back().second.c_str(), history.back().first.c_str());
 		b.startMove();
 		b.putAt(cross, bv);
 		b.finishMove();
@@ -598,6 +598,10 @@ uint64_t perft_do(Board & b, std::unordered_set<uint64_t> *const seen, const boa
 #endif
 
 		b.undoMoveSet();
+		printf("____ UNDONE it: %s\n", cross.to_str().c_str());
+		b.dump();
+		b.dumpChains();
+		assert(b == copy);
 	}
 
 	delete liberties;

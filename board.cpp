@@ -73,11 +73,15 @@ std::pair<chain *, chain_nr_t> Board::getChainConst(const Vertex & v) const
 	assert(v.isValid());
 
 	const int o = v.getV();
+	assert(o < dim * dim);
 
 	chain_nr_t nr = cm[o];
 
-	if (nr == NO_CHAIN)
+	if (nr == NO_CHAIN) {
+		assert(b[o] == board_t::B_EMPTY);
+
 		return { nullptr, nr };
+	}
 
 	assert(b[o] != board_t::B_EMPTY);
 
@@ -615,13 +619,11 @@ Board::Board(Zobrist *const z, const std::string & str) : z(z)
 				startMove();
 				putAt(x, y, board_t::B_WHITE);
 				finishMove();
-				dump();
 			}
 			else if (c == 'b' || c == 'B') {
 				startMove();
 				putAt(x, y, board_t::B_BLACK);
 				finishMove();
-				dump();
 			}
 			else {
 				assert(c == '.');
@@ -876,9 +878,8 @@ std::vector<Vertex> * Board::findLiberties(const board_t for_whom)
 	return empties;
 }
 
-void Board::dump()
+void Board::dumpChains()
 {
-#if 0
 	printf("black chains:\n");
 	for(auto & chain: blackChains)
 		chain.second->dump();
@@ -887,9 +888,11 @@ void Board::dump()
 	for(auto & chain: whiteChains)
 		chain.second->dump();
 
-	dumpUndoSet(true);
-#endif
+//	dumpUndoSet(true);
+}
 
+void Board::dump()
+{
         std::string line;
 
 	printf("\n");

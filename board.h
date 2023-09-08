@@ -205,6 +205,7 @@ public:
 
 	void dump();
 	void dumpUndoSet(const bool full);
+	void dumpChains();
 	std::string dumpFEN(const board_t next_player, const int pass_depth);
 
 	Board & operator=(const Board & in);
