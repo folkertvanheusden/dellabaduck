@@ -549,7 +549,7 @@ uint64_t perft_do(Board & b, std::unordered_set<uint64_t> *const seen, const boa
 
 	for(auto & cross : *liberties) {
 		printf("____ do it: %s with color %s\n", cross.to_str().c_str(), board_t_name(bv));
-		Board copy(b);
+		Board copy = b;
 		b.dump();
 		b.dumpChains();
 

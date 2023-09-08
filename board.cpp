@@ -396,7 +396,8 @@ void Board::updateField(const Vertex & v, const board_t bv)
 			chain     *old_c  = ch.first;
 			chain_nr_t old_nr = ch.second;  // get chain number of old chain
 
-			assert(old_nr != target_nr);
+			if (old_nr == target_nr)
+				continue;
 
 			// add stones of the to-connect-chains to the target chain
 			target_c->addStones(*old_c->getStones());
