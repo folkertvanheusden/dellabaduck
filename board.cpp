@@ -646,7 +646,7 @@ Board::Board(const Board & in) : z(in.getZobrist())
 	b = new board_t[dimsq]();
 	cm = new chain_nr_t[dimsq]();
 
-	for(int y=dim - 1; y >= 0; y--) {
+	for(int y=0; y<dim; y++) {
 		for(int x=0; x<dim; x++) {
 			board_t b = in.getAt(x, y);
 

@@ -67,10 +67,21 @@ std::tuple<double, double, int> playout(const Board & in, const double komi, con
 
 		size_t n_liberties = liberties->size();
 
+		if (n_liberties == 0) {
+			delete liberties;
+#ifdef STORE_1_PLAYOUT
+			sgf += myformat(";%c[pass]", for_whom == board_t::B_BLACK ? 'B' : 'W');
+#endif
+			break;
+		}
+
                 std::uniform_int_distribution<> rng(0, n_liberties - 1);
                 int o = rng(gen);
 
 		int d = rng(gen) & 1 ? 1 : -1;
+
+		int x = 0;
+		int y =0;
 
 		while(attempt_n < n_liberties) {
 			b.startMove();
@@ -79,6 +90,8 @@ std::tuple<double, double, int> playout(const Board & in, const double komi, con
 
 			// and see if it did not produce a ko
 			if (seen.insert(b.getHash()).second == true) {
+				x = liberties->at(o).getX();
+				y = liberties->at(o).getY();
 				// no ko
 				break;  // Ok!
 			}
@@ -101,6 +114,10 @@ std::tuple<double, double, int> playout(const Board & in, const double komi, con
 		if (attempt_n >= dimsq) {
 			pass[for_whom == board_t::B_BLACK] = true;
 
+#ifdef STORE_1_PLAYOUT
+			sgf += myformat(";%c[pass]", for_whom == board_t::B_BLACK ? 'B' : 'W');
+#endif
+
 			if (pass[0] && pass[1])
 				break;
 
@@ -112,7 +129,7 @@ std::tuple<double, double, int> playout(const Board & in, const double komi, con
 		pass[0] = pass[1] = false;
 
 #ifdef STORE_1_PLAYOUT
-		sgf += myformat(";%c[%c%c]", p == P_BLACK ? 'B' : 'W', 'a' + x, 'a' + y);
+		sgf += myformat(";%c[%c%c]", for_whom == board_t::B_BLACK ? 'B' : 'W', 'a' + x, 'a' + y);
 #endif
 
 		for_whom = opponentColor(for_whom);
@@ -132,15 +149,17 @@ std::tuple<double, double, int> playout(const Board & in, const double komi, con
 void benchmark(const Board & b, const board_t p, const double komi, const int duration)
 {
 	uint64_t n     = 0;
+	uint64_t nm    = 0;
 	uint64_t start = get_ts_ms();
 
 	do {
 		auto rc = playout(b, komi, p);
+		nm += std::get<2>(rc);
 		n++;
 	}
 	while(start + duration > get_ts_ms());
 
-	printf("%f\n", n * 1000. / duration);
+	printf("%f (%.2f)\n", n * 1000. / duration, nm / double(n));
 }
 
 std::tuple<Board *, board_t, int> stringToPosition(const std::string & in)
