@@ -1046,7 +1046,7 @@ uint64_t perft_do(Board & b, std::unordered_set<uint64_t> *const seen, const boa
 //	printf(" ======> DEPTH %d <=====\n", depth);
 //	printf("%s\n", b.dumpFEN(bv, 0).c_str());
 
-	printf("%d\t%s\t%lu\n", depth, b.dumpFEN(bv, 0).c_str(), b.getHash());
+//	printf("%d\t%s\t%lu\n", depth, b.dumpFEN(bv, 0).c_str(), b.getHash());
 
 	if (depth == 0)
 		return 1;
@@ -1086,19 +1086,19 @@ uint64_t perft_do(Board & b, std::unordered_set<uint64_t> *const seen, const boa
 //		printf("GREP %lu\n", hash);
 
 		if (seen->insert(hash).second == true) {
-			printf("%d %s\n", depth, cross.to_str().c_str());
+//			printf("%d %s\n", depth, cross.to_str().c_str());
 
 			uint64_t cur_count = perft_do(b, seen, new_player, new_depth, 0, verbose, false);
 
 			total += cur_count;
 
-//			if (verbose && top)
-//				printf("%c%d: %ld\n", cross.getX() + 'a', cross.getY() + 1, cur_count);
+			if (verbose && top)
+				printf("%s: %ld\n", cross.to_str().c_str(), cur_count);
 
 			seen->erase(hash);
 		}
-		else
-			printf("%d NOT %s\n", depth, cross.to_str().c_str());
+//		else
+//			printf("%d NOT %s\n", depth, cross.to_str().c_str());
 
 	//	printf("UNDO %s for %s\n", cross.to_str().c_str(), b.dumpFEN(bv, 0).c_str());
 
@@ -1116,12 +1116,12 @@ uint64_t perft_do(Board & b, std::unordered_set<uint64_t> *const seen, const boa
 
 		total += cur_count;
 
-//		if (verbose && top)
-//			printf("pass: %ld\n", cur_count);
+		if (verbose && top)
+			printf("pass: %ld\n", cur_count);
 	}
 
-//	if (verbose && top)
-//		printf("total: %ld\n", total);
+	if (verbose && top)
+		printf("total: %ld\n", total);
 
 	return total;
 }
