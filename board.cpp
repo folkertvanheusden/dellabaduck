@@ -35,11 +35,9 @@ board_t opponentColor(const board_t v)
 	return board_t::B_EMPTY;
 }
 
-std::pair<chain *, chain_nr_t> Board::getChain(const Vertex & v)
+std::pair<chain *, chain_nr_t> Board::getChain(const int o)
 {
-	assert(v.isValid());
-
-	const int o = v.getV();
+	assert(o >= 0 && o < dim * dim);
 
 	// get chain number from map
 	chain_nr_t nr = cm[o];
@@ -54,6 +52,13 @@ std::pair<chain *, chain_nr_t> Board::getChain(const Vertex & v)
 	assert(it != (bv == board_t::B_BLACK ? blackChains.end() : whiteChains.end()));
 
 	return { it->second, nr };
+}
+
+std::pair<chain *, chain_nr_t> Board::getChain(const Vertex & v)
+{
+	assert(v.isValid());
+
+	return getChain(v.getV());
 }
 
 std::pair<chain *, chain_nr_t> Board::getChain(const chain_nr_t nr, const board_t bv)
@@ -530,32 +535,28 @@ void Board::collectLiberties()
 				continue;
 
 			if (x > 0) {
-				Vertex v(o - 1, dim);
-				auto ch = getChain(v);
+				auto ch = getChain(o - 1);
 
 				if (ch.first)
 					ch.first->addLiberty({ o, dim });
 			}
 
 			if (x < dimm1) {
-				Vertex v(o + 1, dim);
-				auto ch = getChain(v);
+				auto ch = getChain(o + 1);
 
 				if (ch.first)
 					ch.first->addLiberty({ o, dim });
 			}
 
 			if (y > 0) {
-				Vertex v(o - dim, dim);
-				auto ch = getChain(v);
+				auto ch = getChain(o - dim);
 
 				if (ch.first)
 					ch.first->addLiberty({ o, dim });
 			}
 
 			if (y < dimm1) {
-				Vertex v(o + dim, dim);
-				auto ch = getChain(v);
+				auto ch = getChain(o + dim);
 
 				if (ch.first)
 					ch.first->addLiberty({ o, dim });

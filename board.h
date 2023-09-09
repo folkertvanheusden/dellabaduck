@@ -209,6 +209,7 @@ public:
 
 	std::vector<Vertex> * findLiberties(const board_t bv);
 
+	std::pair<chain *, chain_nr_t> getChain(const int o);
 	std::pair<chain *, chain_nr_t> getChain(const Vertex & v);
 	std::pair<chain *, chain_nr_t> getChainConst(const Vertex & v) const;
 	std::pair<chain *, chain_nr_t> getChain(const chain_nr_t nr, const board_t bv);
