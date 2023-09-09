@@ -106,7 +106,8 @@ public:
 
 typedef struct {
 	// vertex, stone, hash
-	std::vector<std::tuple<Vertex, board_t, uint64_t> > undos;
+	std::vector<std::tuple<Vertex, board_t> > undos;
+	uint64_t hash;
 
 	void dump() {
 		printf("board undo actions:");

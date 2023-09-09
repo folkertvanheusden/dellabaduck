@@ -287,7 +287,8 @@ void Board::updateField(const Vertex & v, const board_t bv)
 	const int place = v.getV();
 
 	// update layout-undo
-	b_undo.back().undos.emplace_back(v, b[place], hash);
+	b_undo.back().hash = hash;
+	b_undo.back().undos.emplace_back(v, b[place]);
 	assert(b[place] == board_t::B_EMPTY);
 	assert(bv != board_t::B_EMPTY);
 
@@ -517,7 +518,7 @@ void Board::updateField(const Vertex & v, const board_t bv)
 			assert(v != stone);
 
 			// update undo record
-			b_undo.back().undos.emplace_back(stone, b[stone.getV()], hash);
+			b_undo.back().undos.emplace_back(stone, b[stone.getV()]);
 			assert(b[stone.getV()] != board_t::B_EMPTY);
 
 			// remove stone from board
@@ -757,9 +758,9 @@ void Board::undoMoveSet()
 		board_t   t = std::get<1>(tuple);
 
 		b[v.getV()] = t;
-
-		hash        = std::get<2>(tuple);
 	}
+
+	hash = b_undo.back().hash;
 
 	b_undo.pop_back();
 
