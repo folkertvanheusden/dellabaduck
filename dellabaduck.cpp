@@ -197,6 +197,9 @@ int main(int argc, char *argv[])
 		else if (parts.at(0) == "player") {
 			send(false, "=%s %c", id.c_str(), p == board_t::B_BLACK ? 'B' : 'W');
 		}
+		else if (parts.at(0) == "hash") {
+			send(false, "=%s %lu", id.c_str(), b->getHash());
+		}
 		else if (parts.at(0) == "perft" && (parts.size() == 2 || parts.size() == 3)) {
 			int      depth   = atoi(parts.at(1).c_str());
 
