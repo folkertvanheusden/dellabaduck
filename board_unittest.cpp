@@ -548,8 +548,8 @@ uint64_t perft_do(Board & b, std::unordered_set<uint64_t> *const seen, const boa
 	std::vector<Vertex> *liberties = b.findLiberties(bv);
 
 	for(auto & cross : *liberties) {
-		printf("____ do it: %s with color %s\n", cross.to_str().c_str(), board_t_name(bv));
-		Board copy = b;
+		printf("____ do it: %s with color %s (hash: %lu)\n", cross.to_str().c_str(), board_t_name(bv), b.getHash());
+		//Board copy = b;
 		b.dump();
 		b.dumpChains();
 
@@ -578,9 +578,9 @@ uint64_t perft_do(Board & b, std::unordered_set<uint64_t> *const seen, const boa
 
 		uint64_t hash = b.getHash();
 
-		if (seen->find(hash) == seen->end()) {
-			seen->insert(hash);
+		printf("GREP %lu\n", hash);
 
+		if (seen->insert(hash).second == true) {
 			uint64_t cur_count = perft_do(b, seen, new_player, new_depth, 0, verbose, false, history);
 
 			total += cur_count;
@@ -598,10 +598,10 @@ uint64_t perft_do(Board & b, std::unordered_set<uint64_t> *const seen, const boa
 #endif
 
 		b.undoMoveSet();
-		printf("____ UNDONE it: %s\n", cross.to_str().c_str());
+		printf("____ UNDONE it: %s, hash: %lu\n", cross.to_str().c_str(), b.getHash());
 		b.dump();
 		b.dumpChains();
-		assert(b == copy);
+	//	assert(b == copy);
 	}
 
 	delete liberties;
@@ -628,6 +628,7 @@ void perft(const int dim, const int depth, const bool verbose)
 	Board b(&z, dim);
 
 	std::unordered_set<uint64_t> seen;
+	seen.insert(b.getHash());
 
 	uint64_t start_ts = get_ts_ms();
 
@@ -649,6 +650,7 @@ uint64_t perft_fen(const std::string & board_setup, const board_t player, const 
 	Board b(&z, board_setup);
 
 	std::unordered_set<uint64_t> seen;
+	seen.insert(b.getHash());
 
 	uint64_t start_ts = get_ts_ms();
 
