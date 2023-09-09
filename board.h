@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cassert>
 #include <cstdint>
 #include <map>
 #include <string>
@@ -57,16 +58,10 @@ public:
 	void addStone(const Vertex & v) {
 		bool rc = stones.insert(v).second;
 		assert(rc);
-		assert(liberties.find(v) == liberties.end());
 	}
 
 	void addStones(const std::unordered_set<Vertex, Vertex::HashFunction> & in) {
 		stones.insert(in.begin(), in.end());
-
-#ifndef NDEBUG
-		for(auto & v: in)
-			assert(liberties.find(v) == liberties.end());
-#endif
 	}
 
 	void removeStone(const Vertex & v) {
@@ -188,9 +183,12 @@ private:
 
 	std::vector<c_undo_t> c_undo;
 
+	Zobrist *getZobrist() const { return z; }
+
 public:
 	Board(Zobrist *const z, const int dim);
 	Board(Zobrist *const z, const std::string & str);
+	Board(const Board & in);
 	~Board();
 
 	void validateBoard();
@@ -200,7 +198,6 @@ public:
 	void dumpChains();
 	std::string dumpFEN(const board_t next_player, const int pass_depth);
 
-	Board & operator=(const Board & in);
 	bool operator==(const Board & rhs);
 	bool operator!=(const Board & rhs);
 

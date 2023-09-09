@@ -38,6 +38,111 @@
 
 Zobrist z(19);
 
+std::tuple<double, double, int> playout(const Board & in, const double komi, const board_t p)
+{
+	Board b(in);
+
+	const int dim   = b.getDim();
+	const int dimsq = dim * dim;
+
+	std::unordered_set<uint64_t> seen;
+	seen.insert(b.getHash());
+
+	int  mc      { 0     };
+
+	bool pass[2] { false };
+
+#ifdef STORE_1_PLAYOUT
+	std::string sgf = "(;AP[DellaBaduck]SZ[" + myformat("%d", dim) + "]";
+
+	sgf += myformat(";KM[%f]", komi);
+#endif
+
+	board_t for_whom = p;
+
+	while(++mc < dim * dim * dim) {
+		size_t attempt_n = 0;
+
+	        std::vector<Vertex> *liberties = b.findLiberties(for_whom);
+
+		size_t n_liberties = liberties->size();
+
+                std::uniform_int_distribution<> rng(0, n_liberties - 1);
+                int o = rng(gen);
+
+		int d = rng(gen) & 1 ? 1 : -1;
+
+		while(attempt_n < n_liberties) {
+			b.startMove();
+			b.putAt(liberties->at(o), for_whom);
+			b.finishMove();
+
+			// and see if it did not produce a ko
+			if (seen.insert(b.getHash()).second == true) {
+				// no ko
+				break;  // Ok!
+			}
+
+			b.undoMoveSet();
+
+			o += d;
+
+			if (o < 0)
+				o = n_liberties - 1;
+			else if (o >= n_liberties)
+				o = 0;
+
+			attempt_n++;
+		}
+
+		delete liberties;
+
+		// all fields tried; pass
+		if (attempt_n >= dimsq) {
+			pass[for_whom == board_t::B_BLACK] = true;
+
+			if (pass[0] && pass[1])
+				break;
+
+			for_whom = opponentColor(for_whom);
+
+			continue;
+		}
+
+		pass[0] = pass[1] = false;
+
+#ifdef STORE_1_PLAYOUT
+		sgf += myformat(";%c[%c%c]", p == P_BLACK ? 'B' : 'W', 'a' + x, 'a' + y);
+#endif
+
+		for_whom = opponentColor(for_whom);
+	}
+
+	auto s = score(b, komi);
+
+#ifdef STORE_1_PLAYOUT
+	sgf += ")";
+
+	printf("%s\n", sgf.c_str());
+#endif
+
+	return std::tuple<double, double, int>(s.first, s.second, mc);
+}
+
+void benchmark(const Board & b, const board_t p, const double komi, const int duration)
+{
+	uint64_t n     = 0;
+	uint64_t start = get_ts_ms();
+
+	do {
+		auto rc = playout(b, komi, p);
+		n++;
+	}
+	while(start + duration > get_ts_ms());
+
+	printf("%f\n", n * 1000. / duration);
+}
+
 std::tuple<Board *, board_t, int> stringToPosition(const std::string & in)
 {
 	auto parts = split(in, " ");
@@ -199,6 +304,11 @@ int main(int argc, char *argv[])
 		}
 		else if (parts.at(0) == "hash") {
 			send(false, "=%s %lu", id.c_str(), b->getHash());
+		}
+		else if (parts.at(0) == "benchmark") {
+			int duration = parts.size() == 2 ? atoi(parts.at(1).c_str()) : 1000;
+
+			benchmark(*b, p, komi, duration);
 		}
 		else if (parts.at(0) == "perft" && (parts.size() == 2 || parts.size() == 3)) {
 			int      depth   = atoi(parts.at(1).c_str());

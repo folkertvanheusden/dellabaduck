@@ -44,10 +44,10 @@ std::pair<double, double> score(const Board & b, const double komi)
 		for(int x=0; x<dim; x++) {
 			auto piece = b.getAt(x, y);
 
-			if (piece == B_BLACK)
-				scoreFloodFill(b, dim, reachableBlack, x, y, B_BLACK);
-			else if (piece == B_WHITE)
-				scoreFloodFill(b, dim, reachableWhite, x, y, B_WHITE);
+			if (piece == board_t::B_BLACK)
+				scoreFloodFill(b, dim, reachableBlack, x, y, board_t::B_BLACK);
+			else if (piece == board_t::B_WHITE)
+				scoreFloodFill(b, dim, reachableWhite, x, y, board_t::B_WHITE);
 		}
 	}
 

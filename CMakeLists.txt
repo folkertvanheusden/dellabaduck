@@ -29,6 +29,7 @@ add_executable(
   dellabaduck.cpp
   io.cpp
   random.cpp
+  score.cpp
   str.cpp
   time.cpp
   vertex.cpp

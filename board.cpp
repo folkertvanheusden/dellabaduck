@@ -344,8 +344,6 @@ void Board::updateField(const Vertex & v, const board_t bv)
 		assert(ch.second != NO_CHAIN);
 		assert(ch.first->getStones()->empty() == false);
 
-		assert(ch.first->getLiberties()->find(v) != ch.first->getLiberties()->end());
-
 		// connect the new stone to the chain it is adjacent to
 		ch.first->addStone(v);
 
@@ -410,7 +408,6 @@ void Board::updateField(const Vertex & v, const board_t bv)
 		}
 
 		// merge the new stone
-		assert(target_c->getLiberties()->find(v) != target_c->getLiberties()->end());
 		target_c->addStone(v);  // add to (new) chain
 
 		mapChain(v, target_nr);
@@ -640,17 +637,26 @@ Board::~Board()
 		delete element.second;
 }
 
-Board & Board::operator=(const Board & in)
+Board::Board(const Board & in) : z(in.getZobrist())
 {
 	dim = in.getDim();
 
-	// copy contents
-	in.getTo(b);
+	int dimsq = dim * dim;
 
-	// adjust hash
-	hash = in.getHash();
+	b = new board_t[dimsq]();
+	cm = new chain_nr_t[dimsq]();
 
-	return *this;
+	for(int y=dim - 1; y >= 0; y--) {
+		for(int x=0; x<dim; x++) {
+			board_t b = in.getAt(x, y);
+
+			if (b != board_t::B_EMPTY) {
+				startMove();
+				putAt(x, y, b);
+				finishMove();
+			}
+		}
+	}
 }
 
 // this ignores undo history!
