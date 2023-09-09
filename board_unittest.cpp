@@ -543,17 +543,17 @@ uint64_t perft_do(Board & b, std::unordered_set<uint64_t> *const seen, const boa
 
 	uint64_t      total      = 0;
 
-	b.dump();
+	// b.dump();
 
 	std::vector<Vertex> *liberties = b.findLiberties(bv);
 
 	for(auto & cross : *liberties) {
-		printf("____ do it: %s with color %s\n", cross.to_str().c_str(), board_t_name(bv));
-		Board copy = b;
-		b.dump();
-		b.dumpChains();
+//		printf("____ do it: %s with color %s\n", cross.to_str().c_str(), board_t_name(bv));
+//		Board copy = b;
+//		b.dump();
+//		b.dumpChains();
 
-#ifndef NDEBUG
+#if 0  // #ifndef NDEBUG
 		history.push_back({ cross.to_str(), b.dumpFEN(new_player, 0) });
 
 		printf("%s ", history.begin()->second.c_str());
@@ -593,15 +593,15 @@ uint64_t perft_do(Board & b, std::unordered_set<uint64_t> *const seen, const boa
 
 	//	printf("UNDO %s for %s\n", cross.to_str().c_str(), b.dumpFEN(bv, 0).c_str());
 
-#ifndef NDEBUG
+#if 0  // #ifndef NDEBUG
 		history.pop_back();
 #endif
 
 		b.undoMoveSet();
-		printf("____ UNDONE it: %s\n", cross.to_str().c_str());
-		b.dump();
-		b.dumpChains();
-		assert(b == copy);
+//		printf("____ UNDONE it: %s\n", cross.to_str().c_str());
+//		b.dump();
+//		b.dumpChains();
+//		assert(b == copy);
 	}
 
 	delete liberties;
@@ -660,7 +660,7 @@ uint64_t perft_fen(const std::string & board_setup, const board_t player, const 
 
 	uint64_t took = end_ts - start_ts;
 
-	printf("Depth %d took: %.3fs, %f nps, sum: %lu\n", depth, took / 1000., total * 1000. / took, total);
+	printf("Depth %d took: %.3fs, %.2f nps, sum: %lu\n", depth, took / 1000., total * 1000. / took, total);
 
 	return total;
 }
@@ -674,6 +674,7 @@ void perfttests()
 	};
 
 	std::vector<test> tests {
+			{ ".../.../... b 0", { 10, 91, 738, 5281, 33384, 179712, 842696 } },
 			{ ".w.bw/wbbbw/w.bww/bbbw./wwww. b 0", { 5, 26, 109, 739, 6347, 62970 } },
 		};
 
@@ -693,39 +694,7 @@ void perfttests()
 
 void randomfill()
 {
-	const int dim = 5;
-
-	Zobrist z(dim);
-
-	for(;;) {
-		Board b(&z, dim);
-
-		board_t player = board_t::B_BLACK;
-
-		for(int i=0; i<dim*dim; i++) {
-			std::vector<Vertex> *liberties = b.findLiberties(player);
-			if (liberties->empty()) {
-				delete liberties;
-				break;
-			}
-
-			std::uniform_int_distribution<> rng(0, liberties->size() - 1);
-
-			Vertex & v = liberties->at(rng(gen_debug));
-
-			printf("%s %s\n", b.dumpFEN(player, 0).c_str(), v.to_str().c_str());
-
-			b.startMove();
-			b.putAt(v, player);
-			b.finishMove();
-
-			delete liberties;
-
-			player = opponentColor(player);
-		}
-
-		printf("\n---\n");
-	}
+	// TODO
 }
 
 int main(int argc, char *argv[])
