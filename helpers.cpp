@@ -42,19 +42,6 @@ Vertex t2v(const std::string & str, const int dim)
 	return { x, y, dim };
 }
 
-std::tuple<Board *, player_t, int> stringToPosition(const std::string & in)
-{
-	auto parts = split(in, " ");
-
-	Board   *b      = new Board(&z, parts.at(0));
-
-	player_t player = parts.at(1) == "b" || parts.at(1) == "B" ? P_BLACK : P_WHITE;
-
-	int      pass   = atoi(parts.at(2).c_str());
-
-	return { b, player, pass };
-}
-
 Board stringToBoard(const std::string & in)
 {
 	auto templines = split(in, "\n");

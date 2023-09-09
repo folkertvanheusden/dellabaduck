@@ -527,100 +527,6 @@ void unit_tests()
 	printf("All good\n");
 }
 
-uint64_t perft_do(Board & b, std::unordered_set<uint64_t> *const seen, const board_t bv, const int depth, const int pass, const bool verbose, const bool top, std::vector<std::pair<std::string, std::string> > & history)
-{
-//	printf(" ======> DEPTH %d <=====\n", depth);
-//	printf("%s\n", b.dumpFEN(bv, 0).c_str());
-
-	if (depth == 0)
-		return 1;
-
-	if (pass >= 2)
-		return 0;
-
-	const int     new_depth  = depth - 1;
-	const board_t new_player = bv == board_t::B_BLACK ? board_t::B_WHITE : board_t::B_BLACK;
-
-	uint64_t      total      = 0;
-
-	// b.dump();
-
-	std::vector<Vertex> *liberties = b.findLiberties(bv);
-
-	for(auto & cross : *liberties) {
-		printf("____ do it: %s with color %s (hash: %lu)\n", cross.to_str().c_str(), board_t_name(bv), b.getHash());
-		//Board copy = b;
-		b.dump();
-		b.dumpChains();
-
-#if 0  // #ifndef NDEBUG
-		history.push_back({ cross.to_str(), b.dumpFEN(new_player, 0) });
-
-		printf("%s ", history.begin()->second.c_str());
-		for(auto & h: history)
-			printf(" %s", h.first.c_str());
-		printf("\n");
-
-		printf("%s for %s\n", history.back().second.c_str(), history.back().first.c_str());
-#endif
-
-		b.startMove();
-		b.putAt(cross, bv);
-		b.finishMove();
-
-/*		if (top) {
-			printf("%s %s\n", cross.to_str().c_str(), b.dumpFEN(new_player, 0).c_str());
-
-		printf("____ done it\n");
-
-		b.dump();
-		} */
-
-		uint64_t hash = b.getHash();
-
-		printf("GREP %lu\n", hash);
-
-		if (seen->insert(hash).second == true) {
-			uint64_t cur_count = perft_do(b, seen, new_player, new_depth, 0, verbose, false, history);
-
-			total += cur_count;
-
-			if (verbose && top)
-				printf("%c%d: %ld\n", cross.getX() + 'a', cross.getY() + 1, cur_count);
-
-			seen->erase(hash);
-		}
-
-	//	printf("UNDO %s for %s\n", cross.to_str().c_str(), b.dumpFEN(bv, 0).c_str());
-
-#if 0  // #ifndef NDEBUG
-		history.pop_back();
-#endif
-
-		b.undoMoveSet();
-		printf("____ UNDONE it: %s, hash: %lu\n", cross.to_str().c_str(), b.getHash());
-		b.dump();
-		b.dumpChains();
-	//	assert(b == copy);
-	}
-
-	delete liberties;
-
-	if (pass < 2) {
-		uint64_t cur_count = perft_do(b, seen, new_player, new_depth, pass + 1, verbose, false, history);
-
-		total += cur_count;
-
-		if (verbose && top)
-			printf("pass: %ld\n", cur_count);
-	}
-
-	if (verbose && top)
-		printf("total: %ld\n", total);
-
-	return total;
-}
-
 void perft(const int dim, const int depth, const bool verbose)
 {
 	Zobrist z(dim);
@@ -632,9 +538,7 @@ void perft(const int dim, const int depth, const bool verbose)
 
 	uint64_t start_ts = get_ts_ms();
 
-	std::vector<std::pair<std::string, std::string> > history;
-
-	uint64_t total = perft_do(b, &seen, board_t::B_BLACK, depth, 0, verbose, 1, history);
+	uint64_t total = perft_do(b, &seen, board_t::B_BLACK, depth, 0, verbose, 1);
 
 	uint64_t end_ts = get_ts_ms();
 
@@ -654,9 +558,7 @@ uint64_t perft_fen(const std::string & board_setup, const board_t player, const 
 
 	uint64_t start_ts = get_ts_ms();
 
-	std::vector<std::pair<std::string, std::string> > history;
-
-	uint64_t total = perft_do(b, &seen, player, depth, 0, verbose, 1, history);
+	uint64_t total = perft_do(b, &seen, player, depth, 0, verbose, 1);
 
 	uint64_t end_ts = get_ts_ms();
 

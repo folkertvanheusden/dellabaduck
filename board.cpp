@@ -669,15 +669,20 @@ Board & Board::operator=(const Board & in)
 // this ignores undo history!
 bool Board::operator==(const Board & rhs)
 {
-	if (getHash() != rhs.getHash())
-		return false;
+	if (getHash() != rhs.getHash()) {
+		printf("hash\n"); return false;
+	}
 
-	if (dim != rhs.getDim())
+	if (dim != rhs.getDim()) {
+		printf("dim\n");
 		return false;
+	}
 
 	for(int o=0; o<dim * dim; o++) {
-		if (getAt(o) != rhs.getAt(o))
+		if (getAt(o) != rhs.getAt(o)) {
+			printf("field %s\n", Vertex(o, dim).to_str().c_str());
 			return false;
+		}
 	}
 
 	return true;
@@ -898,6 +903,7 @@ void Board::dump()
         std::string line;
 
 	printf("\n");
+	printf("hash: %lu\n", getHash());
         line = "#      board";
 
 	for(int x=0; x<dim-5; x++)
@@ -1033,4 +1039,83 @@ std::string Board::dumpFEN(const board_t next_player, const int pass_depth)
         out += myformat(" %d", pass_depth);
 
         return out;
+}
+
+uint64_t perft_do(Board & b, std::unordered_set<uint64_t> *const seen, const board_t bv, const int depth, const int pass, const bool verbose, const bool top)
+{
+//	printf(" ======> DEPTH %d <=====\n", depth);
+//	printf("%s\n", b.dumpFEN(bv, 0).c_str());
+
+	if (depth == 0)
+		return 1;
+
+	if (pass >= 2)
+		return 0;
+
+	const int     new_depth  = depth - 1;
+	const board_t new_player = bv == board_t::B_BLACK ? board_t::B_WHITE : board_t::B_BLACK;
+
+	uint64_t      total      = 0;
+
+	// b.dump();
+
+	std::vector<Vertex> *liberties = b.findLiberties(bv);
+
+	for(auto & cross : *liberties) {
+//		printf("____ do it: %s with color %s (hash: %lu)\n", cross.to_str().c_str(), board_t_name(bv), b.getHash());
+		//Board copy = b;
+//		b.dump();
+//		b.dumpChains();
+
+		b.startMove();
+		b.putAt(cross, bv);
+		b.finishMove();
+
+/*		if (top) {
+			printf("%s %s\n", cross.to_str().c_str(), b.dumpFEN(new_player, 0).c_str());
+
+		printf("____ done it\n");
+
+		b.dump();
+		} */
+
+		uint64_t hash = b.getHash();
+
+//		printf("GREP %lu\n", hash);
+
+		if (seen->insert(hash).second == true) {
+			uint64_t cur_count = perft_do(b, seen, new_player, new_depth, 0, verbose, false);
+
+			total += cur_count;
+
+			if (verbose && top)
+				printf("%c%d: %ld\n", cross.getX() + 'a', cross.getY() + 1, cur_count);
+
+			seen->erase(hash);
+		}
+
+	//	printf("UNDO %s for %s\n", cross.to_str().c_str(), b.dumpFEN(bv, 0).c_str());
+
+		b.undoMoveSet();
+//		printf("____ UNDONE it: %s, hash: %lu\n", cross.to_str().c_str(), b.getHash());
+//		b.dump();
+//		b.dumpChains();
+	//	assert(b == copy);
+	}
+
+	delete liberties;
+
+	if (pass < 2) {
+		uint64_t cur_count = perft_do(b, seen, new_player, new_depth, pass + 1, verbose, false);
+
+		total += cur_count;
+
+		if (verbose && top)
+			printf("pass: %ld\n", cur_count);
+	}
+
+	if (verbose && top)
+		printf("total: %ld\n", total);
+
+	return total;
 }

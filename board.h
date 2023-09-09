@@ -241,3 +241,5 @@ public:
 
 	void undoMoveSet();
 };
+
+uint64_t perft_do(Board & b, std::unordered_set<uint64_t> *const seen, const board_t bv, const int depth, const int pass, const bool verbose, const bool top);

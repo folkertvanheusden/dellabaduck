@@ -27,15 +27,10 @@ add_executable(
   dellabaduck
   board.cpp
   dellabaduck.cpp
-  dump.cpp
-  helpers.cpp
   io.cpp
   random.cpp
-  score.cpp
   str.cpp
   time.cpp
-  uct.cpp
-  unittest.cpp
   vertex.cpp
   zobrist.cpp
 )
