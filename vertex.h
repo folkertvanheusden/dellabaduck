@@ -6,9 +6,9 @@
 class Vertex
 {
 private:
-	const int  v     { 0     };
-	const int  dim   { 0     };
-	const bool valid { false };
+	int  v     { 0     };
+	int  dim   { 0     };
+	bool valid { false };
 
 public:
 	Vertex(const int v, const int dim);
@@ -18,6 +18,7 @@ public:
 
 	static Vertex from_str(const std::string & descr, const int dim);
 
+	Vertex & operator=(const Vertex & in);
 	bool operator<(const Vertex & rhs) const;
 	bool operator==(const Vertex & rhs) const;
 	bool operator()(const Vertex & a, const Vertex & b) const;

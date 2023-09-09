@@ -86,3 +86,12 @@ std::string Vertex::to_str(const bool sgf) const
 
 	return sgf ? myformat("%c%c", x + 'a', y + 'a') : myformat("%c%d", x + 'a', y + 1);
 }
+
+Vertex & Vertex::operator=(const Vertex & in)
+{
+	v = in.getV();
+	dim = in.getDim();
+	valid = in.isValid();
+
+	return *this;
+}

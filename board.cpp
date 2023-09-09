@@ -147,7 +147,7 @@ void Board::validateBoard()
 #endif
 }
 
-auto Board::getLiberties(const Vertex & v)
+auto Board::getLiberties(chain *const ch, const Vertex & v)
 {
 	assert(v.isValid());
 
@@ -155,19 +155,19 @@ auto Board::getLiberties(const Vertex & v)
 
 	Vertex vLeft(v.left());
 	if (vLeft.isValid() && getAt(vLeft) == board_t::B_EMPTY)
-		out.push_back(vLeft);
+		ch->addLiberty(vLeft);
 
 	Vertex vRight(v.right());
 	if (vRight.isValid() && getAt(vRight) == board_t::B_EMPTY)
-		out.push_back(vRight);
+		ch->addLiberty(vRight);
 
 	Vertex vUp(v.up());
 	if (vUp.isValid() && getAt(vUp) == board_t::B_EMPTY)
-		out.push_back(vUp);
+		ch->addLiberty(vUp);
 
 	Vertex vDown(v.down());
 	if (vDown.isValid() && getAt(vDown) == board_t::B_EMPTY)
-		out.push_back(vDown);
+		ch->addLiberty(vDown);
 
 	return out;
 }
@@ -257,6 +257,18 @@ void Board::mapChain(const std::unordered_set<Vertex, Vertex::HashFunction> & ch
 		mapChain(v, nr);
 }
 
+void Board::libertyScan(const std::vector<chain *> & chains)
+{
+	for(auto & ch: chains) {
+		ch->clearLiberties();
+
+		for(auto & v: *ch->getStones())
+			getLiberties(ch, v);
+
+		ch->uniqueLiberties();
+	}
+}
+
 void Board::updateField(const Vertex & v, const board_t bv)
 {
 //	printf("\n");
@@ -335,6 +347,8 @@ void Board::updateField(const Vertex & v, const board_t bv)
 
 	assert(adjacentMine.size() + adjacentTheirs.size() <= 4);
 
+	std::vector<chain *> rescan;
+
 	// connect new stone to existing chain
 	if (adjacentMine.size() == 1) {
 		// printf("connect new stone to existing chain\n");
@@ -357,6 +371,8 @@ void Board::updateField(const Vertex & v, const board_t bv)
 		action.stones = { v };
 		action.debug  = 1;
 		c_undo.back().undos.push_back(std::move(action));
+
+		rescan.push_back(ch.first);
 	}
 	// connect adjacent chains
 	else if (adjacentMine.empty() == false) {
@@ -420,6 +436,8 @@ void Board::updateField(const Vertex & v, const board_t bv)
 		action_add.stones = { v };
 		action_add.debug  = 4;
 		c_undo.back().undos.push_back(std::move(action_add));
+
+		rescan.push_back(target_c);
 	}
 	else {  // new chain
 		// printf("new chain\n");
@@ -443,9 +461,17 @@ void Board::updateField(const Vertex & v, const board_t bv)
 		c_undo.back().undos.push_back(std::move(action));
 
 		increaseChainNr();
+
+		rescan.push_back(new_c);
 	}
 
-	collectLiberties();
+	for(auto & ac: adjacentTheirs) {
+		auto ch = getChain(ac);
+
+		rescan.push_back(ch.first);
+	}
+
+	libertyScan(rescan);
 
 	validateBoard();
 

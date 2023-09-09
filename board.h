@@ -80,6 +80,11 @@ public:
 		liberties.clear();
 	}
 
+	void uniqueLiberties() {
+		std::sort(liberties.begin(), liberties.end());
+		liberties.erase(std::unique(liberties.begin(), liberties.end()), liberties.end());
+	}
+
 	void addLiberty(const Vertex & v) {
 		// it is assumed that liberties may be added multiple times
 		liberties.push_back(v);
@@ -171,10 +176,11 @@ private:
 	void mapChain(const std::unordered_set<Vertex, Vertex::HashFunction> & chain, const chain_nr_t nr);
 	void removeChain(const board_t bv, const chain_nr_t nr);
 
-	auto getLiberties(const Vertex & v);
 	auto getSurroundingNonEmptyVertexes(const Vertex & v);
 	auto getSurroundingChainsOfType(const Vertex & v, const board_t bv);
 	//
+	auto getLiberties(chain *const ch, const Vertex & v);
+	void libertyScan(const std::vector<chain *> & chains);
 	void collectLiberties();
 
 	void getTo(board_t *const bto) const;
