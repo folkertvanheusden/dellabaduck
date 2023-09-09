@@ -166,6 +166,9 @@ int main(int argc, char *argv[])
 			send(false, "=%s", id.c_str());
 			break;
 		}
+		else if (parts.at(0) == "dump") {
+			b->dump();
+		}
 		else if (parts.at(0) == "known_command") {  // TODO
 			if (parts.at(1) == "known_command")
 				send(false, "=%s true", id.c_str());
