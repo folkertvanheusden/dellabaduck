@@ -90,7 +90,7 @@ public:
 		liberties.insert(v);
 	}
 
-	void addLiberties(const std::unordered_set<Vertex, Vertex::HashFunction> & in) {
+	void addLiberties(const std::vector<Vertex> & in) {
 		liberties.insert(in.begin(), in.end());
 	}
 

@@ -146,23 +146,23 @@ auto Board::getLiberties(const Vertex & v)
 {
 	assert(v.isValid());
 
-	std::unordered_set<Vertex, Vertex::HashFunction> out;
+	std::vector<Vertex> out;
 
 	Vertex vLeft(v.left());
 	if (vLeft.isValid() && getAt(vLeft) == board_t::B_EMPTY)
-		out.insert(vLeft);
+		out.push_back(vLeft);
 
 	Vertex vRight(v.right());
 	if (vRight.isValid() && getAt(vRight) == board_t::B_EMPTY)
-		out.insert(vRight);
+		out.push_back(vRight);
 
 	Vertex vUp(v.up());
 	if (vUp.isValid() && getAt(vUp) == board_t::B_EMPTY)
-		out.insert(vUp);
+		out.push_back(vUp);
 
 	Vertex vDown(v.down());
 	if (vDown.isValid() && getAt(vDown) == board_t::B_EMPTY)
-		out.insert(vDown);
+		out.push_back(vDown);
 
 	return out;
 }
