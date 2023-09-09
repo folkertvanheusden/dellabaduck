@@ -186,7 +186,7 @@ private:
 	void removeChain(const board_t bv, const chain_nr_t nr);
 
 	void libertyScan(const std::unordered_set<chain *> & chains);
-	void libertyScan(const std::unordered_set<Vertex, Vertex::HashFunction> & chain);
+	void libertyScan(const std::vector<Vertex> & chain);
 	auto getLiberties(const Vertex & v);
 	auto getSurroundingNonEmptyVertexes(const Vertex & v);
 	auto getSurroundingChainsOfType(const Vertex & v, const board_t bv);

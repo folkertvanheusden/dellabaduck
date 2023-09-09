@@ -262,7 +262,7 @@ void Board::libertyScan(const std::unordered_set<chain *> & chains)
 	}
 }
 
-void Board::libertyScan(const std::unordered_set<Vertex, Vertex::HashFunction> & c)
+void Board::libertyScan(const std::vector<Vertex> & c)
 {
 	for(auto & v: c) {
 		chain *ch = getChain(v).first;
@@ -303,17 +303,17 @@ void Board::updateField(const Vertex & v, const board_t bv)
 		hash ^= z->get(place, bv == board_t::B_BLACK);
 
 	// any chains surrounding this vertex?
-	std::unordered_set<Vertex, Vertex::HashFunction> adjacentBlack;
-	std::unordered_set<Vertex, Vertex::HashFunction> adjacentWhite;
+	std::vector<Vertex> adjacentBlack;
+	std::vector<Vertex> adjacentWhite;
 
 	Vertex vLeft(v.left());
 	if (vLeft.isValid()) {
 		board_t bv = getAt(vLeft);
 
 		if (bv == board_t::B_BLACK)
-			adjacentBlack.insert(vLeft);
+			adjacentBlack.push_back(vLeft);
 		else if (bv == board_t::B_WHITE)
-			adjacentWhite.insert(vLeft);
+			adjacentWhite.push_back(vLeft);
 	}
 
 	Vertex vRight(v.right());
@@ -321,9 +321,9 @@ void Board::updateField(const Vertex & v, const board_t bv)
 		board_t bv = getAt(vRight);
 
 		if (bv == board_t::B_BLACK)
-			adjacentBlack.insert(vRight);
+			adjacentBlack.push_back(vRight);
 		else if (bv == board_t::B_WHITE)
-			adjacentWhite.insert(vRight);
+			adjacentWhite.push_back(vRight);
 	}
 
 	Vertex vUp(v.up());
@@ -331,9 +331,9 @@ void Board::updateField(const Vertex & v, const board_t bv)
 		board_t bv = getAt(vUp);
 
 		if (bv == board_t::B_BLACK)
-			adjacentBlack.insert(vUp);
+			adjacentBlack.push_back(vUp);
 		else if (bv == board_t::B_WHITE)
-			adjacentWhite.insert(vUp);
+			adjacentWhite.push_back(vUp);
 	}
 
 	Vertex vDown(v.down());
@@ -341,9 +341,9 @@ void Board::updateField(const Vertex & v, const board_t bv)
 		board_t bv = getAt(vDown);
 
 		if (bv == board_t::B_BLACK)
-			adjacentBlack.insert(vDown);
+			adjacentBlack.push_back(vDown);
 		else if (bv == board_t::B_WHITE)
-			adjacentWhite.insert(vDown);
+			adjacentWhite.push_back(vDown);
 	}
 
 	// connect/delete chains when placing a stone
