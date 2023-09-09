@@ -21,7 +21,7 @@ board_t opponentColor(const board_t v);
 class chain {
 private:
 	std::unordered_set<Vertex, Vertex::HashFunction> stones;
-	std::unordered_set<Vertex, Vertex::HashFunction> liberties;
+	std::vector<Vertex> liberties;
 
 public:
 	chain() {
@@ -50,7 +50,7 @@ public:
 		return &stones;
 	}
 
-	const std::unordered_set<Vertex, Vertex::HashFunction> * getLiberties() const {
+	const std::vector<Vertex> * getLiberties() const {
 		return &liberties;
 	}
 
@@ -87,16 +87,7 @@ public:
 
 	void addLiberty(const Vertex & v) {
 		// it is assumed that liberties may be added multiple times
-		liberties.insert(v);
-	}
-
-	void addLiberties(const std::vector<Vertex> & in) {
-		liberties.insert(in.begin(), in.end());
-	}
-
-	void removeLiberty(const Vertex & v) {
-		// it is assumed that liberties can be removed without checking
-		liberties.erase(v);
+		liberties.push_back(v);
 	}
 
 	bool isDead() {
@@ -185,11 +176,11 @@ private:
 	void mapChain(const std::unordered_set<Vertex, Vertex::HashFunction> & chain, const chain_nr_t nr);
 	void removeChain(const board_t bv, const chain_nr_t nr);
 
-	void libertyScan(const std::unordered_set<chain *> & chains);
-	void libertyScan(const std::vector<Vertex> & chain);
 	auto getLiberties(const Vertex & v);
 	auto getSurroundingNonEmptyVertexes(const Vertex & v);
 	auto getSurroundingChainsOfType(const Vertex & v, const board_t bv);
+	//
+	void collectLiberties();
 
 	void getTo(board_t *const bto) const;
 
