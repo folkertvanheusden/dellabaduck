@@ -557,6 +557,8 @@ void Board::collectLiberties()
 			if (bv != board_t::B_EMPTY)
 				continue;
 
+			assert(o == y * dim + x);
+
 			if (x > 0) {
 				auto ch = getChain(o - 1);
 
