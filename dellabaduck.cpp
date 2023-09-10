@@ -38,7 +38,7 @@
 
 Zobrist z(19);
 
-std::tuple<double, double, int, Vertex> playout(const Board & in, const double komi, const board_t p)
+std::tuple<double, double, int, std::optional<Vertex> > playout(const Board & in, const double komi, const board_t p)
 {
 	Board b(in);
 
@@ -90,13 +90,14 @@ std::tuple<double, double, int, Vertex> playout(const Board & in, const double k
 			b.putAt(liberties->at(o), for_whom);
 			b.finishMove();
 
-			if (first.has_value() == false)
-				first = liberties->at(o);
-
 			// and see if it did not produce a ko
 			if (seen.insert(b.getHash()).second == true) {
 				x = liberties->at(o).getX();
 				y = liberties->at(o).getY();
+
+				if (first.has_value() == false)
+					first = liberties->at(o);
+
 				// no ko
 				break;  // Ok!
 			}
@@ -148,7 +149,7 @@ std::tuple<double, double, int, Vertex> playout(const Board & in, const double k
 	printf("%s\n", sgf.c_str());
 #endif
 
-	return std::tuple<double, double, int, Vertex>(s.first, s.second, mc, first.value());
+	return std::tuple<double, double, int, std::optional<Vertex> >(s.first, s.second, mc, first.value());
 }
 
 void benchmark(const Board & b, const board_t p, const double komi, const int duration)
@@ -205,19 +206,21 @@ std::optional<Vertex> gen_move(Board *const b, const board_t & p, const bool do_
 		nm += std::get<2>(rc);
 		n++;
 
-		auto & move = std::get<3>(rc);
+		if (std::get<3>(rc).has_value()) {
+			auto & move = std::get<3>(rc).value();
 
-		double score = p == board_t::B_BLACK ? std::get<0>(rc) - std::get<1>(rc) : std::get<1>(rc) - std::get<0>(rc);
+			double score = p == board_t::B_BLACK ? std::get<0>(rc) - std::get<1>(rc) : std::get<1>(rc) - std::get<0>(rc);
 
-		double score_v = 0.5;
+			double score_v = 0.5;
 
-		if (score < 0)
-			score_v = 0.;
-		else if (score > 0)
-			score_v = 1.;
+			if (score < 0)
+				score_v = 0.;
+			else if (score > 0)
+				score_v = 1.;
 
-		results.at(move.getV()).first  += score_v;
-		results.at(move.getV()).second++;
+			results.at(move.getV()).first  += score_v;
+			results.at(move.getV()).second++;
+		}
 	}
 	while(start + duration > get_ts_ms());
 
@@ -241,6 +244,8 @@ std::optional<Vertex> gen_move(Board *const b, const board_t & p, const bool do_
 		b->startMove();
 		b->putAt(v.value(), p);
 		b->finishMove();
+
+		seen->insert(b->getHash());
 	}
 
 	return v;
@@ -253,6 +258,19 @@ std::string v2t(const Vertex & v)
 		xc++;
 
 	return myformat("%c%d", xc, v.getY() + 1);
+}
+
+Vertex t2v(const std::string & str, const int dim)
+{
+	char xc = tolower(str.at(0));
+	assert(xc != 'i');
+	if (xc >= 'j')
+		xc--;
+	int x = xc - 'a';
+
+	int y = atoi(str.substr(1).c_str()) - 1;
+
+	return { x, y, dim };
 }
 
 int main(int argc, char *argv[])
@@ -359,16 +377,16 @@ int main(int argc, char *argv[])
 			if (str_tolower(parts.at(2)) == "pass")
 				pass++;
 			else {
-				Vertex v = Vertex::from_str(parts.at(2), b->getDim());
+				Vertex v = t2v(parts.at(2), b->getDim());
 
 				b->startMove();
 				b->putAt(v, p);
 				b->finishMove();
 
+				seen.insert(b->getHash());
+
 				pass = 0;
 			}
-
-			seen.insert(b->getHash());
 
 			p = opponentColor(p);
 
@@ -499,9 +517,6 @@ int main(int argc, char *argv[])
 			}
 
 			p = opponentColor(player);
-
-			if (parts.at(0) == "genmove")
-				seen.insert(b->getHash());
 
 			send(true, "# %s", b->dumpFEN(p, pass).c_str());
 		}
