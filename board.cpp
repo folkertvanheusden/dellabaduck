@@ -885,8 +885,6 @@ std::vector<Vertex> * Board::findLiberties(const board_t for_whom)
 		okFields[i] = c == nullptr || (bv == for_whom && c->getLiberties()->size() > 1) || (bv != for_whom && c->getLiberties()->size() == 1);
 	}
 
-	empties->reserve(dimsq);
-
 	int o = 0;
 
 	for(int y=0; y<dim; y++) {
