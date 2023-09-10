@@ -227,18 +227,25 @@ std::optional<Vertex> gen_move(Board *const b, const board_t & p, const bool do_
 	std::optional<Vertex> v;
 
 	double best = -1.;
+	int    best_count = -1;
+	int    n_results = 0;
 	for(size_t i=0; i<results.size(); i++) {
 		if (results.at(i).second == 0)
 			continue;
+
+		n_results++;
 
 		double score = results.at(i).first / results.at(i).second;
 
 		if (score > best) {
 			best = score;
+			best_count = results.at(i).second;
 			v = Vertex(i, dim);
-			send(true, "# score %.2f (%d moves) for %s", score, results.at(i).second, v.value().to_str().c_str());
 		}
 	}
+
+	if (v.has_value())
+		send(true, "# score %.2f (%d moves) for %s in %f seconds, %d results", best, best_count, v.value().to_str().c_str(), duration, n_results);
 
 	if (do_play && v.has_value()) {
 		b->startMove();
