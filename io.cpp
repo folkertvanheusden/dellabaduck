@@ -31,7 +31,7 @@ void startLog(const std::string & filename)
 	atexit(closeLog);
 }
 
-void send(const bool is_verbose, const char *fmt, ...)
+void send(const bool log_only, const char *fmt, ...)
 {
 	uint64_t now = get_ts_ms();
 	time_t t_now = now / 1000;
@@ -54,16 +54,10 @@ void send(const bool is_verbose, const char *fmt, ...)
 	if (fh)
 		fprintf(fh, "%s%s\n", ts_str, str);
 
-	if (is_verbose) {
-		if (verbose)
-			printf("%s\n", str);
-	}
-	else {
+	if (!log_only)
 		printf("%s\n", str);
-	}
 
-	if (fh)
-		fflush(fh);
+	fflush(nullptr);
 
 	free(str);
 	free(ts_str);

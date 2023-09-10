@@ -188,7 +188,6 @@ std::optional<Vertex> gen_move(Board *const b, const board_t & p, const bool do_
 	const int dim   = b->getDim();
 	const int dimsq = dim * dim;
 
-
 	send(true, "# use_time: %f", use_time);
 
 	std::vector<std::pair<double, int> > results;
@@ -234,6 +233,7 @@ std::optional<Vertex> gen_move(Board *const b, const board_t & p, const bool do_
 		if (score > best) {
 			best = score;
 			v = Vertex(i, dim);
+			send(true, "# score %.2f (%d moves) for %s", score, results.at(i).second, v.value().to_str().c_str());
 		}
 	}
 
@@ -244,6 +244,15 @@ std::optional<Vertex> gen_move(Board *const b, const board_t & p, const bool do_
 	}
 
 	return v;
+}
+
+std::string v2t(const Vertex & v)
+{
+	char xc = 'A' + v.getX();
+	if (xc >= 'I')
+		xc++;
+
+	return myformat("%c%d", xc, v.getY() + 1);
 }
 
 int main(int argc, char *argv[])
@@ -362,6 +371,8 @@ int main(int argc, char *argv[])
 			seen.insert(b->getHash());
 
 			p = opponentColor(p);
+
+			send(true, "# %s", b->dumpFEN(p, pass).c_str());
 		}
 		else if (parts.at(0) == "quit") {
 			send(false, "=%s", id.c_str());
@@ -476,7 +487,7 @@ int main(int argc, char *argv[])
 				timeLeft = -1.0;
 
 				if (v.has_value()) {
-					send(false, "=%s %s", id.c_str(), v.value().to_str().c_str());
+					send(false, "=%s %s", id.c_str(), v2t(v.value()).c_str());
 
 					pass = 0;
 				}
