@@ -181,7 +181,7 @@ std::tuple<Board *, board_t, int> stringToPosition(const std::string & in)
 	return { b, player, pass };
 }
 
-std::optional<Vertex> gen_move(Board *const b, const board_t & p, const bool do_play, const double use_time, const double komi, const int n_threads, std::unordered_set<uint64_t> *const seen)
+std::optional<Vertex> gen_move(const int move_nr, Board *const b, const board_t & p, const bool do_play, const double use_time, const double time_left, const double komi, const int n_threads, std::unordered_set<uint64_t> *const seen)
 {
 	if (use_time <= 0.001)
 		return { };
@@ -245,7 +245,7 @@ std::optional<Vertex> gen_move(Board *const b, const board_t & p, const bool do_
 	}
 
 	if (v.has_value())
-		send(true, "# score %.2f (%d moves) for %s in %f seconds, %d results", best, best_count, v.value().to_str().c_str(), duration, n_results);
+		send(true, "# move nr %d, score %.2f (%d moves) for %s in %d ms (time left: %.2f), %d results, %lu playouts, %.2f moves/playout", move_nr, best, best_count, v.value().to_str().c_str(), duration, time_left, n_results, n, nm / double(n));
 
 	if (do_play && v.has_value()) {
 		b->startMove();
@@ -317,8 +317,8 @@ int main(int argc, char *argv[])
 
 	double   komi = 0.;
 
-	double   timeLeftB = -1;
-	double   timeLeftW = -1;
+	double   time_leftB = -1;
+	double   time_leftW = -1;
 
 	int      moves_executed = 0;
 	int      moves_total    = dim * dim;
@@ -370,6 +370,8 @@ int main(int argc, char *argv[])
 			b = new Board(&z, dim);
 
 			seen.clear();
+
+			moves_executed = 0;
 
 			p    = board_t::B_BLACK;
 			pass = 0;
@@ -424,9 +426,9 @@ int main(int argc, char *argv[])
 			board_t player = (parts.at(1) == "b" || parts.at(1) == "black") ? board_t::B_BLACK : board_t::B_WHITE;
 
 			if (player == board_t::B_BLACK)
-				timeLeftB = atof(parts.at(2).c_str());
+				time_leftB = atof(parts.at(2).c_str());
 			else
-				timeLeftW = atof(parts.at(2).c_str());
+				time_leftW = atof(parts.at(2).c_str());
 
 			send(false, "=%s", id.c_str());  // TODO
 		}
@@ -485,10 +487,10 @@ int main(int argc, char *argv[])
 		else if (parts.at(0) == "genmove" || parts.at(0) == "reg_genmove") {
 			board_t player = (parts.at(1) == "b" || parts.at(1) == "black") ? board_t::B_BLACK : board_t::B_WHITE;
 
-			double timeLeft = player == board_t::B_BLACK ? timeLeftB : timeLeftW;
+			double time_left = player == board_t::B_BLACK ? time_leftB : time_leftW;
 
-			if (timeLeft < 0)
-				timeLeft = 5.0;
+			if (time_left < 0)
+				time_left = 5.0;
 
 			auto   liberties   = b->findLiberties(player);
 			int    n_liberties = liberties->size();
@@ -500,16 +502,16 @@ int main(int argc, char *argv[])
 				pass++;
 			}
 			else {
-				double time_use = timeLeft / (std::max(n_liberties, moves_total) - moves_executed);
+				double time_use = time_left / (std::max(n_liberties, moves_total) - moves_executed);
 
 				if (++moves_executed >= moves_total)
 					moves_total = (moves_total * 4) / 3;
 
 				uint64_t start_ts = get_ts_ms();
-				auto     v        = gen_move(b, player, parts.at(0) == "genmove", time_use, komi, nThreads, &seen);
+				auto     v        = gen_move(moves_executed, b, player, parts.at(0) == "genmove", time_use, time_left, komi, nThreads, &seen);
 				uint64_t end_ts   = get_ts_ms();
 
-				timeLeft = -1.0;
+				time_left = -1.0;
 
 				if (v.has_value()) {
 					send(false, "=%s %s", id.c_str(), v2t(v.value()).c_str());
