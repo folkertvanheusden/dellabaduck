@@ -191,38 +191,53 @@ std::optional<Vertex> gen_move(const int move_nr, Board *const b, const board_t 
 
 	send(true, "# use_time: %f", use_time);
 
+	std::mutex results_lock;
 	std::vector<std::pair<double, int> > results;
 	results.resize(dimsq);
-
-	const int duration = use_time * 1000;
 
 	uint64_t n     = 0;
 	uint64_t nm    = 0;
 	uint64_t start = get_ts_ms();
 
-	do {
-		auto rc = playout(*b, komi, p, *seen);
+	const int duration = use_time * 1000;
 
-		nm += std::get<2>(rc);
-		n++;
+	std::vector<std::thread *> threads;
 
-		if (std::get<3>(rc).has_value()) {
-			auto & move = std::get<3>(rc).value();
+	for(int i=0; i<n_threads; i++) {
+		threads.push_back(new std::thread([&] {
+			do {
+				auto rc = playout(*b, komi, p, *seen);
 
-			double score = p == board_t::B_BLACK ? std::get<0>(rc) - std::get<1>(rc) : std::get<1>(rc) - std::get<0>(rc);
+				if (std::get<3>(rc).has_value()) {  // FIXME (continuing does not make sense here)
+					std::unique_lock<std::mutex> lck(results_lock);
 
-			double score_v = 0.5;
+					nm += std::get<2>(rc);
+					n++;
 
-			if (score < 0)
-				score_v = 0.;
-			else if (score > 0)
-				score_v = 1.;
+					auto & move = std::get<3>(rc).value();
 
-			results.at(move.getV()).first  += score_v;
-			results.at(move.getV()).second++;
-		}
+					double score = p == board_t::B_BLACK ? std::get<0>(rc) - std::get<1>(rc) : std::get<1>(rc) - std::get<0>(rc);
+
+					double score_v = 0.5;
+
+					if (score < 0)
+						score_v = 0.;
+					else if (score > 0)
+						score_v = 1.;
+
+					results.at(move.getV()).first  += score_v;
+					results.at(move.getV()).second++;
+				}
+			}
+			while(start + duration > get_ts_ms());
+		}));
 	}
-	while(start + duration > get_ts_ms());
+
+	for(auto & t: threads) {
+		t->join();
+
+		delete t;
+	}
 
 	std::optional<Vertex> v;
 
@@ -245,7 +260,7 @@ std::optional<Vertex> gen_move(const int move_nr, Board *const b, const board_t 
 	}
 
 	if (v.has_value())
-		send(true, "# move nr %d, score %.2f (%d playouts) for %s in %d ms (time left: %.2f), %d results, %lu playouts, %.2f moves/playout", move_nr, best, best_count, v.value().to_str().c_str(), duration, time_left, n_results, n, nm / double(n));
+		send(true, "# move nr %d, score %.2f (%d playouts) for %s in %d ms (time left: %.2f), %d results, %lu playouts, %.2f moves/playout, %.2f playouts/s", move_nr, best, best_count, v.value().to_str().c_str(), duration, time_left, n_results, n, nm / double(n), nm / use_time);
 
 	if (do_play && v.has_value()) {
 		b->startMove();
