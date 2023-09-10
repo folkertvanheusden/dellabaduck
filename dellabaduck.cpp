@@ -260,7 +260,7 @@ std::optional<Vertex> gen_move(const int move_nr, Board *const b, const board_t 
 	}
 
 	if (v.has_value())
-		send(true, "# move nr %d, score %.2f (%d playouts) for %s in %d ms (time left: %.2f), %d results, %lu playouts, %.2f moves/playout, %.2f playouts/s", move_nr, best, best_count, v.value().to_str().c_str(), duration, time_left, n_results, n, nm / double(n), nm / use_time);
+		send(true, "# move nr %d, score %.2f (%d playouts) for %s in %d ms (time left: %.2f), %d results, %lu playouts, %.2f moves/playout, %.2f playouts/s", move_nr, best, best_count, v.value().to_str().c_str(), duration, time_left, n_results, n, nm / double(n), n / use_time);
 
 	if (do_play && v.has_value()) {
 		b->startMove();
