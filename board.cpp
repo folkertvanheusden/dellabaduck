@@ -588,6 +588,12 @@ void Board::collectLiberties()
 			}
 		}
 	}
+
+	for(auto & ch: whiteChains)
+		ch.second->uniqueLiberties();
+
+	for(auto & ch: blackChains)
+		ch.second->uniqueLiberties();
 }
 
 uint64_t Board::getHashForMove(const int v, const board_t bv)
