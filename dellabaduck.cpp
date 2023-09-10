@@ -38,14 +38,14 @@
 
 Zobrist z(19);
 
-std::tuple<double, double, int, std::optional<Vertex> > playout(const Board & in, const double komi, const board_t p)
+std::tuple<double, double, int, std::optional<Vertex> > playout(const Board & in, const double komi, const board_t p, const std::unordered_set<uint64_t> & seen_in)
 {
 	Board b(in);
 
 	const int dim   = b.getDim();
 	const int dimsq = dim * dim;
 
-	std::unordered_set<uint64_t> seen;
+	std::unordered_set<uint64_t> seen = seen_in;
 	seen.insert(b.getHash());
 
 	int  mc      { 0     };
@@ -152,14 +152,14 @@ std::tuple<double, double, int, std::optional<Vertex> > playout(const Board & in
 	return std::tuple<double, double, int, std::optional<Vertex> >(s.first, s.second, mc, first.value());
 }
 
-void benchmark(const Board & b, const board_t p, const double komi, const int duration)
+void benchmark(const Board & b, const board_t p, const double komi, const int duration, const std::unordered_set<uint64_t> & seen_in)
 {
 	uint64_t n     = 0;
 	uint64_t nm    = 0;
 	uint64_t start = get_ts_ms();
 
 	do {
-		auto rc = playout(b, komi, p);
+		auto rc = playout(b, komi, p, seen_in);
 		nm += std::get<2>(rc);
 		n++;
 	}
@@ -201,7 +201,7 @@ std::optional<Vertex> gen_move(Board *const b, const board_t & p, const bool do_
 	uint64_t start = get_ts_ms();
 
 	do {
-		auto rc = playout(*b, komi, p);
+		auto rc = playout(*b, komi, p, *seen);
 
 		nm += std::get<2>(rc);
 		n++;
@@ -452,7 +452,7 @@ int main(int argc, char *argv[])
 		else if (parts.at(0) == "benchmark") {
 			int duration = parts.size() == 2 ? atoi(parts.at(1).c_str()) : 1000;
 
-			benchmark(*b, p, komi, duration);
+			benchmark(*b, p, komi, duration, seen);
 		}
 		else if (parts.at(0) == "perft" && (parts.size() == 2 || parts.size() == 3)) {
 			int      depth   = atoi(parts.at(1).c_str());
