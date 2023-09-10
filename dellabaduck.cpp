@@ -38,6 +38,44 @@
 
 Zobrist z(19);
 
+bool isInEye(const Board & b, const int x, const int y, const board_t stone)
+{
+        const int dim = b.getDim();
+
+        int check_n = 0;
+        int fail_n  = 0;
+
+        if (x > 0) {
+                check_n++;
+
+                if (b.getAt(x - 1, y) == stone)
+                        fail_n++;
+        }
+
+        if (y > 0) {
+                check_n++;
+
+                if (b.getAt(x, y - 1) == stone)
+                        fail_n++;
+        }
+
+        if (x < dim - 1) {
+                check_n++;
+
+                if (b.getAt(x + 1, y) == stone)
+                        fail_n++;
+        }
+
+        if (y < dim - 1) {
+                check_n++;
+
+                if (b.getAt(x, y + 1) == stone)
+                        fail_n++;
+        }
+
+        return check_n == fail_n;
+}
+
 std::tuple<double, double, int, std::optional<Vertex> > playout(const Board & in, const double komi, const board_t p, const std::unordered_set<uint64_t> & seen_in)
 {
 	Board b(in);
@@ -83,18 +121,18 @@ std::tuple<double, double, int, std::optional<Vertex> > playout(const Board & in
 		int d = rng(gen) & 1 ? 1 : -1;
 
 		int x = 0;
-		int y =0;
+		int y = 0;
 
 		while(attempt_n < n_liberties) {
 			b.startMove();
 			b.putAt(liberties->at(o), for_whom);
 			b.finishMove();
 
-			// and see if it did not produce a ko
-			if (seen.insert(b.getHash()).second == true) {
-				x = liberties->at(o).getX();
-				y = liberties->at(o).getY();
+			x = liberties->at(o).getX();
+			y = liberties->at(o).getY();
 
+			// and see if it did not produce a ko and is not in an eye
+			if (isInEye(b, x, y, for_whom) == false && seen.insert(b.getHash()).second == true) {
 				if (first.has_value() == false)
 					first = liberties->at(o);
 
@@ -181,15 +219,10 @@ std::tuple<Board *, board_t, int> stringToPosition(const std::string & in)
 	return { b, player, pass };
 }
 
-std::optional<Vertex> gen_move(const int move_nr, Board *const b, const board_t & p, const bool do_play, const double use_time, const double time_left, const double komi, const int n_threads, std::unordered_set<uint64_t> *const seen)
+std::optional<Vertex> gen_move(const int move_nr, Board *const b, const board_t & p, const bool do_play, const uint64_t think_end_ts, const double time_left, const double komi, const int n_threads, std::unordered_set<uint64_t> *const seen)
 {
-	if (use_time <= 0.001)
-		return { };
-
 	const int dim   = b->getDim();
 	const int dimsq = dim * dim;
-
-	send(true, "# use_time: %f", use_time);
 
 	std::mutex results_lock;
 	std::vector<std::pair<double, int> > results;
@@ -198,8 +231,6 @@ std::optional<Vertex> gen_move(const int move_nr, Board *const b, const board_t 
 	uint64_t n     = 0;
 	uint64_t nm    = 0;
 	uint64_t start = get_ts_ms();
-
-	const int duration = use_time * 1000;
 
 	std::vector<std::thread *> threads;
 
@@ -229,7 +260,7 @@ std::optional<Vertex> gen_move(const int move_nr, Board *const b, const board_t 
 					results.at(move.getV()).second++;
 				}
 			}
-			while(start + duration > get_ts_ms());
+			while(get_ts_ms() < think_end_ts);
 		}));
 	}
 
@@ -259,8 +290,11 @@ std::optional<Vertex> gen_move(const int move_nr, Board *const b, const board_t 
 		}
 	}
 
-	if (v.has_value())
-		send(true, "# move nr %d, score %.2f (%d playouts) for %s in %d ms (time left: %.2f), %d results, %lu playouts, %.2f moves/playout, %.2f playouts/s", move_nr, best, best_count, v.value().to_str().c_str(), duration, time_left, n_results, n, nm / double(n), n / use_time);
+	if (v.has_value()) {
+		double duration = (get_ts_ms() - start) / 1000.;
+
+		send(true, "# move nr %d, score %.2f (%d playouts) for %s in %d ms (time left: %.2f), %d results, %lu playouts, %.2f moves/playout, %.2f playouts/s", move_nr, best, best_count, v.value().to_str().c_str(), duration, time_left, n_results, n, nm / double(n), n / duration);
+	}
 
 	if (do_play && v.has_value()) {
 		b->startMove();
@@ -500,12 +534,11 @@ int main(int argc, char *argv[])
 			seen.insert(b->getHash());
 		}
 		else if (parts.at(0) == "genmove" || parts.at(0) == "reg_genmove") {
+			uint64_t start_ts = get_ts_ms();
+
 			board_t player = (parts.at(1) == "b" || parts.at(1) == "black") ? board_t::B_BLACK : board_t::B_WHITE;
 
 			double time_left = player == board_t::B_BLACK ? time_leftB : time_leftW;
-
-			if (time_left < 0)
-				time_left = 5.0;
 
 			auto   liberties   = b->findLiberties(player);
 			int    n_liberties = liberties->size();
@@ -528,9 +561,10 @@ int main(int argc, char *argv[])
 				if (++moves_executed >= moves_total)
 					moves_total = (moves_total * 4) / 3;
 
-				uint64_t start_ts = get_ts_ms();
-				auto     v        = gen_move(moves_executed, b, player, parts.at(0) == "genmove", time_use, time_left, komi, nThreads, &seen);
-				uint64_t end_ts   = get_ts_ms();
+				send(true, "# use_time: %f", time_use);
+
+				uint64_t think_end_ts = start_ts + time_use * 1000;
+				auto     v            = gen_move(moves_executed, b, player, parts.at(0) == "genmove", think_end_ts, time_left, komi, nThreads, &seen);
 
 				time_left = -1.0;
 
