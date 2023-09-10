@@ -511,7 +511,13 @@ int main(int argc, char *argv[])
 			int    n_liberties = liberties->size();
 			delete liberties;
 
-			if (n_liberties == 0) {
+			auto s = score(*b, komi);
+			double current_score = player == board_t::B_BLACK ? s.first - s.second : s.second - s.first;
+			bool pass_for_win_time = current_score > 0 && time_left <= 0;  // we've won anyway
+
+			bool pass_for_win_pass = pass > 0 && current_score > 0;
+
+			if (n_liberties == 0 || pass_for_win_time || pass_for_win_pass) {
 				send(false, "=%s pass", id.c_str());
 
 				pass++;
