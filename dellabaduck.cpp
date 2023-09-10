@@ -38,7 +38,7 @@
 
 Zobrist z(19);
 
-std::tuple<double, double, int> playout(const Board & in, const double komi, const board_t p)
+std::tuple<double, double, int, Vertex> playout(const Board & in, const double komi, const board_t p)
 {
 	Board b(in);
 
@@ -59,6 +59,8 @@ std::tuple<double, double, int> playout(const Board & in, const double komi, con
 #endif
 
 	board_t for_whom = p;
+
+	std::optional<Vertex> first;
 
 	while(++mc < dim * dim * dim) {
 		size_t attempt_n = 0;
@@ -87,6 +89,9 @@ std::tuple<double, double, int> playout(const Board & in, const double komi, con
 			b.startMove();
 			b.putAt(liberties->at(o), for_whom);
 			b.finishMove();
+
+			if (first.has_value() == false)
+				first = liberties->at(o);
 
 			// and see if it did not produce a ko
 			if (seen.insert(b.getHash()).second == true) {
@@ -143,7 +148,7 @@ std::tuple<double, double, int> playout(const Board & in, const double komi, con
 	printf("%s\n", sgf.c_str());
 #endif
 
-	return std::tuple<double, double, int>(s.first, s.second, mc);
+	return std::tuple<double, double, int, Vertex>(s.first, s.second, mc, first.value());
 }
 
 void benchmark(const Board & b, const board_t p, const double komi, const int duration)
@@ -173,6 +178,72 @@ std::tuple<Board *, board_t, int> stringToPosition(const std::string & in)
 	int      pass   = atoi(parts.at(2).c_str());
 
 	return { b, player, pass };
+}
+
+std::optional<Vertex> gen_move(Board *const b, const board_t & p, const bool do_play, const double use_time, const double komi, const int n_threads, std::unordered_set<uint64_t> *const seen)
+{
+	if (use_time <= 0.001)
+		return { };
+
+	const int dim   = b->getDim();
+	const int dimsq = dim * dim;
+
+
+	send(true, "# use_time: %f", use_time);
+
+	std::vector<std::pair<double, int> > results;
+	results.resize(dimsq);
+
+	const int duration = use_time * 1000;
+
+	uint64_t n     = 0;
+	uint64_t nm    = 0;
+	uint64_t start = get_ts_ms();
+
+	do {
+		auto rc = playout(*b, komi, p);
+
+		nm += std::get<2>(rc);
+		n++;
+
+		auto & move = std::get<3>(rc);
+
+		double score = p == board_t::B_BLACK ? std::get<0>(rc) - std::get<1>(rc) : std::get<1>(rc) - std::get<0>(rc);
+
+		double score_v = 0.5;
+
+		if (score < 0)
+			score_v = 0.;
+		else if (score > 0)
+			score_v = 1.;
+
+		results.at(move.getV()).first  += score_v;
+		results.at(move.getV()).second++;
+	}
+	while(start + duration > get_ts_ms());
+
+	std::optional<Vertex> v;
+
+	double best = -1.;
+	for(size_t i=0; i<results.size(); i++) {
+		if (results.at(i).second == 0)
+			continue;
+
+		double score = results.at(i).first / results.at(i).second;
+
+		if (score > best) {
+			best = score;
+			v = Vertex(i, dim);
+		}
+	}
+
+	if (do_play && v.has_value()) {
+		b->startMove();
+		b->putAt(v.value(), p);
+		b->finishMove();
+	}
+
+	return v;
 }
 
 int main(int argc, char *argv[])
@@ -211,6 +282,12 @@ int main(int argc, char *argv[])
 	int      pass = 0;
 
 	double   komi = 0.;
+
+	double   timeLeftB = -1;
+	double   timeLeftW = -1;
+
+	int      moves_executed = 0;
+	int      moves_total    = dim * dim;
 
 	std::unordered_set<uint64_t> seen;
 
@@ -304,6 +381,19 @@ int main(int argc, char *argv[])
 
 			send(false, "=%s", id.c_str());  // TODO
 		}
+		else if (parts.at(0) == "time_settings") {
+			send(false, "=%s", id.c_str());  // TODO
+		}
+		else if (parts.at(0) == "time_left" && parts.size() >= 3) {
+			board_t player = (parts.at(1) == "b" || parts.at(1) == "black") ? board_t::B_BLACK : board_t::B_WHITE;
+
+			if (player == board_t::B_BLACK)
+				timeLeftB = atof(parts.at(2).c_str());
+			else
+				timeLeftW = atof(parts.at(2).c_str());
+
+			send(false, "=%s", id.c_str());  // TODO
+		}
 		else if (parts.at(0) == "list_commands") {
 			send(false, "=%s name", id.c_str());
 			send(false, "version");
@@ -313,10 +403,16 @@ int main(int argc, char *argv[])
 			send(false, "genmove");
 			send(false, "komi");
 			send(false, "quit");
-			send(false, "loadsgf");
 			send(false, "final_score");
 			send(false, "time_settings");
 			send(false, "time_left");
+		}
+		else if (parts.at(0) == "final_score") {
+			auto final_score = score(*b, komi);
+
+			send(true, "# black: %f, white: %f", final_score.first, final_score.second);
+
+			send(false, "=%s %s", id.c_str(), scoreStr(final_score).c_str());
 		}
 		else if (parts.at(0) == "player") {
 			send(false, "=%s %c", id.c_str(), p == board_t::B_BLACK ? 'B' : 'W');
@@ -349,6 +445,54 @@ int main(int argc, char *argv[])
 			pass = std::get<2>(new_position);
 
 			seen.insert(b->getHash());
+		}
+		else if (parts.at(0) == "genmove" || parts.at(0) == "reg_genmove") {
+			board_t player = (parts.at(1) == "b" || parts.at(1) == "black") ? board_t::B_BLACK : board_t::B_WHITE;
+
+			double timeLeft = player == board_t::B_BLACK ? timeLeftB : timeLeftW;
+
+			if (timeLeft < 0)
+				timeLeft = 5.0;
+
+			auto   liberties   = b->findLiberties(player);
+			int    n_liberties = liberties->size();
+			delete liberties;
+
+			if (n_liberties == 0) {
+				send(false, "=%s pass", id.c_str());
+
+				pass++;
+			}
+			else {
+				double time_use = timeLeft / (std::max(n_liberties, moves_total) - moves_executed);
+
+				if (++moves_executed >= moves_total)
+					moves_total = (moves_total * 4) / 3;
+
+				uint64_t start_ts = get_ts_ms();
+				auto     v        = gen_move(b, player, parts.at(0) == "genmove", time_use, komi, nThreads, &seen);
+				uint64_t end_ts   = get_ts_ms();
+
+				timeLeft = -1.0;
+
+				if (v.has_value()) {
+					send(false, "=%s %s", id.c_str(), v.value().to_str().c_str());
+
+					pass = 0;
+				}
+				else {
+					send(false, "=%s pass", id.c_str());
+
+					pass++;
+				}
+			}
+
+			p = opponentColor(player);
+
+			if (parts.at(0) == "genmove")
+				seen.insert(b->getHash());
+
+			send(true, "# %s", b->dumpFEN(p, pass).c_str());
 		}
 		else {
 			send(false, "?");
