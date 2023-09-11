@@ -103,12 +103,11 @@ std::tuple<double, double, int, std::optional<Vertex> > playout(const Board & in
 	while(++mc < dim * dim * dim) {
 		size_t attempt_n = 0;
 
-	        std::vector<Vertex> *liberties = b.findLiberties(for_whom);
+	        std::vector<Vertex> liberties = b.findLiberties(for_whom);
 
-		size_t n_liberties = liberties->size();
+		size_t n_liberties = liberties.size();
 
 		if (n_liberties == 0) {
-			delete liberties;
 #ifdef STORE_1_PLAYOUT
 			sgf += myformat(";%c[pass]", for_whom == board_t::B_BLACK ? 'B' : 'W');
 #endif
@@ -125,16 +124,16 @@ std::tuple<double, double, int, std::optional<Vertex> > playout(const Board & in
 
 		while(attempt_n < n_liberties) {
 			b.startMove();
-			b.putAt(liberties->at(o), for_whom);
+			b.putAt(liberties.at(o), for_whom);
 			b.finishMove();
 
-			x = liberties->at(o).getX();
-			y = liberties->at(o).getY();
+			x = liberties.at(o).getX();
+			y = liberties.at(o).getY();
 
 			// and see if it did not produce a ko and is not in an eye
 			if (isInEye(b, x, y, for_whom) == false && seen.insert(b.getHash()).second == true) {
 				if (first.has_value() == false) {
-					first = liberties->at(o);
+					first = liberties.at(o);
 
 					assert(b.getChain(first.value()).first->getLiberties()->size() > 1);
 				}
@@ -154,8 +153,6 @@ std::tuple<double, double, int, std::optional<Vertex> > playout(const Board & in
 
 			attempt_n++;
 		}
-
-		delete liberties;
 
 		// all fields tried; pass
 		if (attempt_n >= dimsq) {
@@ -547,8 +544,7 @@ int main(int argc, char *argv[])
 			double time_left = player == board_t::B_BLACK ? time_leftB : time_leftW;
 
 			auto   liberties   = b->findLiberties(player);
-			int    n_liberties = liberties->size();
-			delete liberties;
+			int    n_liberties = liberties.size();
 
 			auto s = score(*b, komi);
 			double current_score = player == board_t::B_BLACK ? s.first - s.second : s.second - s.first;

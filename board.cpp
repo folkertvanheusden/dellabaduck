@@ -866,9 +866,9 @@ void Board::putAt(const int x, const int y, const board_t bv)
 	updateField({ x, y, dim }, bv);
 }
 
-std::vector<Vertex> * Board::findLiberties(const board_t for_whom)
+std::vector<Vertex> Board::findLiberties(const board_t for_whom)
 {
-	std::vector<Vertex> *liberties = new std::vector<Vertex>;
+	std::vector<Vertex> liberties;
 
 	const int dimsq = dim * dim;
 	const int dimm1 = dim - 1;
@@ -899,7 +899,7 @@ std::vector<Vertex> * Board::findLiberties(const board_t for_whom)
 				continue;
 
 			if ((x > 0 && okFields[o - 1]) || (x < dimm1 && okFields[o + 1]) || (y > 0 && okFields[o - dim]) || (y < dimm1 && okFields[o + dim]))
-				liberties->emplace_back(o, dim);
+				liberties.emplace_back(o, dim);
 		}
 	}
 
@@ -1083,9 +1083,9 @@ uint64_t perft_do(Board & b, std::unordered_set<uint64_t> *const seen, const boa
 
 	// b.dump();
 
-	std::vector<Vertex> *liberties = b.findLiberties(bv);
+	std::vector<Vertex> liberties = b.findLiberties(bv);
 
-	for(auto & cross : *liberties) {
+	for(auto & cross : liberties) {
 //		printf("____ do it: %s with color %s (hash: %lu)\n", cross.to_str().c_str(), board_t_name(bv), b.getHash());
 		//Board copy = b;
 //		b.dump();
@@ -1130,8 +1130,6 @@ uint64_t perft_do(Board & b, std::unordered_set<uint64_t> *const seen, const boa
 //		b.dumpChains();
 	//	assert(b == copy);
 	}
-
-	delete liberties;
 
 	if (pass < 2) {
 		uint64_t cur_count = perft_do(b, seen, new_player, new_depth, pass + 1, verbose, false);
