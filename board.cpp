@@ -3,6 +3,7 @@
 #include <ranges>
 
 #include "board.h"
+#include "io.h"
 #include "str.h"
 
 
@@ -919,8 +920,7 @@ void Board::dump()
 {
         std::string line;
 
-	printf("\n");
-	printf("hash: %lu\n", getHash());
+	send(true, "hash: %lu", getHash());
         line = "#      board";
 
 	for(int x=0; x<dim-5; x++)
@@ -933,7 +933,7 @@ void Board::dump()
 
 	line += "liberties";
 
-        printf("%s\n", line.c_str());
+        send(true, "%s", line.c_str());
 
         for(int y=dim - 1; y>=0; y--) {
                 line = myformat("# %2d | ", y + 1);
@@ -976,7 +976,7 @@ void Board::dump()
 				line += " -";
                 }
 
-                printf("%s\n", line.c_str());
+                send(true, "%s", line.c_str());
         }
 
         line = "#      ";
@@ -1006,7 +1006,7 @@ void Board::dump()
                 line += myformat(" %c", xc);
         }
 
-        printf("%s\n", line.c_str());
+        send(true, "%s", line.c_str());
 }
 
 void Board::dumpUndoSet(const bool full)

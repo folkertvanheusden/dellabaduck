@@ -444,6 +444,8 @@ int main(int argc, char *argv[])
 
 				seen.insert(b->getHash());
 
+				b->dump();
+
 				pass = 0;
 			}
 
@@ -580,6 +582,8 @@ int main(int argc, char *argv[])
 					pass++;
 				}
 			}
+
+			b->dump();
 
 			p = opponentColor(player);
 
