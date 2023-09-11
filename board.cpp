@@ -937,6 +937,10 @@ void Board::dump()
 
 	line += "liberties";
 
+	auto b_liberties = findLiberties(board_t::B_BLACK);
+
+	auto w_liberties = findLiberties(board_t::B_WHITE);
+
         send(true, "%s", line.c_str());
 
         for(int y=dim - 1; y>=0; y--) {
@@ -980,6 +984,25 @@ void Board::dump()
 				line += " -";
                 }
 
+		line += "   ";
+
+		// is liberty
+                for(int x=0; x<dim; x++) {
+			Vertex v(x, y, dim);
+
+			if (std::find(b_liberties.begin(), b_liberties.end(), v) != b_liberties.end())
+				line += "b";
+			else
+				line += " ";
+
+			if (std::find(w_liberties.begin(), w_liberties.end(), v) != w_liberties.end())
+				line += "w";
+			else
+				line += " ";
+
+			line += " ";
+		}
+
                 send(true, "%s", line.c_str());
         }
 
@@ -1008,6 +1031,17 @@ void Board::dump()
                         xc++;
 
                 line += myformat(" %c", xc);
+        }
+
+        line += "   ";
+
+        for(int x=0; x<dim; x++) {
+                int xc = 'A' + x;
+
+                if (xc >= 'I')
+                        xc++;
+
+                line += myformat("%c  ", xc);
         }
 
         send(true, "%s", line.c_str());
