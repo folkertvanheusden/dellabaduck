@@ -187,7 +187,7 @@ std::tuple<double, double, int, std::optional<Vertex> > playout(const Board & in
 	printf("%s\n", sgf.c_str());
 #endif
 
-	return std::tuple<double, double, int, std::optional<Vertex> >(s.first, s.second, mc, first.value());
+	return std::tuple<double, double, int, std::optional<Vertex> >(s.first, s.second, mc, first);
 }
 
 void benchmark(const Board & b, const board_t p, const double komi, const int duration, const std::unordered_set<uint64_t> & seen_in)
