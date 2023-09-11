@@ -880,8 +880,13 @@ std::vector<Vertex> * Board::findLiberties(const board_t for_whom)
 
 		chain *c = nullptr;
 
-		if (bv != board_t::B_EMPTY)
+		if (bv != board_t::B_EMPTY) {
 			c = (bv == board_t::B_BLACK ? &blackChains : &whiteChains)->find(cm[i])->second;
+
+			assert(c != nullptr);
+
+			assert(bv == board_t::B_WHITE || bv == board_t::B_BLACK);
+		}
 
 		okFields[i] = c == nullptr || (bv == for_whom && c->getLiberties()->size() > 1) || (bv != for_whom && c->getLiberties()->size() == 1);
 	}
