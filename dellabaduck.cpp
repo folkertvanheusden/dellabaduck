@@ -133,8 +133,11 @@ std::tuple<double, double, int, std::optional<Vertex> > playout(const Board & in
 
 			// and see if it did not produce a ko and is not in an eye
 			if (isInEye(b, x, y, for_whom) == false && seen.insert(b.getHash()).second == true) {
-				if (first.has_value() == false)
+				if (first.has_value() == false) {
 					first = liberties->at(o);
+
+					assert(b.getChain(first.value()).first->getLiberties()->size() > 1);
+				}
 
 				// no ko
 				break;  // Ok!
