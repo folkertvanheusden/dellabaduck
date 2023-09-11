@@ -873,7 +873,8 @@ std::vector<Vertex> Board::findLiberties(const board_t for_whom)
 	const int dimsq = dim * dim;
 	const int dimm1 = dim - 1;
 
-	bool *okFields = new bool[dimsq];
+	std::vector<bool> okFields;
+	okFields.resize(dimsq);
 
 	for(int i=0; i<dimsq; i++) {
 		board_t bv = getAt(i);
@@ -902,8 +903,6 @@ std::vector<Vertex> Board::findLiberties(const board_t for_whom)
 				liberties.emplace_back(o, dim);
 		}
 	}
-
-	delete [] okFields;
 
 	return liberties;
 }
