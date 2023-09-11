@@ -80,8 +80,7 @@ std::tuple<double, double, int, std::optional<Vertex> > playout(const Board & in
 {
 	Board b(in);
 
-	const int dim   = b.getDim();
-	const int dimsq = dim * dim;
+	const int dim = b.getDim();
 
 	std::unordered_set<uint64_t> seen = seen_in;
 	seen.insert(b.getHash());
@@ -98,10 +97,15 @@ std::tuple<double, double, int, std::optional<Vertex> > playout(const Board & in
 
 	board_t for_whom = p;
 
+	bool first_is_pass = false;
 	std::optional<Vertex> first;
 
 	while(++mc < dim * dim * dim) {
 		size_t attempt_n = 0;
+
+		send(true, "GREP %d | %s", mc, b.dumpFEN(for_whom, 0).c_str());
+//		b.dump();
+//		send(true, "---- GREP %d", mc);
 
 	        std::vector<Vertex> liberties = b.findLiberties(for_whom);
 
@@ -123,6 +127,8 @@ std::tuple<double, double, int, std::optional<Vertex> > playout(const Board & in
 		int y = 0;
 
 		while(attempt_n < n_liberties) {
+			assert(b.getAt(liberties.at(o)) == board_t::B_EMPTY);
+
 			b.startMove();
 			b.putAt(liberties.at(o), for_whom);
 			b.finishMove();
@@ -132,10 +138,19 @@ std::tuple<double, double, int, std::optional<Vertex> > playout(const Board & in
 
 			// and see if it did not produce a ko and is not in an eye
 			if (isInEye(b, x, y, for_whom) == false && seen.insert(b.getHash()).second == true) {
-				if (first.has_value() == false) {
+				if (first.has_value() == false && first_is_pass == false) {
+					assert(o < n_liberties);
 					first = liberties.at(o);
 
-					assert(b.getChain(first.value()).first->getLiberties()->size() > 1);
+					if (b.getChain(first.value()).first->getLiberties()->size() <= 1) {
+						send(true, "HIERRRRRR GREP %s | %s | %d/%d", first.value().to_str().c_str(), board_t_name(for_whom), mc, attempt_n);
+						b.dump();
+						send(true, "GREP HIERRRRRR %s | %s | %d/%d", first.value().to_str().c_str(), board_t_name(for_whom), mc, attempt_n);
+					}
+
+					assert(b.getChain(first.value()).first->getLiberties()->size() > 0);
+
+					assert(for_whom == p);
 				}
 
 				// no ko
@@ -155,7 +170,9 @@ std::tuple<double, double, int, std::optional<Vertex> > playout(const Board & in
 		}
 
 		// all fields tried; pass
-		if (attempt_n >= dimsq) {
+		if (attempt_n >= n_liberties) {
+			send(true, "GREP PASS");
+
 			pass[for_whom == board_t::B_BLACK] = true;
 
 #ifdef STORE_1_PLAYOUT
@@ -167,6 +184,9 @@ std::tuple<double, double, int, std::optional<Vertex> > playout(const Board & in
 
 			for_whom = opponentColor(for_whom);
 
+			if (mc == 1 && first.has_value() == false)
+				first_is_pass = true;
+
 			continue;
 		}
 
@@ -177,6 +197,8 @@ std::tuple<double, double, int, std::optional<Vertex> > playout(const Board & in
 #endif
 
 		for_whom = opponentColor(for_whom);
+
+		assert(first.has_value() || first_is_pass);
 	}
 
 	auto s = score(b, komi);
