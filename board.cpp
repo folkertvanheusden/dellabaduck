@@ -868,7 +868,7 @@ void Board::putAt(const int x, const int y, const board_t bv)
 
 std::vector<Vertex> * Board::findLiberties(const board_t for_whom)
 {
-	std::vector<Vertex> *empties = new std::vector<Vertex>;
+	std::vector<Vertex> *liberties = new std::vector<Vertex>;
 
 	const int dimsq = dim * dim;
 	const int dimm1 = dim - 1;
@@ -894,13 +894,13 @@ std::vector<Vertex> * Board::findLiberties(const board_t for_whom)
 				continue;
 
 			if ((x > 0 && okFields[o - 1]) || (x < dimm1 && okFields[o + 1]) || (y > 0 && okFields[o - dim]) || (y < dimm1 && okFields[o + dim]))
-				empties->emplace_back(o, dim);
+				liberties->emplace_back(o, dim);
 		}
 	}
 
 	delete [] okFields;
 
-	return empties;
+	return liberties;
 }
 
 void Board::dumpChains()
