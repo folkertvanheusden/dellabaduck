@@ -251,11 +251,13 @@ std::optional<Vertex> gen_move(const int move_nr, Board *const b, const board_t 
 
 			auto & move = std::get<0>(rc);
 
-			std::unique_lock<std::mutex> lck(results_lock);
+			if (move.has_value()) {
+				std::unique_lock<std::mutex> lck(results_lock);
 
-			n += std::get<1>(rc);
+				n += std::get<1>(rc);
 
-			results.at(move.getV()) += std::get<2>(rc);
+				results.at(move.value().getV()) += std::get<2>(rc);
+			}
 		}));
 	}
 

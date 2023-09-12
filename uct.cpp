@@ -181,6 +181,9 @@ uct_node *uct_node::best_child() const
 	uint64_t  best_count = 0;
 
 	for(auto u : children) {
+		if (u.second->is_valid() == false)
+			continue;
+
 		uint64_t count = u.second->get_visit_count();
 
 		if (count > best_count) {
@@ -267,7 +270,7 @@ const std::vector<std::pair<Vertex, uct_node *> > & uct_node::get_children() con
 	return children;
 }
 
-std::tuple<Vertex, uint64_t, uint64_t> calculate_move(const Board & b, const board_t p, const uint64_t think_end_time, const double komi, const std::unordered_set<uint64_t> & seen)
+std::tuple<std::optional<Vertex>, uint64_t, uint64_t> calculate_move(const Board & b, const board_t p, const uint64_t think_end_time, const double komi, const std::unordered_set<uint64_t> & seen)
 {
 	uct_node *root     = new uct_node(nullptr, b, p, { }, komi, seen);
 
@@ -279,9 +282,16 @@ std::tuple<Vertex, uint64_t, uint64_t> calculate_move(const Board & b, const boa
 		n_played++;
 
 		if (get_ts_ms() >= think_end_time) {
-			auto best_move = root->best_child()->get_causing_move();
+			auto best_node      = root->best_child();
 
-			auto best_count = root->best_child()->get_visit_count();
+			std::optional<Vertex> best_move;
+			uint64_t best_count = 0;
+
+			if (best_node) {
+				best_move  = best_node->get_causing_move();
+
+				best_count = best_node->get_visit_count();
+			}
 
 			// root->verify();
 
