@@ -117,19 +117,17 @@ double uct_node::get_score()
 
 uct_node *uct_node::pick_unvisited()
 {
-	for(;;) {
-		if (unvisited.empty())
-			break;
+	if (unvisited.empty())
+		return nullptr;
 
-		auto first = unvisited.begin();  // back + pop_back
+	auto first = unvisited.begin();  // back + pop_back
 
-		auto new_node = add_child(*first);
+	auto new_node = add_child(*first);
 
-		unvisited.erase(first);
+	unvisited.erase(first);
 
-		if (new_node.has_value())
-			return new_node.value();
-	}
+	if (new_node.has_value())
+		return new_node.value();
 
 	return nullptr;
 }
