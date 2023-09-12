@@ -241,6 +241,8 @@ public:
 	size_t getUndoDepth();
 
 	void undoMoveSet();
+
+	void setAt(const int x, const int y, const board_t bv) { assert(x >= 0 && x < dim && y >= 0 && y < dim); b[y * dim + x] = bv; }
 };
 
 uint64_t perft_do(Board & b, std::unordered_set<uint64_t> *const seen, const board_t bv, const int depth, const int pass, const bool verbose, const bool top);
