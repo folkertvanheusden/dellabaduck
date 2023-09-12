@@ -14,17 +14,20 @@
 
 thread_local auto rng = std::default_random_engine {};
 
-uct_node::uct_node(uct_node *const parent, const Board & position, const board_t player, const std::optional<Vertex> & causing_move, const double komi) :
+uct_node::uct_node(uct_node *const parent, const Board & position, const board_t player, const std::optional<Vertex> & causing_move, const double komi, const std::unordered_set<uint64_t> & seen) :
 	parent(parent),
 	position(position),
 	player(player),
 	causing_move(causing_move),
-	komi(komi)
+	komi(komi),
+	seen(seen)
 {
 	if (causing_move.has_value()) {
 		this->position.startMove();
 		this->position.putAt(causing_move.value(), opponentColor(player));
 		this->position.finishMove();
+
+		this->seen.insert(this->position.getHash());
 	}
 
 	unvisited = this->position.findLiberties(player);
@@ -70,7 +73,7 @@ bool uct_node::verify() const
 
 uct_node *uct_node::add_child(const Vertex & m)
 {
-	uct_node *new_node = new uct_node(this, position, opponentColor(player), m, komi);
+	uct_node *new_node = new uct_node(this, position, opponentColor(player), m, komi, seen);
 
 	children.emplace_back(m, new_node);
 
@@ -252,9 +255,9 @@ const std::vector<std::pair<Vertex, uct_node *> > & uct_node::get_children() con
 	return children;
 }
 
-std::tuple<Vertex, uint64_t, uint64_t> calculate_move(const Board & b, const board_t p, const uint64_t think_end_time, const double komi)
+std::tuple<Vertex, uint64_t, uint64_t> calculate_move(const Board & b, const board_t p, const uint64_t think_end_time, const double komi, const std::unordered_set<uint64_t> & seen)
 {
-	uct_node *root     = new uct_node(nullptr, b, p, { }, komi);
+	uct_node *root     = new uct_node(nullptr, b, p, { }, komi, seen);
 
 	uint64_t  n_played = 0;
 

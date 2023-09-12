@@ -247,7 +247,7 @@ std::optional<Vertex> gen_move(const int move_nr, Board *const b, const board_t 
 
 	for(int i=0; i<n_threads; i++) {
 		threads.push_back(new std::thread([&] {
-			auto rc = calculate_move(*b, p, think_end_ts, komi);
+			auto rc = calculate_move(*b, p, think_end_ts, komi, *seen);
 
 			auto & move = std::get<0>(rc);
 
