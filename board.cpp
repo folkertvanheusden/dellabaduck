@@ -699,12 +699,19 @@ void Board::assign(const Board & in)
 			cm[y * dim + x] = in.getCMAt(x, y);
 	}
 
+	cnr = 0;
+
 	for(int i=0; i<2; i++) {
 		chainGroups[i].clear();
 
-		for(auto & entry: *in.getChainGroup(i))
+		for(auto & entry: *in.getChainGroup(i)) {
 			chainGroups[i].insert({ entry.first, entry.second->duplicate() });
+
+			cnr = std::max(cnr, entry.first);
+		}
 	}
+
+	cnr++;
 }
 
 // this ignores undo history!

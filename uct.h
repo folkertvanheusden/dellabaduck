@@ -11,7 +11,7 @@ class uct_node
 private:
 	uct_node                 *const parent    { nullptr };
 	Board                           position;
-	const player_t                  player;
+	const board_t                   player;
 	const std::optional<Vertex>     causing_move;
 	const double                    komi;
 
@@ -34,12 +34,12 @@ private:
 	double    playout(const uct_node *const leaf);
 
 public:
-	uct_node(uct_node *const parent, const Board & position, const player_t player, const std::optional<Vertex> & causing_move, const double komi);
+	uct_node(uct_node *const parent, const Board & position, const board_t player, const std::optional<Vertex> & causing_move, const double komi);
 	virtual ~uct_node();
 
 	bool         is_game_over() const { return game_over; }
 
-	player_t     get_player() const { return player; }
+	board_t      get_player() const { return player; }
 
 	void         monte_carlo_tree_search();
 
@@ -57,4 +57,4 @@ public:
 	double       get_score_count();
 };
 
-std::tuple<Vertex, uint64_t, uint64_t> calculate_move(const Board & b, const player_t p, const unsigned think_time, const double komi);
+std::tuple<Vertex, uint64_t, uint64_t> calculate_move(const Board & b, const board_t p, const uint64_t think_end_time, const double komi);

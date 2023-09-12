@@ -33,6 +33,7 @@ add_executable(
   score.cpp
   str.cpp
   time.cpp
+  uct.cpp
   vertex.cpp
   zobrist.cpp
 )

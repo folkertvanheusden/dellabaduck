@@ -32,6 +32,7 @@
 #include "score.h"
 #include "str.h"
 #include "time.h"
+#include "uct.h"
 #include "vertex.h"
 #include "zobrist.h"
 
@@ -235,7 +236,7 @@ std::optional<Vertex> gen_move(const int move_nr, Board *const b, const board_t 
 	const int dimsq = dim * dim;
 
 	std::mutex results_lock;
-	std::vector<std::pair<double, int> > results;
+	std::vector<uint64_t> results;
 	results.resize(dimsq);
 
 	uint64_t n     = 0;
@@ -246,31 +247,15 @@ std::optional<Vertex> gen_move(const int move_nr, Board *const b, const board_t 
 
 	for(int i=0; i<n_threads; i++) {
 		threads.push_back(new std::thread([&] {
-			do {
-				auto rc = playout(*b, komi, p, *seen);
+			auto rc = calculate_move(*b, p, think_end_ts, komi);
 
-				if (std::get<3>(rc).has_value()) {  // FIXME (continuing does not make sense here)
-					std::unique_lock<std::mutex> lck(results_lock);
+			auto & move = std::get<0>(rc);
 
-					nm += std::get<2>(rc);
-					n++;
+			std::unique_lock<std::mutex> lck(results_lock);
 
-					auto & move = std::get<3>(rc).value();
+			n += std::get<1>(rc);
 
-					double score = p == board_t::B_BLACK ? std::get<0>(rc) - std::get<1>(rc) : std::get<1>(rc) - std::get<0>(rc);
-
-					double score_v = 0.5;
-
-					if (score < 0)
-						score_v = 0.;
-					else if (score > 0)
-						score_v = 1.;
-
-					results.at(move.getV()).first  += score_v;
-					results.at(move.getV()).second++;
-				}
-			}
-			while(get_ts_ms() < think_end_ts);
+			results.at(move.getV()) += std::get<2>(rc);
 		}));
 	}
 
@@ -282,20 +267,16 @@ std::optional<Vertex> gen_move(const int move_nr, Board *const b, const board_t 
 
 	std::optional<Vertex> v;
 
-	double best = -1.;
-	int    best_count = -1;
-	int    n_results = 0;
+	uint64_t best_count = 0;
+	int      n_results  = 0;
 	for(size_t i=0; i<results.size(); i++) {
-		if (results.at(i).second == 0)
+		if (results.at(i) == 0)
 			continue;
 
 		n_results++;
 
-		double score = results.at(i).first / results.at(i).second;
-
-		if (score > best) {
-			best = score;
-			best_count = results.at(i).second;
+		if (results.at(i) > best_count) {
+			best_count = results.at(i);
 			v = Vertex(i, dim);
 		}
 	}
@@ -303,8 +284,8 @@ std::optional<Vertex> gen_move(const int move_nr, Board *const b, const board_t 
 	if (v.has_value()) {
 		uint64_t duration = get_ts_ms() - start;
 
-		send(true, "# move nr %d, score %.2f (%d playouts) for %s in %lu ms (time left: %.2f), %d results, %lu playouts, %.2f moves/playout, %.2f playouts/s",
-				move_nr, best, best_count, v.value().to_str().c_str(), duration, time_left, n_results, n, nm / double(n), n * 1000. / duration);
+		send(true, "# move nr %d, best_count %lu for %s in %lu ms (time left: %.2f), %d results, %lu playouts, %.2f moves/playout, %.2f playouts/s",
+				move_nr, best_count, v.value().to_str().c_str(), duration, time_left, n_results, n, nm / double(n), n * 1000. / duration);
 	}
 
 	if (do_play && v.has_value()) {

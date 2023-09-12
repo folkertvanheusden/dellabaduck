@@ -5,7 +5,7 @@
 #include <mutex>
 
 #include "board.h"
-#include "helpers.h"
+#include "io.h"
 #include "main.h"
 #include "random.h"
 #include "time.h"
@@ -14,30 +14,25 @@
 
 thread_local auto rng = std::default_random_engine {};
 
-uct_node::uct_node(uct_node *const parent, const Board & position, const player_t player, const std::optional<Vertex> & causing_move, const double komi) :
+uct_node::uct_node(uct_node *const parent, const Board & position, const board_t player, const std::optional<Vertex> & causing_move, const double komi) :
 	parent(parent),
 	position(position),
 	player(player),
 	causing_move(causing_move),
 	komi(komi)
 {
-	if (causing_move.has_value())
-		play(&this->position, causing_move.value(), player);
+	if (causing_move.has_value()) {
+		this->position.startMove();
+		this->position.putAt(causing_move.value(), opponentColor(player));
+		this->position.finishMove();
+	}
 
-        ChainMap cm(position.getDim());
-
-        std::vector<chain_t *> chainsWhite, chainsBlack;
-        findChains(position, &chainsWhite, &chainsBlack, &cm);
-
-        findLiberties(cm, &unvisited, playerToStone(player));
+	unvisited = this->position.findLiberties(player);
 
 	game_over = unvisited.empty();
 
 	if (!game_over)
 		std::shuffle(std::begin(unvisited), std::end(unvisited), rng);
-
-	purgeChains(&chainsBlack);
-	purgeChains(&chainsWhite);
 }
 
 uct_node::~uct_node()
@@ -65,7 +60,7 @@ bool uct_node::verify() const
 	}
 
 	if (children_visit_count + 1 != visited) {
-		printf("this node: %lu, children: %lu\n", visited, children_visit_count);
+		send(true, "# this node: %lu, children: %lu\n", visited, children_visit_count);
 
 		rc = false;
 	}
@@ -75,7 +70,7 @@ bool uct_node::verify() const
 
 uct_node *uct_node::add_child(const Vertex & m)
 {
-	uct_node *new_node = new uct_node(this, position, getOpponent(player), m, komi);
+	uct_node *new_node = new uct_node(this, position, opponentColor(player), m, komi);
 
 	children.emplace_back(m, new_node);
 
@@ -211,21 +206,22 @@ const Board uct_node::get_position() const
 
 double uct_node::playout(const uct_node *const leaf)
 {
-	player_t p = leaf->get_player();
+	board_t p = leaf->get_player();
 
-	auto rc = ::playout(leaf->get_position(), komi, p);
+	std::unordered_set<uint64_t> seen;  // TODO
+	auto rc = ::playout(leaf->get_position(), komi, p, seen);
 
 	double result = 0.5;
 
 	// TODO p? or opponent(p)?
 
-	if (p == P_BLACK && std::get<0>(rc) > std::get<1>(rc))
+	if (p == board_t::B_BLACK && std::get<0>(rc) > std::get<1>(rc))
 		result = 1.;
-	else if (p == P_WHITE && std::get<0>(rc) < std::get<1>(rc))
+	else if (p == board_t::B_WHITE && std::get<0>(rc) < std::get<1>(rc))
 		result = 1.;
-	else if (p == P_BLACK && std::get<0>(rc) < std::get<1>(rc))
+	else if (p == board_t::B_BLACK && std::get<0>(rc) < std::get<1>(rc))
 		result = 0.;
-	else if (p == P_WHITE && std::get<0>(rc) > std::get<1>(rc))
+	else if (p == board_t::B_WHITE && std::get<0>(rc) > std::get<1>(rc))
 		result = 0.;
 
 #if 0
@@ -256,11 +252,9 @@ const std::vector<std::pair<Vertex, uct_node *> > & uct_node::get_children() con
 	return children;
 }
 
-std::tuple<Vertex, uint64_t, uint64_t> calculate_move(const Board & b, const player_t p, const unsigned think_time, const double komi)
+std::tuple<Vertex, uint64_t, uint64_t> calculate_move(const Board & b, const board_t p, const uint64_t think_end_time, const double komi)
 {
 	uct_node *root     = new uct_node(nullptr, b, p, { }, komi);
-
-	uint64_t  start_ts = get_ts_ms();
 
 	uint64_t  n_played = 0;
 
@@ -269,7 +263,7 @@ std::tuple<Vertex, uint64_t, uint64_t> calculate_move(const Board & b, const pla
 
 		n_played++;
 
-		if (get_ts_ms() - start_ts >= think_time) {
+		if (get_ts_ms() >= think_end_time) {
 			auto best_move = root->best_child()->get_causing_move();
 
 			auto best_count = root->best_child()->get_visit_count();
