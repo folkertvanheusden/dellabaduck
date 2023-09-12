@@ -171,12 +171,8 @@ uct_node *uct_node::traverse()
 
 	uct_node *chosen = node;
 
-	if (node && node->is_game_over() == false) {
+	if (node && node->is_game_over() == false)
 		chosen = node->pick_unvisited();
-
-		if (chosen == nullptr)
-			chosen = node;
-	}
 
 	return chosen;
 }
