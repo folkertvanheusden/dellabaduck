@@ -688,18 +688,22 @@ void Board::assign(const Board & in)
 	const int dimsq = dim * dim;
 
 	b = new board_t[dimsq]();
+	in.getTo(b);
+
+	hash = in.getHash();
+
 	cm = new chain_nr_t[dimsq]();
 
 	for(int y=0; y<dim; y++) {
-		for(int x=0; x<dim; x++) {
-			board_t b = in.getAt(x, y);
+		for(int x=0; x<dim; x++)
+			cm[y * dim + x] = in.getCMAt(x, y);
+	}
 
-			if (b != board_t::B_EMPTY) {
-				startMove();
-				putAt(x, y, b);
-				finishMove();
-			}
-		}
+	for(int i=0; i<2; i++) {
+		chainGroups[i].clear();
+
+		for(auto & entry: *in.getChainGroup(i))
+			chainGroups[i].insert({ entry.first, entry.second->duplicate() });
 	}
 }
 
