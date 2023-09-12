@@ -15,6 +15,7 @@ private:
 	const std::optional<Vertex>     causing_move;
 	const double                    komi;
 	std::unordered_set<uint64_t>    seen;
+	bool                            valid { true };
 
 	std::vector<std::pair<Vertex, uct_node *> > children;
 	std::vector<Vertex>             unvisited;
@@ -23,7 +24,7 @@ private:
 
 	bool                            game_over { false };
 
-	uct_node *add_child(const Vertex & m);
+	std::optional<uct_node *> add_child(const Vertex & m);
 
 	uct_node *get_parent();
 	uct_node *pick_unvisited();
@@ -37,6 +38,8 @@ private:
 public:
 	uct_node(uct_node *const parent, const Board & position, const board_t player, const std::optional<Vertex> & causing_move, const double komi, const std::unordered_set<uint64_t> & seen);
 	virtual ~uct_node();
+
+	bool         is_valid() const { return valid; }
 
 	bool         is_game_over() const { return game_over; }
 

@@ -27,7 +27,7 @@ uct_node::uct_node(uct_node *const parent, const Board & position, const board_t
 		this->position.putAt(causing_move.value(), player);
 		this->position.finishMove();
 
-		this->seen.insert(this->position.getHash());
+		valid = this->seen.insert(this->position.getHash()).second;
 	}
 
 	unvisited = this->position.findLiberties(player);
@@ -71,13 +71,19 @@ bool uct_node::verify() const
 	return rc;
 }
 
-uct_node *uct_node::add_child(const Vertex & m)
+std::optional<uct_node *> uct_node::add_child(const Vertex & m)
 {
 	uct_node *new_node = new uct_node(this, position, opponentColor(player), m, komi, seen);
 
-	children.emplace_back(m, new_node);
+	if (new_node->is_valid()) {
+		children.emplace_back(m, new_node);
 
-	return new_node;
+		return new_node;
+	}
+
+	delete new_node;
+
+	return { };
 }
 
 uint64_t uct_node::get_visit_count()
@@ -111,16 +117,21 @@ double uct_node::get_score()
 
 uct_node *uct_node::pick_unvisited()
 {
-	if (unvisited.empty())
-		return nullptr;
+	for(;;) {
+		if (unvisited.empty())
+			break;
 
-	auto first = unvisited.begin();  // back + pop_back
+		auto first = unvisited.begin();  // back + pop_back
 
-	uct_node *new_node = add_child(*first);
+		auto new_node = add_child(*first);
 
-	unvisited.erase(first);
+		unvisited.erase(first);
 
-	return new_node;
+		if (new_node.has_value())
+			return new_node.value();
+	}
+
+	return nullptr;
 }
 
 bool uct_node::fully_expanded() const
