@@ -702,8 +702,6 @@ void Board::assign(const Board & in)
 	cnr = 0;
 
 	for(int i=0; i<2; i++) {
-		chainGroups[i].clear();
-
 		for(auto & entry: *in.getChainGroup(i)) {
 			chainGroups[i].insert({ entry.first, entry.second->duplicate() });
 
