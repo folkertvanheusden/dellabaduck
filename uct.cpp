@@ -24,7 +24,7 @@ uct_node::uct_node(uct_node *const parent, const Board & position, const board_t
 {
 	if (causing_move.has_value()) {
 		this->position.startMove();
-		this->position.putAt(causing_move.value(), opponentColor(player));
+		this->position.putAt(causing_move.value(), player);
 		this->position.finishMove();
 
 		this->seen.insert(this->position.getHash());
