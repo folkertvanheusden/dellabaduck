@@ -31,6 +31,16 @@ public:
 	virtual ~chain() {
 	}
 
+	chain * duplicate() const {
+		chain *copy = new chain();
+
+		copy->stones = stones;
+
+		copy->liberties = liberties;
+
+		return copy;
+	}
+
 	void dump() {
 		printf("stones:");
 
@@ -194,6 +204,10 @@ private:
 	std::vector<c_undo_t> c_undo;
 
 	Zobrist *getZobrist() const { return z; }
+
+	chain_nr_t getCMAt(const int x, const int y) const { return cm[y * dim + x]; }
+
+	auto getChainGroup(const int nr) const { return &chainGroups[nr]; }
 
 public:
 	Board(Zobrist *const z, const int dim);
