@@ -15,11 +15,11 @@ auto low_produce_seed()
 
 auto produce_seed()
 {
-#ifndef NDEBUG
-	return 1;
-#else
+//#ifndef NDEBUG
+//	return 1;
+//#else
 	return low_produce_seed();
-#endif
+//#endif
 }
 
 thread_local auto mt_seed = produce_seed();

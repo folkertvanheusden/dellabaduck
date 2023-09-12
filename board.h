@@ -204,6 +204,7 @@ public:
 	void dumpChains();
 	std::string dumpFEN(const board_t next_player, const int pass_depth);
 
+	Board & operator=(const Board & in);
 	bool operator==(const Board & rhs);
 	bool operator!=(const Board & rhs);
 

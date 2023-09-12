@@ -676,7 +676,7 @@ Board::Board(const Board & in) : z(in.getZobrist())
 {
 	dim = in.getDim();
 
-	int dimsq = dim * dim;
+	const int dimsq = dim * dim;
 
 	b = new board_t[dimsq]();
 	cm = new chain_nr_t[dimsq]();
@@ -694,23 +694,45 @@ Board::Board(const Board & in) : z(in.getZobrist())
 	}
 }
 
+Board & Board::operator=(const Board & in)
+{
+	delete [] b;
+	delete [] cm;
+
+	dim = in.getDim();
+
+	const int dimsq = dim * dim;
+
+	b = new board_t[dimsq]();
+	cm = new chain_nr_t[dimsq]();
+
+	for(int y=0; y<dim; y++) {
+		for(int x=0; x<dim; x++) {
+			board_t b = in.getAt(x, y);
+
+			if (b != board_t::B_EMPTY) {
+				startMove();
+				putAt(x, y, b);
+				finishMove();
+			}
+		}
+	}
+
+	return *this;
+}
+
 // this ignores undo history!
 bool Board::operator==(const Board & rhs)
 {
-	if (getHash() != rhs.getHash()) {
-		printf("hash\n"); return false;
-	}
-
-	if (dim != rhs.getDim()) {
-		printf("dim\n");
+	if (getHash() != rhs.getHash())
 		return false;
-	}
+
+	if (dim != rhs.getDim())
+		return false;
 
 	for(int o=0; o<dim * dim; o++) {
-		if (getAt(o) != rhs.getAt(o)) {
-			printf("field %s\n", Vertex(o, dim).to_str().c_str());
+		if (getAt(o) != rhs.getAt(o))
 			return false;
-		}
 	}
 
 	return true;
@@ -979,9 +1001,9 @@ void Board::dump()
 			auto chain = getChainConst(Vertex(x, y, dim));
 
 			if (chain.first)
-				line += myformat(" %zu", chain.first->getLiberties()->size());
+				line += myformat(" %2zu", chain.first->getLiberties()->size());
 			else
-				line += " -";
+				line += " - ";
                 }
 
 		line += "   ";
@@ -1030,7 +1052,7 @@ void Board::dump()
                 if (xc >= 'I')
                         xc++;
 
-                line += myformat(" %c", xc);
+                line += myformat(" %c ", xc);
         }
 
         line += "   ";
