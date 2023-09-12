@@ -674,24 +674,7 @@ Board::~Board()
 
 Board::Board(const Board & in) : z(in.getZobrist())
 {
-	dim = in.getDim();
-
-	const int dimsq = dim * dim;
-
-	b = new board_t[dimsq]();
-	cm = new chain_nr_t[dimsq]();
-
-	for(int y=0; y<dim; y++) {
-		for(int x=0; x<dim; x++) {
-			board_t b = in.getAt(x, y);
-
-			if (b != board_t::B_EMPTY) {
-				startMove();
-				putAt(x, y, b);
-				finishMove();
-			}
-		}
-	}
+	assign(in);
 }
 
 Board & Board::operator=(const Board & in)
@@ -699,6 +682,15 @@ Board & Board::operator=(const Board & in)
 	delete [] b;
 	delete [] cm;
 
+	assign(in);
+
+	assert(z != nullptr);
+
+	return *this;
+}
+
+void Board::assign(const Board & in)
+{
 	dim = in.getDim();
 
 	const int dimsq = dim * dim;
@@ -717,8 +709,6 @@ Board & Board::operator=(const Board & in)
 			}
 		}
 	}
-
-	return *this;
 }
 
 // this ignores undo history!

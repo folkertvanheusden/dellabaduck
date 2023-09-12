@@ -167,6 +167,9 @@ private:
 	std::map<uint64_t, chain *> blackChains;
 	std::map<uint64_t, chain *> whiteChains;
 
+	// helper for copy/assignment
+	void assign(const Board & in);
+
 	void increaseChainNr();
 
 	void updateField(const Vertex & v, const board_t bv);
