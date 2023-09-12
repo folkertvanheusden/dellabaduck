@@ -251,6 +251,9 @@ void uct_node::monte_carlo_tree_search()
 {
 	uct_node *leaf = traverse();
 
+	if (leaf == nullptr)  // ko
+		return;
+
 	double simulation_result = playout(leaf);
 
 	backpropagate(leaf, 1. - simulation_result);
