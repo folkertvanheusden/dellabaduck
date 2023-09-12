@@ -164,8 +164,9 @@ private:
 	chain_nr_t    *cm   { nullptr };  // chain map
 	chain_nr_t     cnr  { 1       };  // chain nr (0 = no chain)
 
-	std::map<uint64_t, chain *> blackChains;
-	std::map<uint64_t, chain *> whiteChains;
+	std::map<uint64_t, chain *> chainGroups[2];
+
+	int board_tToChainGroupNr(const board_t bv) const;
 
 	// helper for copy/assignment
 	void assign(const Board & in);
@@ -211,8 +212,8 @@ public:
 	bool operator==(const Board & rhs);
 	bool operator!=(const Board & rhs);
 
-	auto getBlackChains() const { return &blackChains; }
-	auto getWhiteChains() const { return &whiteChains; }
+	auto getBlackChains() const { return &chainGroups[board_tToChainGroupNr(board_t::B_BLACK)]; }
+	auto getWhiteChains() const { return &chainGroups[board_tToChainGroupNr(board_t::B_WHITE)]; }
 
 	std::vector<Vertex> findLiberties(const board_t bv);
 

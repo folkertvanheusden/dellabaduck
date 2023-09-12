@@ -36,6 +36,17 @@ board_t opponentColor(const board_t v)
 	return board_t::B_EMPTY;
 }
 
+int Board::board_tToChainGroupNr(const board_t bv) const
+{
+	assert(bv == board_t::B_WHITE || bv == board_t::B_BLACK);
+
+	int v = int(bv) - 1;
+
+	assert(v == 0 || v == 1);
+
+	return v;
+}
+
 std::pair<chain *, chain_nr_t> Board::getChain(const int o)
 {
 	assert(o >= 0 && o < dim * dim);
@@ -46,11 +57,11 @@ std::pair<chain *, chain_nr_t> Board::getChain(const int o)
 	if (nr == NO_CHAIN)
 		return { nullptr, nr };
 
-	board_t    bv = b[o];
+	board_t bv = b[o];
 
-	auto it       = bv == board_t::B_BLACK ? blackChains.find(nr) : whiteChains.find(nr);
+	auto it = chainGroups[board_tToChainGroupNr(bv)].find(nr);
 
-	assert(it != (bv == board_t::B_BLACK ? blackChains.end() : whiteChains.end()));
+	assert(it != chainGroups[board_tToChainGroupNr(bv)].end());
 
 	return { it->second, nr };
 }
@@ -67,9 +78,9 @@ std::pair<chain *, chain_nr_t> Board::getChain(const chain_nr_t nr, const board_
 	assert(nr != NO_CHAIN);
 	assert(bv != board_t::B_EMPTY);
 
-	auto it = bv == board_t::B_BLACK ? blackChains.find(nr) : whiteChains.find(nr);
+	auto it = chainGroups[board_tToChainGroupNr(bv)].find(nr);
 
-	assert(it != (bv == board_t::B_BLACK ? blackChains.end() : whiteChains.end()));
+	assert(it != chainGroups[board_tToChainGroupNr(bv)].end());
 
 	return { it->second, nr };
 }
@@ -91,9 +102,9 @@ std::pair<chain *, chain_nr_t> Board::getChainConst(const Vertex & v) const
 
 	assert(b[o] != board_t::B_EMPTY);
 
-	auto it = b[o] == board_t::B_BLACK ? blackChains.find(nr) : whiteChains.find(nr);
+	auto it = chainGroups[board_tToChainGroupNr(b[o])].find(nr);
 
-	assert(it != (b[o] == board_t::B_BLACK ? blackChains.end() : whiteChains.end()));
+	assert(it != chainGroups[board_tToChainGroupNr(b[o])].end());
 
 	return { it->second, nr };
 }
@@ -114,36 +125,24 @@ void Board::validateBoard()
 		if (b[i] != board_t::B_EMPTY) {
 			assert(cm[i] != NO_CHAIN);
 
-			if (b[i] == board_t::B_BLACK)
-				assert(blackChains.find(cm[i]) != blackChains.end());
-			else
-				assert(whiteChains.find(cm[i]) != whiteChains.end());
+			assert(chainGroups[board_tToChainGroupNr(b[i])].find(cm[i]) != chainGroups[board_tToChainGroupNr(b[i])].end());
 		}
 		else {
 			assert(cm[i] == NO_CHAIN);
 		}
 	}
 
-	for(auto & chain: blackChains) {
-		for(auto & v: *chain.second->getStones()) {
-			assert(b[v.getV()] != board_t::B_EMPTY);
+	for(int i=0; i<2; i++) {
+		for(auto & chain: chainGroups[i]) {
+			for(auto & v: *chain.second->getStones()) {
+				assert(b[v.getV()] != board_t::B_EMPTY);
 
-			assert(cm[v.getV()] == chain.first);
+				assert(cm[v.getV()] == chain.first);
+			}
+
+			for(auto & v: *chain.second->getLiberties())
+				assert(b[v.getV()] == board_t::B_EMPTY);
 		}
-
-		for(auto & v: *chain.second->getLiberties())
-			assert(b[v.getV()] == board_t::B_EMPTY);
-	}
-
-	for(auto & chain: whiteChains) {
-		for(auto & v: *chain.second->getStones()) {
-			assert(b[v.getV()] != board_t::B_EMPTY);
-
-			assert(cm[v.getV()] == chain.first);
-		}
-
-		for(auto & v: *chain.second->getLiberties())
-			assert(b[v.getV()] == board_t::B_EMPTY);
 	}
 #endif
 }
@@ -229,18 +228,14 @@ auto Board::getSurroundingChainsOfType(const Vertex & v, const board_t bv)
 
 void Board::addChain(const board_t bv, chain_nr_t cnr, chain *const new_c)
 {
-	auto & chain = bv == board_t::B_BLACK ? blackChains : whiteChains;
-
-	auto rc = chain.insert({ cnr, new_c });
+	auto rc = chainGroups[board_tToChainGroupNr(bv)].insert({ cnr, new_c });
 
 	assert(rc.second);
 }
 
 void Board::removeChain(const board_t bv, const chain_nr_t nr)
 {
-	auto & chain = bv == board_t::B_BLACK ? blackChains : whiteChains;
-
-	bool rc = chain.erase(nr);
+	bool rc = chainGroups[board_tToChainGroupNr(bv)].erase(nr);
 
 	assert(rc);
 }
@@ -543,11 +538,10 @@ void Board::collectLiberties()
 {
 	// TODO: combine with findliberties
 
-	for(auto & ch: whiteChains)
-		ch.second->clearLiberties();
-
-	for(auto & ch: blackChains)
-		ch.second->clearLiberties();
+	for(int i=0; i<2; i++) {
+		for(auto & ch: chainGroups[i])
+			ch.second->clearLiberties();
+	}
 
 	const int dimm1 = dim - 1;
 
@@ -590,11 +584,10 @@ void Board::collectLiberties()
 		}
 	}
 
-	for(auto & ch: whiteChains)
-		ch.second->uniqueLiberties();
-
-	for(auto & ch: blackChains)
-		ch.second->uniqueLiberties();
+	for(int i=0; i<2; i++) {
+		for(auto & ch: chainGroups[i])
+			ch.second->uniqueLiberties();
+	}
 }
 
 uint64_t Board::getHashForMove(const int v, const board_t bv)
@@ -665,11 +658,10 @@ Board::~Board()
 
 	delete [] cm;
 
-	for(auto & element: blackChains)
-		delete element.second;
-
-	for(auto & element: whiteChains)
-		delete element.second;
+	for(int i=0; i<2; i++) {
+		for(auto & element: chainGroups[i])
+			delete element.second;
+	}
 }
 
 Board::Board(const Board & in) : z(in.getZobrist())
@@ -894,7 +886,7 @@ std::vector<Vertex> Board::findLiberties(const board_t for_whom)
 		chain *c = nullptr;
 
 		if (bv != board_t::B_EMPTY) {
-			c = (bv == board_t::B_BLACK ? &blackChains : &whiteChains)->find(cm[i])->second;
+			c = chainGroups[board_tToChainGroupNr(bv)].find(cm[i])->second;
 
 			assert(c != nullptr);
 
@@ -922,11 +914,11 @@ std::vector<Vertex> Board::findLiberties(const board_t for_whom)
 void Board::dumpChains()
 {
 	printf("black chains:\n");
-	for(auto & chain: blackChains)
+	for(auto & chain: chainGroups[board_tToChainGroupNr(board_t::B_BLACK)])
 		chain.second->dump();
 
 	printf("white chains:\n");
-	for(auto & chain: whiteChains)
+	for(auto & chain: chainGroups[board_tToChainGroupNr(board_t::B_WHITE)])
 		chain.second->dump();
 
 //	dumpUndoSet(true);
