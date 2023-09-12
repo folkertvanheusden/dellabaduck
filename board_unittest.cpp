@@ -601,6 +601,30 @@ void randomfill()
 	// TODO
 }
 
+void benchmark()
+{
+	uint64_t start_ts = get_ts_ms();
+	uint64_t end_ts = 0;
+	uint64_t n = 0;
+
+	Zobrist z(9);
+	Board b(&z, 9);
+
+	srand(123);
+	for(int i=0; i<60; i++)
+		b.setAt(rand() % 9, rand() % 9, rand() & 1 ? board_t::B_WHITE : board_t::B_BLACK);
+
+	do {
+		Board copy = b;
+
+		n++;
+		end_ts = get_ts_ms();
+	}
+	while(end_ts - start_ts <= 2500);
+
+	printf("%.2f\n", n * 1000.0 / (end_ts - start_ts));
+}
+
 int main(int argc, char *argv[])
 {
 	if (argc == 1 || strcmp(argv[1], "unit-tests") == 0)
@@ -626,6 +650,8 @@ int main(int argc, char *argv[])
 		perfttests();
 	else if (strcmp(argv[1], "randomfill") == 0)
 		randomfill();
+	else if (strcmp(argv[1], "benchmark") == 0)
+		benchmark();
 	else {
 		fprintf(stderr, "???\n");
 		return 1;
