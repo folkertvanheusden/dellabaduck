@@ -422,6 +422,24 @@ void unit_tests()
 		assert(a.getChain(Vertex::from_str("e6", 9)).first->getLiberties()->size() == 3);
 	}
 
+	// test hash after copy (and modification)
+	{
+		Board a(&z, "...../...../...../..bb./w.b.b b");
+
+		Board b = a;
+		assert(b.getHash() == a.getHash());
+
+		Vertex move = Vertex::from_str("d3", 5);
+		a.startMove();
+		a.putAt(move, board_t::B_BLACK);
+		a.finishMove();
+		b.startMove();
+		b.putAt(move, board_t::B_BLACK);
+		b.finishMove();
+
+		assert(b.getHash() == a.getHash());
+	}
+
 	/// situations
 	{
 		Board a(&z, "...../...../...../..bb./w.b.b b");
