@@ -103,10 +103,6 @@ std::tuple<double, double, int, std::optional<Vertex> > playout(const Board & in
 	while(++mc < dim * dim * dim) {
 		size_t attempt_n = 0;
 
-		send(true, "GREP %d | %s", mc, b.dumpFEN(for_whom, 0).c_str());
-//		b.dump();
-//		send(true, "---- GREP %d", mc);
-
 	        std::vector<Vertex> liberties = b.findLiberties(for_whom);
 
 		size_t n_liberties = liberties.size();
@@ -142,12 +138,6 @@ std::tuple<double, double, int, std::optional<Vertex> > playout(const Board & in
 					assert(o < n_liberties);
 					first = liberties.at(o);
 
-					if (b.getChain(first.value()).first->getLiberties()->size() <= 1) {
-						send(true, "HIERRRRRR GREP %s | %s | %d/%d", first.value().to_str().c_str(), board_t_name(for_whom), mc, attempt_n);
-						b.dump();
-						send(true, "GREP HIERRRRRR %s | %s | %d/%d", first.value().to_str().c_str(), board_t_name(for_whom), mc, attempt_n);
-					}
-
 					assert(b.getChain(first.value()).first->getLiberties()->size() > 0);
 
 					assert(for_whom == p);
@@ -171,8 +161,6 @@ std::tuple<double, double, int, std::optional<Vertex> > playout(const Board & in
 
 		// all fields tried; pass
 		if (attempt_n >= n_liberties) {
-			send(true, "GREP PASS");
-
 			pass[for_whom == board_t::B_BLACK] = true;
 
 #ifdef STORE_1_PLAYOUT
