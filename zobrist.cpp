@@ -21,5 +21,9 @@ void Zobrist::setDim(const int dim)
 
 uint64_t Zobrist::get(const int nr, const bool black) const
 {
+#ifdef SITUATIONAL_SUPERKO
 	return rngs.at(nr * 2 + black);
+#else
+	return rngs.at(nr);  // TT & CGOS
+#endif
 }
