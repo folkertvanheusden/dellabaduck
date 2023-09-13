@@ -16,7 +16,9 @@ private:
 	const double                    komi;
 	std::unordered_set<uint64_t>    seen;
 	bool                            valid { true };
-	const int depth { 0 };
+
+const int depth { 0 };
+uint64_t hash { 0 };
 
 	std::vector<std::pair<Vertex, uct_node *> > children;
 	std::vector<Vertex>             unvisited;
@@ -64,4 +66,4 @@ size_t getseencount() const { return seen.size(); }
 	double       get_score_count();
 };
 
-std::tuple<std::optional<Vertex>, uint64_t, uint64_t> calculate_move(const Board & b, const board_t p, const uint64_t think_end_time, const double komi, const std::unordered_set<uint64_t> & seen);
+std::tuple<std::optional<Vertex>, uint64_t, uint64_t> calculate_move(const Board & b, const board_t p, const uint64_t think_end_time, const double komi, const std::optional<uint64_t> n_limit, const std::unordered_set<uint64_t> & seen);

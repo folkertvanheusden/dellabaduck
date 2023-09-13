@@ -593,6 +593,7 @@ void unit_tests()
 
 	{
 		Board a(&z, "...../...../...../..bb./w.b.b b");
+		const uint64_t compare_hash = a.getHash();
 
 		auto liberties = a.findLiberties(board_t::B_WHITE);
 		size_t n = liberties.size();
@@ -608,27 +609,34 @@ void unit_tests()
 			a.finishMove();
 
 			uint64_t hash = a.getHash();
-			send(true, " * adding %lu to the ignore list", hash);
+			send(true, " * adding %lu (%s) to the ignore list", hash, liberties.at(i).to_str().c_str());
 			assert(seen.insert(hash).second);
 
 			a.undoMoveSet();
+			assert(a.getHash() == compare_hash);
+			assert(seen.size() == i + 1);
 		}
 
+		// uct_node creation test
 		for(size_t i=0; i<n; i++) {
 			uct_node u(nullptr, a, board_t::B_BLACK, liberties.at(i), 7.5, seen, 0);
 			assert(u.is_valid() == (i >= n_seen));
+			assert(a.getHash() == compare_hash);
+			assert(seen.size() == n_seen);
 		}
 
-		srand(1234);
+		// playout test
 		for(size_t i=0; i<n; i++) {
-			auto rc = calculate_move(a, board_t::B_BLACK, get_ts_ms() + 100, 7.5, seen);
+			auto rc = calculate_move(a, board_t::B_BLACK, get_ts_ms() + 1000, 7.5, 1, seen);
+			assert(a.getHash() == compare_hash);
+			assert(seen.size() == n_seen);
 
 			auto move = std::get<0>(rc);
 
 			assert(move.has_value());
 
 			size_t idx = std::find(liberties.begin(), liberties.end(), move.value()) - liberties.begin();
-
+			send(true, "found %zu, limit %zu, %s", idx, n_seen, move.value().to_str().c_str());
 			assert(idx >= n_seen);
 		}
 	}
