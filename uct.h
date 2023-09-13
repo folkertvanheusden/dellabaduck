@@ -16,6 +16,7 @@ private:
 	const double                    komi;
 	std::unordered_set<uint64_t>    seen;
 	bool                            valid { true };
+	const int depth { 0 };
 
 	std::vector<std::pair<Vertex, uct_node *> > children;
 	std::vector<Vertex>             unvisited;
@@ -36,8 +37,10 @@ private:
 	double    playout(const uct_node *const leaf);
 
 public:
-	uct_node(uct_node *const parent, const Board & position, const board_t player, const std::optional<Vertex> & causing_move, const double komi, const std::unordered_set<uint64_t> & seen);
+	uct_node(uct_node *const parent, const Board & position, const board_t player, const std::optional<Vertex> & causing_move, const double komi, const std::unordered_set<uint64_t> & seen, const int depth);
 	virtual ~uct_node();
+
+size_t getseencount() const { return seen.size(); }
 
 	bool         is_valid() const { return valid; }
 

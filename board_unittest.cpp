@@ -3,9 +3,11 @@
 #include <cstring>
 
 #include "board.h"
+#include "io.h"
 #include "random.h"
 #include "str.h"
 #include "time.h"
+#include "uct.h"
 
 
 void unit_tests()
@@ -589,6 +591,48 @@ void unit_tests()
 	*/
 #endif
 
+	{
+		Board a(&z, "...../...../...../..bb./w.b.b b");
+
+		auto liberties = a.findLiberties(board_t::B_WHITE);
+		size_t n = liberties.size();
+		assert(n >= 2);
+		size_t n_seen = n / 2;
+
+		// half of the liberties should not be allowed
+		std::unordered_set<uint64_t> seen;
+
+		for(size_t i=0; i<n_seen; i++) {
+			a.startMove();
+			a.putAt(liberties.at(i), board_t::B_BLACK);
+			a.finishMove();
+
+			uint64_t hash = a.getHash();
+			send(true, " * adding %lu to the ignore list", hash);
+			assert(seen.insert(hash).second);
+
+			a.undoMoveSet();
+		}
+
+		for(size_t i=0; i<n; i++) {
+			uct_node u(nullptr, a, board_t::B_BLACK, liberties.at(i), 7.5, seen, 0);
+			assert(u.is_valid() == (i >= n_seen));
+		}
+
+		srand(1234);
+		for(size_t i=0; i<n; i++) {
+			auto rc = calculate_move(a, board_t::B_BLACK, get_ts_ms() + 100, 7.5, seen);
+
+			auto move = std::get<0>(rc);
+
+			assert(move.has_value());
+
+			size_t idx = std::find(liberties.begin(), liberties.end(), move.value()) - liberties.begin();
+
+			assert(idx >= n_seen);
+		}
+	}
+
 	printf("All good\n");
 }
 
@@ -692,6 +736,8 @@ void benchmark()
 
 int main(int argc, char *argv[])
 {
+	startLog("board_unittest.log");
+
 	if (argc == 1 || strcmp(argv[1], "unit-tests") == 0)
 		unit_tests();
 	else if (argc >= 4 && strcmp(argv[1], "perft") == 0) {
