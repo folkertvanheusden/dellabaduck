@@ -10,6 +10,8 @@
 
 void unit_tests()
 {
+	srand(1234);
+
 	Zobrist z(9);
 
 	// test == function for empty boards
@@ -118,6 +120,8 @@ void unit_tests()
 		b.startMove();
 		b.putAt(Vertex(7, 8, 9), board_t::B_WHITE);
 		b.finishMove();
+
+		assert(a != b);
 
 		assert(a.getUndoDepth() == 2);
 		assert(b.getUndoDepth() == 6);
@@ -438,6 +442,49 @@ void unit_tests()
 		b.finishMove();
 
 		assert(b.getHash() == a.getHash());
+	}
+
+	// compare boards 1
+	for(int i=0; i<128; i++) {
+		for(int dim=3; dim<21; dim += 2) {
+			Board a(&z, dim);
+			Board b = a;
+
+			for(int fill=0; fill<dim * dim * 3 / 4; fill++)
+				a.setAt(rand() % dim, rand() % dim, rand() & 1 ? board_t::B_BLACK : board_t::B_WHITE);
+
+			assert(b != a);
+
+			b = a;
+
+			assert(b == a);
+		}
+	}
+
+	// compare boards with history
+	srand(1234);
+	std::unordered_set<uint64_t> seen;
+	for(int dim=3; dim<21; dim += 2) {
+		for(int i=0; i<128; i++) {
+			Board a(&z, dim);
+
+			for(int fill=0; fill<dim * dim * 3 / 4; fill++) {
+				a.setAt(rand() % dim, rand() % dim, rand() & 1 ? board_t::B_BLACK : board_t::B_WHITE);
+
+				seen.insert(a.getHash());
+			}
+		}
+	}
+	for(int dim=3; dim<21; dim += 2) {
+		for(int i=0; i<128; i++) {
+			Board a(&z, dim);
+
+			for(int fill=0; fill<dim * dim * 3 / 4; fill++) {
+				a.setAt(rand() % dim, rand() % dim, rand() & 1 ? board_t::B_BLACK : board_t::B_WHITE);
+
+				assert(seen.find(a.getHash()) != seen.end());
+			}
+		}
 	}
 
 	/// situations
