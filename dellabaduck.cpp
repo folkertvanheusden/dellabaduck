@@ -78,6 +78,13 @@ std::optional<Vertex> gen_move(const int move_nr, Board *const b, const board_t 
 	std::vector<uint64_t> results;
 	results.resize(dimsq);
 
+	send(true, "IN0: %lu", b->getHash());
+	std::string l;
+	for(auto & v: *seen)
+		l += myformat(" %lu", v);
+	send(true, "IN: %s", l.c_str());
+		b->dump();
+
 	uint64_t n     = 0;
 	uint64_t nm    = 0;
 	uint64_t start = get_ts_ms();
@@ -130,13 +137,18 @@ std::optional<Vertex> gen_move(const int move_nr, Board *const b, const board_t 
 	}
 
 	if (do_play && v.has_value()) {
+	send(true, "OUT2: %lu, applying %s", b->getHash(), v.value().to_str().c_str());
+		uint64_t before = b->getHash();
+		b->dump();
 		b->startMove();
 		b->putAt(v.value(), p);
 		b->finishMove();
+		b->dump();
+		uint64_t after = b->getHash();
 
-		send(true, "add hash %lu to seen", b->getHash());
-
-		seen->insert(b->getHash());
+	send(true, "OUT3: %lu, xor %lu", b->getHash(), after ^ before);
+		auto rc = seen->insert(b->getHash());
+		assert(rc.second);
 	}
 
 	return v;
@@ -276,7 +288,8 @@ int main(int argc, char *argv[])
 				b->putAt(v, p);
 				b->finishMove();
 
-				seen.insert(b->getHash());
+				if (seen.insert(b->getHash()).second == false)
+					send(true, "Opponent triggers KO");
 
 				b->dump();
 
@@ -427,9 +440,6 @@ int main(int argc, char *argv[])
 		}
 
 		send(false, "");
-
-		for(auto & s: seen)
-			send(true, "SEEN %lu", s);
 
 		fflush(nullptr);
 	}

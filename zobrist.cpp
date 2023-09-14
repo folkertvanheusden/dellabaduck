@@ -1,6 +1,6 @@
 #include "random.h"
 #include "zobrist.h"
-
+#include "io.h"
 
 Zobrist::Zobrist(const int dim)
 {
@@ -25,6 +25,7 @@ void Zobrist::setDim(const int dim)
 
 uint64_t Zobrist::get(const int nr, const bool black) const
 {
+	send(true, "Zobrist::get %d/%d (= %lu) byte %p", nr, black, rngs.at(nr), __builtin_return_address(0));
 #ifdef SITUATIONAL_SUPERKO
 	return rngs.at(nr * 2 + black);
 #else
