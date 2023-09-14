@@ -1006,12 +1006,12 @@ void Board::dump()
 			if (std::find(b_liberties.begin(), b_liberties.end(), v) != b_liberties.end())
 				line += "b";
 			else
-				line += " ";
+				line += ".";
 
 			if (std::find(w_liberties.begin(), w_liberties.end(), v) != w_liberties.end())
 				line += "w";
 			else
-				line += " ";
+				line += ".";
 
 			line += " ";
 		}
