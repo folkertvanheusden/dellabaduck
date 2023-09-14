@@ -267,8 +267,6 @@ void Board::libertyScan(const std::vector<chain *> & chains)
 
 void Board::updateField(const Vertex & v, const board_t bv)
 {
-//	printf("\n");
-//	printf("%s with color %s\n",  v.to_str().c_str(), board_t_name(bv));
 	assert(v.isValid());
 	assert(v.getDim() == dim);
 	assert(bv == board_t::B_BLACK || bv == board_t::B_WHITE);
@@ -347,7 +345,6 @@ void Board::updateField(const Vertex & v, const board_t bv)
 
 	// connect new stone to existing chain
 	if (adjacentMine.size() == 1) {
-		// printf("connect new stone to existing chain\n");
 		// get chain to connect to
 		auto ch = getChain(*adjacentMine.begin());
 		assert(ch.first  != nullptr);
@@ -372,7 +369,6 @@ void Board::updateField(const Vertex & v, const board_t bv)
 	}
 	// connect adjacent chains
 	else if (adjacentMine.empty() == false) {
-		// printf("connect adjacent chains\n");
 		auto temp = getChain(*adjacentMine.begin());
 		chain     *target_c  = temp.first;
 		chain_nr_t target_nr = temp.second;
@@ -436,7 +432,6 @@ void Board::updateField(const Vertex & v, const board_t bv)
 		rescan.push_back(target_c);
 	}
 	else {  // new chain
-		// printf("new chain\n");
 		chain *new_c = new chain();
 		// add the new stone in the new chain
 		new_c->addStone(v);
@@ -814,7 +809,6 @@ void Board::undoMoveSet()
 		// chain was added? then remove it now
 		// should be 1 element
 		if (action == c_undo_t::modify_t::A_ADD) {
-			// printf("revert ADD\n");
 			auto c = getChain(nr, col);
 
 			assert(c.first->getStones()->size() == 1);
@@ -833,7 +827,6 @@ void Board::undoMoveSet()
 			delete c.first;
 		}
 		else if (action == c_undo_t::modify_t::A_REMOVE) {
-			// printf("revert REMOVE\n");
 			chain *c = new chain();
 
 			// re-register the re-created old chain
@@ -848,7 +841,6 @@ void Board::undoMoveSet()
 			mapChain(a.stones, nr);
 		}
 		else if (action == c_undo_t::modify_t::A_MODIFY) {
-			// printf("revert MODIFY\n");
 			auto c = getChain(nr, col);
 
 			assert(a.stones.size() >= 1);
@@ -922,11 +914,11 @@ std::vector<Vertex> Board::findLiberties(const board_t for_whom)
 
 void Board::dumpChains()
 {
-	printf("black chains:\n");
+	send(true, "black chains:\n");
 	for(auto & chain: chainGroups[board_tToChainGroupNr(board_t::B_BLACK)])
 		chain.second->dump();
 
-	printf("white chains:\n");
+	send(true, "white chains:\n");
 	for(auto & chain: chainGroups[board_tToChainGroupNr(board_t::B_WHITE)])
 		chain.second->dump();
 
@@ -1111,11 +1103,6 @@ std::string Board::dumpFEN(const board_t next_player, const int pass_depth)
 
 uint64_t perft_do(Board & b, std::unordered_set<uint64_t> *const seen, const board_t bv, const int depth, const int pass, const bool verbose, const bool top)
 {
-//	printf(" ======> DEPTH %d <=====\n", depth);
-//	printf("%s\n", b.dumpFEN(bv, 0).c_str());
-
-//	printf("%d\t%s\t%lu\n", depth, b.dumpFEN(bv, 0).c_str(), b.getHash());
-
 	if (depth == 0)
 		return 1;
 
@@ -1127,35 +1114,16 @@ uint64_t perft_do(Board & b, std::unordered_set<uint64_t> *const seen, const boa
 
 	uint64_t      total      = 0;
 
-	// b.dump();
-
 	std::vector<Vertex> liberties = b.findLiberties(bv);
 
 	for(auto & cross : liberties) {
-//		printf("____ do it: %s with color %s (hash: %lu)\n", cross.to_str().c_str(), board_t_name(bv), b.getHash());
-		//Board copy = b;
-//		b.dump();
-//		b.dumpChains();
-
 		b.startMove();
 		b.putAt(cross, bv);
 		b.finishMove();
 
-/*		if (top) {
-			printf("%s %s\n", cross.to_str().c_str(), b.dumpFEN(new_player, 0).c_str());
-
-		printf("____ done it\n");
-
-		b.dump();
-		} */
-
 		uint64_t hash = b.getHash();
 
-//		printf("GREP %lu\n", hash);
-
 		if (seen->insert(hash).second == true) {
-//			printf("%d %s\n", depth, cross.to_str().c_str());
-
 			uint64_t cur_count = perft_do(b, seen, new_player, new_depth, 0, verbose, false);
 
 			total += cur_count;
@@ -1165,16 +1133,8 @@ uint64_t perft_do(Board & b, std::unordered_set<uint64_t> *const seen, const boa
 
 			seen->erase(hash);
 		}
-//		else
-//			printf("%d NOT %s\n", depth, cross.to_str().c_str());
-
-	//	printf("UNDO %s for %s\n", cross.to_str().c_str(), b.dumpFEN(bv, 0).c_str());
 
 		b.undoMoveSet();
-//		printf("____ UNDONE it: %s, hash: %lu\n", cross.to_str().c_str(), b.getHash());
-//		b.dump();
-//		b.dumpChains();
-	//	assert(b == copy);
 	}
 
 	if (pass < 2) {

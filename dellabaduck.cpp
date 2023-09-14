@@ -124,8 +124,8 @@ std::optional<Vertex> gen_move(const int move_nr, Board *const b, const board_t 
 	if (v.has_value()) {
 		uint64_t duration = get_ts_ms() - start;
 
-		send(true, "# move nr %d, best_count %lu for %s in %lu ms (time left: %.2f), %d results, %lu playouts, %.2f moves/playout, %.2f playouts/s",
-				move_nr, best_count, v.value().to_str().c_str(), duration, time_left, n_results, n, nm / double(n), n * 1000. / duration);
+		send(true, "# move nr %d, best_count %zu for %s in %zu ms (time left: %.2f), %d results, %zu playouts, %.2f moves/playout, %.2f playouts/s",
+				move_nr, size_t(best_count), v.value().to_str().c_str(), size_t(duration), time_left, n_results, size_t(n), nm / double(n), n * 1000. / duration);
 	}
 
 	if (do_play && v.has_value()) {
@@ -277,8 +277,6 @@ int main(int argc, char *argv[])
 				if (seen.insert(b->getHash()).second == false)
 					send(true, "Opponent triggers KO");
 
-				b->dump();
-
 				pass = 0;
 			}
 
@@ -414,8 +412,6 @@ int main(int argc, char *argv[])
 					pass++;
 				}
 			}
-
-			b->dump();
 
 			p = opponentColor(player);
 
