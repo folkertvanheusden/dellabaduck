@@ -520,6 +520,21 @@ void unit_tests()
 		a.finishMove();
 	}
 
+	{
+		Board a(&z, "b.bw..w.b/bb.bwwbb./wwbwwwbwb/.bb.wwwww/wb.bwwww./b.b...wbw/......b.b/b.......b/bb.....bb w 0");
+		Board b(&z, "b.bw..w.b/bb.bwwbb./wwbwwwbwb/.bb.wwwww/wb.bwwww./b.b...wbw/......b.b/b.......b/bb.....bb w 0");
+
+		a.startMove();
+		a.putAt(Vertex::from_str("i8", 9), board_t::B_WHITE);
+		a.finishMove();
+
+		a.startMove();
+		a.putAt(Vertex::from_str("i7", 9), board_t::B_BLACK);
+		a.finishMove();
+
+		assert(a.getHash() == b.getHash());
+	}
+
 #if 0
 // .w.bw/wbbbw/w.bww/bbbw./wwww. w 0  b3 e1
 // .w.bw/wbbbw/w.bww/bbbw./wwww. w 0  b3 e2
@@ -595,7 +610,7 @@ void unit_tests()
 		Board a(&z, "...../...../...../..bb./w.b.b b");
 		const uint64_t compare_hash = a.getHash();
 
-		auto liberties = a.findLiberties(board_t::B_WHITE);
+		auto liberties = a.findLiberties(board_t::B_BLACK);
 		size_t n = liberties.size();
 		assert(n >= 2);
 		size_t n_seen = n / 2;
@@ -627,7 +642,7 @@ void unit_tests()
 
 		// playout test
 		for(size_t i=0; i<n; i++) {
-			auto rc = calculate_move(a, board_t::B_BLACK, get_ts_ms() + 1000, 7.5, 1, seen);
+			auto rc = calculate_move(a, board_t::B_BLACK, get_ts_ms() + 1000, 7.5, 3, seen);
 			assert(a.getHash() == compare_hash);
 			assert(seen.size() == n_seen);
 
@@ -638,6 +653,16 @@ void unit_tests()
 			size_t idx = std::find(liberties.begin(), liberties.end(), move.value()) - liberties.begin();
 			send(true, "found %zu, limit %zu, %s", idx, n_seen, move.value().to_str().c_str());
 			assert(idx >= n_seen);
+		}
+	}
+
+	{
+		for(int i=0; i<9; i++) {
+#ifdef SITUATIONAL_SUPERKO
+			assert(z.get(i, true) != z.get(i, false));
+#else
+			assert(z.get(i, true) == z.get(i, false));
+#endif
 		}
 	}
 
