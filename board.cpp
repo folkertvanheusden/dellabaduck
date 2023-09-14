@@ -151,21 +151,22 @@ void Board::getLiberties(chain *const ch, const Vertex & v)
 {
 	assert(v.isValid());
 
-	Vertex vLeft(v.left());
-	if (vLeft.isValid() && getAt(vLeft) == board_t::B_EMPTY)
-		ch->addLiberty(vLeft);
+	const int vv = v.getV();
+	const int x  = v.getX();
+	const int y  = v.getY();
+	const int dimm1 = dim - 1;
 
-	Vertex vRight(v.right());
-	if (vRight.isValid() && getAt(vRight) == board_t::B_EMPTY)
-		ch->addLiberty(vRight);
+	if (x > 0 && getAt(vv - 1) == board_t::B_EMPTY)
+		ch->addLiberty(Vertex(vv - 1, dim));
 
-	Vertex vUp(v.up());
-	if (vUp.isValid() && getAt(vUp) == board_t::B_EMPTY)
-		ch->addLiberty(vUp);
+	if (x < dimm1 && getAt(vv + 1) == board_t::B_EMPTY)
+		ch->addLiberty(Vertex(vv + 1, dim));
 
-	Vertex vDown(v.down());
-	if (vDown.isValid() && getAt(vDown) == board_t::B_EMPTY)
-		ch->addLiberty(vDown);
+	if (y > 0 && getAt(vv - dim) == board_t::B_EMPTY)
+		ch->addLiberty(Vertex(vv - dim, dim));
+
+	if (y < dimm1 && getAt(vv + dim) == board_t::B_EMPTY)
+		ch->addLiberty(Vertex(vv + dim, dim));
 }
 
 void Board::addChain(const board_t bv, chain_nr_t cnr, chain *const new_c)
@@ -237,44 +238,49 @@ void Board::updateField(const Vertex & v, const board_t bv)
 	std::vector<Vertex> adjacentBlack;
 	std::vector<Vertex> adjacentWhite;
 
-	Vertex vLeft(v.left());
-	if (vLeft.isValid()) {
-		board_t bv = getAt(vLeft);
+	const int vv = v.getV();
+	const int x  = v.getX();
+	const int y  = v.getY();
+	const int dimm1 = dim - 1;
+
+	if (x > 0) {
+		Vertex  vt(vv - 1, dim);
+		board_t bv = getAt(vt);
 
 		if (bv == board_t::B_BLACK)
-			adjacentBlack.push_back(vLeft);
+			adjacentBlack.push_back(vt);
 		else if (bv == board_t::B_WHITE)
-			adjacentWhite.push_back(vLeft);
+			adjacentWhite.push_back(vt);
 	}
 
-	Vertex vRight(v.right());
-	if (vRight.isValid()) {
-		board_t bv = getAt(vRight);
+	if (x < dimm1) {
+		Vertex  vt(vv + 1, dim);
+		board_t bv = getAt(vt);
 
 		if (bv == board_t::B_BLACK)
-			adjacentBlack.push_back(vRight);
+			adjacentBlack.push_back(vt);
 		else if (bv == board_t::B_WHITE)
-			adjacentWhite.push_back(vRight);
+			adjacentWhite.push_back(vt);
 	}
 
-	Vertex vUp(v.up());
-	if (vUp.isValid()) {
-		board_t bv = getAt(vUp);
+	if (y > 0) {
+		Vertex  vt(vv - dim, dim);
+		board_t bv = getAt(vt);
 
 		if (bv == board_t::B_BLACK)
-			adjacentBlack.push_back(vUp);
+			adjacentBlack.push_back(vt);
 		else if (bv == board_t::B_WHITE)
-			adjacentWhite.push_back(vUp);
+			adjacentWhite.push_back(vt);
 	}
 
-	Vertex vDown(v.down());
-	if (vDown.isValid()) {
-		board_t bv = getAt(vDown);
+	if (y < dimm1) {
+		Vertex  vt(vv + dim, dim);
+		board_t bv = getAt(vt);
 
 		if (bv == board_t::B_BLACK)
-			adjacentBlack.push_back(vDown);
+			adjacentBlack.push_back(vt);
 		else if (bv == board_t::B_WHITE)
-			adjacentWhite.push_back(vDown);
+			adjacentWhite.push_back(vt);
 	}
 
 	// connect/delete chains when placing a stone
