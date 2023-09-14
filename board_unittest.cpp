@@ -549,77 +549,6 @@ void unit_tests()
 		assert(a.getHash() == b.getHash());
 	}
 
-#if 0
-// .w.bw/wbbbw/w.bww/bbbw./wwww. w 0  b3 e1
-// .w.bw/wbbbw/w.bww/bbbw./wwww. w 0  b3 e2
-// .w.bw/wbbbw/w.bww/bbbw./wwww. w 0  b3 a5
-// .w.bw/wbbbw/w.bww/bbbw./wwww. w 0  b3 c5
-
-	{
-		Board a(&z, ".w.bw/wbbbw/w.bww/bbbw./wwww.");
-
-		a.startMove();
-		a.putAt(Vertex::from_str("e2", 5), board_t::B_WHITE);
-		a.finishMove();
-
-		a.startMove();
-		a.putAt(Vertex::from_str("c5", 5), board_t::B_BLACK);
-		a.finishMove();
-
-		a.undoMoveSet();
-
-		a.undoMoveSet();
-
-		a.startMove();
-		a.putAt(Vertex::from_str("b3", 5), board_t::B_WHITE);
-		a.finishMove();
-
-		///
-
-		a.startMove();
-		a.putAt(Vertex::from_str("e1", 5), board_t::B_BLACK);
-		a.finishMove();
-
-		a.undoMoveSet();
-
-		a.startMove();
-		a.putAt(Vertex::from_str("e2", 5), board_t::B_BLACK);
-		a.finishMove();
-
-		a.undoMoveSet();
-
-		a.startMove();
-		a.putAt(Vertex::from_str("a5", 5), board_t::B_BLACK);
-		a.finishMove();
-
-		a.undoMoveSet();
-
-		a.startMove();
-		a.putAt(Vertex::from_str("c5", 5), board_t::B_BLACK);
-		a.finishMove();
-
-		a.undoMoveSet();
-
-		a.undoMoveSet();
-	}
-
-	/*
-	{
-		Board a(&z, ".w.bw/wbbbw/wbbww/bbbw./wwww. b 0");
-
-		std::vector<Vertex> *liberties = a.findLiberties(board_t::B_BLACK);
-
-		for(auto & cross : *liberties) {
-			a.startMove();
-			a.putAt(cross, board_t::B_BLACK);
-			a.finishMove();
-
-			a.undoMoveSet();
-		}
-	}
-	*/
-#endif
-
 	{
 		Board a(&z, "...../...../...../..bb./w.b.b b");
 		const uint64_t compare_hash = a.getHash();
@@ -671,11 +600,13 @@ void unit_tests()
 	}
 
 	{
-		for(int i=0; i<9; i++) {
+		for(int i=0; i<8; i++) {
 #ifdef SITUATIONAL_SUPERKO
 			assert(z.get(i, true) != z.get(i, false));
+			assert(z.get(i, true) != z.get(i + 1, true));
 #else
 			assert(z.get(i, true) == z.get(i, false));
+			assert(z.get(i, true) != z.get(i + 1, true));
 #endif
 		}
 	}
