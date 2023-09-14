@@ -537,6 +537,16 @@ void unit_tests()
 
 			assert(a.getHash() == b.getHash());
 		}
+
+		a.startMove();
+		a.putAt(Vertex::from_str("i8", 9), board_t::B_WHITE);
+		a.finishMove();
+
+		assert(a.getHash() != b.getHash());
+
+		a.undoMoveSet();
+
+		assert(a.getHash() == b.getHash());
 	}
 
 #if 0
