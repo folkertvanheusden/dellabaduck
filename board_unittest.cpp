@@ -524,15 +524,19 @@ void unit_tests()
 		Board a(&z, "b.bw..w.b/bb.bwwbb./wwbwwwbwb/.bb.wwwww/wb.bwwww./b.b...wbw/......b.b/b.......b/bb.....bb w 0");
 		Board b(&z, "b.bw..w.b/bb.bwwbb./wwbwwwbwb/.bb.wwwww/wb.bwwww./b.b...wbw/......b.b/b.......b/bb.....bb w 0");
 
-		a.startMove();
-		a.putAt(Vertex::from_str("i8", 9), board_t::B_WHITE);
-		a.finishMove();
+		for(int i=0; i<3; i++) {
+			a.startMove();
+			a.putAt(Vertex::from_str("i8", 9), board_t::B_WHITE);
+			a.finishMove();
 
-		a.startMove();
-		a.putAt(Vertex::from_str("i7", 9), board_t::B_BLACK);
-		a.finishMove();
+			assert(a.getHash() != b.getHash());
 
-		assert(a.getHash() == b.getHash());
+			a.startMove();
+			a.putAt(Vertex::from_str("i7", 9), board_t::B_BLACK);
+			a.finishMove();
+
+			assert(a.getHash() == b.getHash());
+		}
 	}
 
 #if 0
