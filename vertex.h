@@ -31,11 +31,6 @@ public:
 
 	bool isValid() const { return valid; }
 
-	Vertex up()    const { return { v - dim, dim }; }
-	Vertex down()  const { return { v + dim, dim }; }
-	Vertex left()  const;
-	Vertex right() const;
-
 	std::string to_str(const bool sgf = false) const;
 
 	int getDim() const;
