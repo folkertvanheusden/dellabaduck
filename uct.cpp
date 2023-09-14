@@ -38,12 +38,14 @@ uct_node::uct_node(uct_node *const parent, const Board & position, const board_t
 
 	assert(this->seen.size() - seen_in.size() <= 1);
 
-	unvisited = this->position.findLiberties(player);
+	if (valid) {
+		unvisited = this->position.findLiberties(player);
 
-	game_over = unvisited.empty();
+		game_over = unvisited.empty();
 
-	if (!game_over)
-		std::shuffle(std::begin(unvisited), std::end(unvisited), rng);
+		if (!game_over)
+			std::shuffle(std::begin(unvisited), std::end(unvisited), rng);
+	}
 }
 
 uct_node::~uct_node()
