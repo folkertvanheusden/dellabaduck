@@ -13,7 +13,11 @@ Zobrist::~Zobrist()
 
 void Zobrist::setDim(const int dim)
 {
+#ifdef SITUATIONAL_SUPERKO
 	size_t newN = dim * dim * 2;
+#else
+	size_t newN = dim * dim;
+#endif
 
 	for(size_t i=rngs.size(); i<newN; i++)
 		rngs.push_back(distribution(gen));
