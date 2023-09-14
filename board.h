@@ -193,7 +193,7 @@ private:
 	auto getSurroundingNonEmptyVertexes(const Vertex & v);
 	auto getSurroundingChainsOfType(const Vertex & v, const board_t bv);
 	//
-	auto getLiberties(chain *const ch, const Vertex & v);
+	void getLiberties(chain *const ch, const Vertex & v);
 	void libertyScan(const std::vector<chain *> & chains);
 	void collectLiberties();
 

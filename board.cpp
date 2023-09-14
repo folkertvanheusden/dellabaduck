@@ -147,11 +147,9 @@ void Board::validateBoard()
 #endif
 }
 
-auto Board::getLiberties(chain *const ch, const Vertex & v)
+void Board::getLiberties(chain *const ch, const Vertex & v)
 {
 	assert(v.isValid());
-
-	std::vector<Vertex> out;
 
 	Vertex vLeft(v.left());
 	if (vLeft.isValid() && getAt(vLeft) == board_t::B_EMPTY)
@@ -168,8 +166,6 @@ auto Board::getLiberties(chain *const ch, const Vertex & v)
 	Vertex vDown(v.down());
 	if (vDown.isValid() && getAt(vDown) == board_t::B_EMPTY)
 		ch->addLiberty(vDown);
-
-	return out;
 }
 
 auto Board::getSurroundingNonEmptyVertexes(const Vertex & v)
