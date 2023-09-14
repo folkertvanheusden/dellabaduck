@@ -57,10 +57,8 @@ bool uct_node::verify() const
 	if (!fully_expanded())
 		return true;
 
-	if (score > visited) {
-		send(true, "node score %d > visited %d", score, visited);
+	if (score > visited)
 		return false;
-	}
 
 	if (parent && parent->get_player() == get_player())
 		return false;
@@ -285,8 +283,6 @@ std::tuple<std::optional<Vertex>, uint64_t, uint64_t> calculate_move(const Board
 {
 	uct_node *root     = new uct_node(nullptr, b, p, { }, komi, seen, 0);
 
-	send(true, "ROOT IS %p with %lu", root, b.getHash());
-
 	uint64_t  n_played = 0;
 
 	for(;;) {
@@ -308,8 +304,6 @@ std::tuple<std::optional<Vertex>, uint64_t, uint64_t> calculate_move(const Board
 				assert(best_node->is_valid());
 
 				assert(best_node->verify());
-
-				send(true, "OUT1: %s / %lu", best_move.value().to_str().c_str(), best_node->get_position().getHash());
 			}
 
 			assert(root->verify());
