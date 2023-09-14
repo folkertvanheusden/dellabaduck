@@ -190,9 +190,6 @@ private:
 	void mapChain(const std::unordered_set<Vertex, Vertex::HashFunction> & chain, const chain_nr_t nr);
 	void removeChain(const board_t bv, const chain_nr_t nr);
 
-	auto getSurroundingNonEmptyVertexes(const Vertex & v);
-	auto getSurroundingChainsOfType(const Vertex & v, const board_t bv);
-	//
 	void getLiberties(chain *const ch, const Vertex & v);
 	void libertyScan(const std::vector<chain *> & chains);
 	void collectLiberties();
@@ -205,9 +202,9 @@ private:
 
 	Zobrist *getZobrist() const { return z; }
 
-	chain_nr_t getCMAt(const int x, const int y) const { return cm[y * dim + x]; }
+	chain_nr_t getCMAt(const int o) const { return cm[o]; }
 
-	auto getChainGroup(const int nr) const { return &chainGroups[nr]; }
+	inline auto getChainGroup(const int nr) const { return &chainGroups[nr]; }
 
 public:
 	Board(Zobrist *const z, const int dim);

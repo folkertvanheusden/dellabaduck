@@ -168,60 +168,6 @@ void Board::getLiberties(chain *const ch, const Vertex & v)
 		ch->addLiberty(vDown);
 }
 
-auto Board::getSurroundingNonEmptyVertexes(const Vertex & v)
-{
-	std::vector<Vertex> out;
-
-	Vertex vLeft(v.left());
-	if (vLeft.isValid() && getAt(vLeft) != board_t::B_EMPTY)
-		out.push_back(vLeft);
-
-	Vertex vRight(v.right());
-	if (vRight.isValid() && getAt(vRight) != board_t::B_EMPTY)
-		out.push_back(vRight);
-
-	Vertex vUp(v.up());
-	if (vUp.isValid() && getAt(vUp) != board_t::B_EMPTY)
-		out.push_back(vUp);
-
-	Vertex vDown(v.down());
-	if (vDown.isValid() && getAt(vDown) != board_t::B_EMPTY)
-		out.push_back(vDown);
-
-	return out;
-}
-
-auto Board::getSurroundingChainsOfType(const Vertex & v, const board_t bv)
-{
-	std::unordered_set<chain_nr_t> out;
-
-	Vertex vLeft(v.left());
-	if (vLeft.isValid() && getAt(vLeft) == bv) {
-		assert(cm[vLeft.getV()] != NO_CHAIN);
-		out.insert(cm[vLeft.getV()]);
-	}
-
-	Vertex vRight(v.right());
-	if (vRight.isValid() && getAt(vRight) == bv) {
-		assert(cm[vRight.getV()] != NO_CHAIN);
-		out.insert(cm[vRight.getV()]);
-	}
-
-	Vertex vUp(v.up());
-	if (vUp.isValid() && getAt(vUp) == bv) {
-		assert(cm[vUp.getV()] != NO_CHAIN);
-		out.insert(cm[vUp.getV()]);
-	}
-
-	Vertex vDown(v.down());
-	if (vDown.isValid() && getAt(vDown) == bv) {
-		assert(cm[vDown.getV()] != NO_CHAIN);
-		out.insert(cm[vDown.getV()]);
-	}
-
-	return out;
-}
-
 void Board::addChain(const board_t bv, chain_nr_t cnr, chain *const new_c)
 {
 	auto rc = chainGroups[board_tToChainGroupNr(bv)].insert({ cnr, new_c });
@@ -685,10 +631,8 @@ void Board::assign(const Board & in)
 
 	cm = new chain_nr_t[dimsq]();
 
-	for(int y=0; y<dim; y++) {
-		for(int x=0; x<dim; x++)
-			cm[y * dim + x] = in.getCMAt(x, y);
-	}
+	for(int o=0; o<dimsq; o++)
+		cm[o] = in.getCMAt(o);
 
 	cnr = 0;
 
