@@ -522,7 +522,7 @@ void unit_tests()
 
 	{
 		Board a(&z, "b.bw..w.b/bb.bwwbb./wwbwwwbwb/.bb.wwwww/wb.bwwww./b.b...wbw/......b.b/b.......b/bb.....bb w 0");
-		Board b(&z, "b.bw..w.b/bb.bwwbb./wwbwwwbwb/.bb.wwwww/wb.bwwww./b.b...wbw/......b.b/b.......b/bb.....bb w 0");
+		Board b(a);
 
 		for(int i=0; i<3; i++) {
 			a.startMove();
