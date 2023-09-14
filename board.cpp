@@ -630,12 +630,12 @@ void Board::assign(const Board & in)
 
 	const int dimsq = dim * dim;
 
-	b = new board_t[dimsq]();
+	b = new board_t[dimsq];
 	in.getTo(b);
 
 	hash = in.getHash();
 
-	cm = new chain_nr_t[dimsq]();
+	cm = new chain_nr_t[dimsq];
 
 	for(int o=0; o<dimsq; o++)
 		cm[o] = in.getCMAt(o);

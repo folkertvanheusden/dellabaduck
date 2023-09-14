@@ -96,7 +96,6 @@ public:
 	}
 
 	void addLiberty(const Vertex & v) {
-		// it is assumed that liberties may be added multiple times
 		liberties.push_back(v);
 	}
 
