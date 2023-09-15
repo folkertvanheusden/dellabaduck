@@ -830,17 +830,18 @@ std::vector<Vertex> Board::findLiberties(const board_t for_whom)
 	for(int i=0; i<dimsq; i++) {
 		board_t bv = getAt(i);
 
-		chain *c = nullptr;
-
 		if (bv != board_t::B_EMPTY) {
-			c = chainGroups[board_tToChainGroupNr(bv)].find(cm[i])->second;
+			chain *c = chainGroups[board_tToChainGroupNr(bv)].find(cm[i])->second;
 
 			assert(c != nullptr);
 
 			assert(bv == board_t::B_WHITE || bv == board_t::B_BLACK);
-		}
 
-		okFields[i] = c == nullptr || (bv == for_whom && c->getLiberties()->size() > 1) || (bv != for_whom && c->getLiberties()->size() == 1);
+			okFields[i] = (bv == for_whom && c->getLiberties()->size() > 1) || (bv != for_whom && c->getLiberties()->size() == 1);
+		}
+		else {
+			okFields[i] = true;
+		}
 	}
 
 	int o = 0;
