@@ -577,7 +577,7 @@ void unit_tests()
 
 		// uct_node creation test
 		for(size_t i=0; i<n; i++) {
-			uct_node u(nullptr, a, board_t::B_BLACK, liberties.at(i), 7.5, seen, 0);
+			uct_node u(nullptr, a, board_t::B_BLACK, liberties.at(i), 7.5, seen);
 //			assert(u.is_valid() == (i >= n_seen));
 			assert(a.getHash() == compare_hash);
 			assert(seen.size() == n_seen);
