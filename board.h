@@ -2,8 +2,8 @@
 
 #include <cassert>
 #include <cstdint>
-#include <map>
 #include <string>
+#include <unordered_map>
 #include <unordered_set>
 #include <vector>
 
@@ -173,7 +173,7 @@ private:
 	chain_nr_t    *cm   { nullptr };  // chain map
 	chain_nr_t     cnr  { 1       };  // chain nr (0 = no chain)
 
-	std::map<uint64_t, chain *> chainGroups[2];
+	std::unordered_map<uint64_t, chain *> chainGroups[2];
 
 	int board_tToChainGroupNr(const board_t bv) const;
 
