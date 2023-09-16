@@ -17,14 +17,13 @@ private:
 	std::unordered_set<uint64_t>    seen;
 	bool                            valid { true };
 
-const int depth { 0 };
-
 	std::vector<std::pair<Vertex, uct_node *> > children;
 	std::vector<Vertex>             unvisited;
 	uint64_t                        visited   { 0 };
 	double                          score     { 0. };
 
 	bool                            game_over { false };
+	bool                            first     { true  };
 
 	std::optional<uct_node *> add_child(const Vertex & m);
 
@@ -38,7 +37,7 @@ const int depth { 0 };
 	double    playout(const uct_node *const leaf);
 
 public:
-	uct_node(uct_node *const parent, const Board & position, const board_t player, const std::optional<Vertex> & causing_move, const double komi, const std::unordered_set<uint64_t> & seen, const int depth);
+	uct_node(uct_node *const parent, const Board & position, const board_t player, const std::optional<Vertex> & causing_move, const double komi, const std::unordered_set<uint64_t> & seen);
 	virtual ~uct_node();
 
 	bool         is_valid() const { return valid; }

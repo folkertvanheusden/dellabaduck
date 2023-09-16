@@ -15,14 +15,13 @@
 
 thread_local auto rng = std::default_random_engine {};
 
-uct_node::uct_node(uct_node *const parent, const Board & position, const board_t player, const std::optional<Vertex> & causing_move, const double komi, const std::unordered_set<uint64_t> & seen_in, const int depth) :
+uct_node::uct_node(uct_node *const parent, const Board & position, const board_t player, const std::optional<Vertex> & causing_move, const double komi, const std::unordered_set<uint64_t> & seen_in) :
 	parent(parent),
 	position(position),
 	player(player),
 	causing_move(causing_move),
 	komi(komi),
-	seen(seen_in),
-	depth(depth)
+	seen(seen_in)
 {
 	if (causing_move.has_value()) {
 		assert(this->position.getAt(causing_move.value()) == board_t::B_EMPTY);
@@ -37,19 +36,11 @@ uct_node::uct_node(uct_node *const parent, const Board & position, const board_t
 	}
 
 	assert(this->seen.size() - seen_in.size() <= 1);
-
-	if (valid) {
-		unvisited = this->position.findLiberties(player);
-
-		game_over = unvisited.empty();
-
-		if (!game_over)
-			std::shuffle(std::begin(unvisited), std::end(unvisited), rng);
-	}
 }
 
 uct_node::~uct_node()
 {
+	printf("hier %d\n", first);
 	for(auto u : children)
 		delete u.second;
 }
@@ -86,7 +77,7 @@ bool uct_node::verify() const
 
 std::optional<uct_node *> uct_node::add_child(const Vertex & m)
 {
-	uct_node *new_node = new uct_node(this, position, opponentColor(player), m, komi, seen, depth + 1);
+	uct_node *new_node = new uct_node(this, position, opponentColor(player), m, komi, seen);
 
 	if (new_node->is_valid()) {
 		children.emplace_back(m, new_node);
@@ -130,7 +121,21 @@ double uct_node::get_score()
 
 uct_node *uct_node::pick_unvisited()
 {
-	if (unvisited.empty())
+	if (first) {
+		first = false;
+
+		if (!valid)
+			return nullptr;
+
+		unvisited = this->position.findLiberties(player);
+
+		game_over = unvisited.empty();
+
+		if (!game_over)
+			std::shuffle(std::begin(unvisited), std::end(unvisited), rng);
+	}
+
+	if (game_over)
 		return nullptr;
 
 	auto first = unvisited.back();
@@ -283,7 +288,7 @@ const std::vector<std::pair<Vertex, uct_node *> > & uct_node::get_children() con
 
 std::tuple<std::optional<Vertex>, uint64_t, uint64_t> calculate_move(const Board & b, const board_t p, const uint64_t think_end_time, const double komi, const std::optional<uint64_t> n_limit, const std::unordered_set<uint64_t> & seen)
 {
-	uct_node *root     = new uct_node(nullptr, b, p, { }, komi, seen, 0);
+	uct_node *root     = new uct_node(nullptr, b, p, { }, komi, seen);
 
 	uint64_t  n_played = 0;
 
