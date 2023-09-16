@@ -40,7 +40,6 @@ uct_node::uct_node(uct_node *const parent, const Board & position, const board_t
 
 uct_node::~uct_node()
 {
-	printf("hier %d\n", first);
 	for(auto u : children)
 		delete u.second;
 }
