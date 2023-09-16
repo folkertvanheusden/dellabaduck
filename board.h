@@ -191,6 +191,7 @@ private:
 
 	void getLiberties(chain *const ch, const Vertex & v);
 	void libertyScan(const std::vector<chain *> & chains);
+	void libertyScan(const std::unordered_set<int> & places);
 	void collectLiberties();
 
 	void getTo(board_t *const bto) const;

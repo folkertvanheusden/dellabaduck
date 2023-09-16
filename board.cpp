@@ -208,6 +208,20 @@ void Board::libertyScan(const std::vector<chain *> & chains)
 	}
 }
 
+void Board::libertyScan(const std::unordered_set<int> & places)
+{
+	for(int v: places) {
+		auto ch = getChain(v).first;
+
+		ch->clearLiberties();
+
+		for(auto & v: *ch->getStones())
+			getLiberties(ch, v);
+
+		ch->uniqueLiberties();
+	}
+}
+
 void Board::updateField(const Vertex & v, const board_t bv)
 {
 	assert(v.isValid());
@@ -238,13 +252,12 @@ void Board::updateField(const Vertex & v, const board_t bv)
 	std::vector<Vertex> adjacentBlack;
 	std::vector<Vertex> adjacentWhite;
 
-	const int vv = v.getV();
 	const int x  = v.getX();
 	const int y  = v.getY();
 	const int dimm1 = dim - 1;
 
 	if (x > 0) {
-		Vertex  vt(vv - 1, dim);
+		Vertex  vt(place - 1, dim);
 		board_t bv = getAt(vt);
 
 		if (bv == board_t::B_BLACK)
@@ -254,7 +267,7 @@ void Board::updateField(const Vertex & v, const board_t bv)
 	}
 
 	if (x < dimm1) {
-		Vertex  vt(vv + 1, dim);
+		Vertex  vt(place + 1, dim);
 		board_t bv = getAt(vt);
 
 		if (bv == board_t::B_BLACK)
@@ -264,7 +277,7 @@ void Board::updateField(const Vertex & v, const board_t bv)
 	}
 
 	if (y > 0) {
-		Vertex  vt(vv - dim, dim);
+		Vertex  vt(place - dim, dim);
 		board_t bv = getAt(vt);
 
 		if (bv == board_t::B_BLACK)
@@ -274,7 +287,7 @@ void Board::updateField(const Vertex & v, const board_t bv)
 	}
 
 	if (y < dimm1) {
-		Vertex  vt(vv + dim, dim);
+		Vertex  vt(place + dim, dim);
 		board_t bv = getAt(vt);
 
 		if (bv == board_t::B_BLACK)
@@ -414,6 +427,8 @@ void Board::updateField(const Vertex & v, const board_t bv)
 
 	validateBoard();
 
+	std::unordered_set<int> urescan;
+
 	// check if any surrounding chains are dead
 	for(auto & ac: adjacentTheirs) {
 		auto       ch      = getChain(ac);
@@ -432,20 +447,37 @@ void Board::updateField(const Vertex & v, const board_t bv)
 
 		// clean-up
 		for(auto & stone : *work_c->getStones()) {
-			assert(b[stone.getV()] == work_b);
+			const int vv = stone.getV();
+
+			assert(b[vv] == work_b);
 
 			assert(v != stone);
 
 			// update undo record
-			b_undo.back().undos.emplace_back(stone, b[stone.getV()]);
-			assert(b[stone.getV()] != board_t::B_EMPTY);
+			b_undo.back().undos.emplace_back(stone, b[vv]);
+			assert(b[vv] != board_t::B_EMPTY);
 
 			// remove stone from board
-			assert(b[stone.getV()] != board_t::B_EMPTY);
-			b[stone.getV()] = board_t::B_EMPTY;
+			assert(b[vv] != board_t::B_EMPTY);
+			b[vv] = board_t::B_EMPTY;
 
 			// update hash to no longer include this stone
-			hash ^= z->get(stone.getV(), opponentColor(bv) == board_t::B_BLACK);
+			hash ^= z->get(vv, opponentColor(bv) == board_t::B_BLACK);
+
+			const int x = stone.getX();
+			const int y = stone.getY();
+
+			if (x > 0 && b[vv - 1] != board_t::B_EMPTY && cm[vv - 1] != work_nr)
+				urescan.insert(vv - 1);
+
+			if (y > 0 && b[vv - dim] != board_t::B_EMPTY && cm[vv - dim] != work_nr)
+				urescan.insert(vv - dim);
+
+			if (x < dimm1 && b[vv + 1] != board_t::B_EMPTY && cm[vv + 1] != work_nr)
+                                urescan.insert(vv + 1);
+
+			if (y < dimm1 && b[vv + dim] != board_t::B_EMPTY && cm[vv + dim] != work_nr)
+                                urescan.insert(vv + dim);
 
 			// remove stone from chainmap
 			mapChain(stone, NO_CHAIN);
@@ -466,7 +498,7 @@ void Board::updateField(const Vertex & v, const board_t bv)
 		delete work_c;
 	}
 
-	collectLiberties();
+	libertyScan(urescan);
 
 #ifndef NDEBUG
 	assert(b[v.getV()] != board_t::B_EMPTY);

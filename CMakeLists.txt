@@ -9,7 +9,6 @@ add_compile_options(-Wall -pedantic)
 
 cmake_policy(SET CMP0069 NEW)
 set(CMAKE_POLICY_DEFAULT_CMP0069 NEW)
-
 set(CMAKE_INTERPROCEDURAL_OPTIMIZATION TRUE)
 
 add_executable(
