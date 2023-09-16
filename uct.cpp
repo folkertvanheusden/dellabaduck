@@ -133,11 +133,11 @@ uct_node *uct_node::pick_unvisited()
 	if (unvisited.empty())
 		return nullptr;
 
-	auto first = unvisited.begin();  // back + pop_back
+	auto first = unvisited.back();
 
-	auto new_node = add_child(*first);
+	auto new_node = add_child(first);
 
-	unvisited.erase(first);
+	unvisited.pop_back();
 
 	if (new_node.has_value())
 		return new_node.value();
