@@ -497,32 +497,34 @@ void Board::collectLiberties()
 
 			assert(o == y * dim + x);
 
+			Vertex vo(o, dim);
+
 			if (x > 0) {
 				auto ch = getChain(o - 1);
 
 				if (ch.first)
-					ch.first->addLiberty({ o, dim });
+					ch.first->addLiberty(vo);
 			}
 
 			if (x < dimm1) {
 				auto ch = getChain(o + 1);
 
 				if (ch.first)
-					ch.first->addLiberty({ o, dim });
+					ch.first->addLiberty(vo);
 			}
 
 			if (y > 0) {
 				auto ch = getChain(o - dim);
 
 				if (ch.first)
-					ch.first->addLiberty({ o, dim });
+					ch.first->addLiberty(vo);
 			}
 
 			if (y < dimm1) {
 				auto ch = getChain(o + dim);
 
 				if (ch.first)
-					ch.first->addLiberty({ o, dim });
+					ch.first->addLiberty(vo);
 			}
 		}
 	}
