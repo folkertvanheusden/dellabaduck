@@ -7,9 +7,9 @@
 
 void scoreFloodFill(const Board & b, const int dim, bool *const reachable, const int x, const int y, const board_t lookFor)
 {
-	auto piece = b.getAt(x, y);
-
 	int v = y * dim + x;
+
+	auto piece = b.getAt(v);
 
 	if (piece != lookFor || reachable[v])
 		return;
@@ -32,7 +32,7 @@ void scoreFloodFill(const Board & b, const int dim, bool *const reachable, const
 // black, white
 std::pair<double, double> score(const Board & b, const double komi)
 {
-	const int dim = b.getDim();
+	const int dim   = b.getDim();
 	const int dimsq = dim * dim;
 
 	int blackStones = 0;
