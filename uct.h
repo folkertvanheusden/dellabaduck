@@ -51,15 +51,15 @@ public:
 	const Board  get_position() const;
 
 	uct_node    *best_child() const;
+	auto         get_children() const;
 
 	bool         verify() const;
 
 	const Vertex get_causing_move() const;
 
-	const std::vector<std::pair<Vertex, uct_node *> > & get_children() const;
 	void         update_stats(const uint64_t visited, const double score);
 	uint64_t     get_visit_count();
 	double       get_score_count();
 };
 
-std::tuple<std::optional<Vertex>, uint64_t, uint64_t> calculate_move(const Board & b, const board_t p, const uint64_t think_end_time, const double komi, const std::optional<uint64_t> n_limit, const std::unordered_set<uint64_t> & seen);
+std::tuple<std::optional<Vertex>, uint64_t, uint64_t, std::vector<std::pair<Vertex, uint64_t> > > calculate_move(const Board & b, const board_t p, const uint64_t think_end_time, const double komi, const std::optional<uint64_t> n_limit, const std::unordered_set<uint64_t> & seen);

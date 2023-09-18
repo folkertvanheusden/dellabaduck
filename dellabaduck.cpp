@@ -87,14 +87,14 @@ std::optional<Vertex> gen_move(const int move_nr, Board *const b, const board_t 
 		threads.push_back(new std::thread([&] {
 			auto rc = calculate_move(*b, p, think_end_ts, komi, { }, *seen);
 
-			auto & move = std::get<0>(rc);
+			auto & children = std::get<3>(rc);
 
-			if (move.has_value()) {
-				std::unique_lock<std::mutex> lck(results_lock);
+			std::unique_lock<std::mutex> lck(results_lock);
 
-				n += std::get<1>(rc);
+			for(auto & child: children) {
+				results.at(child.first.getV()) += child.second;
 
-				results.at(move.value().getV()) += std::get<2>(rc);
+				n += child.second;
 			}
 		}));
 	}

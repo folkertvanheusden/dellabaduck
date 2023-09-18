@@ -202,7 +202,7 @@ uct_node *uct_node::best_child() const
 
 	assert(is_valid());
 
-	for(auto u : children) {
+	for(auto & u : children) {
 		if (u.second->is_valid() == false)
 			continue;
 
@@ -215,6 +215,20 @@ uct_node *uct_node::best_child() const
 	}
 
 	return best;
+}
+
+auto uct_node::get_children() const
+{
+	std::vector<std::pair<Vertex, uint64_t> > out;
+
+	for(auto & u: children) {
+		if (u.second->is_valid() == false)
+			continue;
+
+		out.push_back({ u.first, u.second->get_visit_count() });
+	}
+
+	return out;
 }
 
 uct_node *uct_node::get_parent()
@@ -280,12 +294,7 @@ const Vertex uct_node::get_causing_move() const
 	return causing_move.value();
 }
 
-const std::vector<std::pair<Vertex, uct_node *> > & uct_node::get_children() const
-{
-	return children;
-}
-
-std::tuple<std::optional<Vertex>, uint64_t, uint64_t> calculate_move(const Board & b, const board_t p, const uint64_t think_end_time, const double komi, const std::optional<uint64_t> n_limit, const std::unordered_set<uint64_t> & seen)
+std::tuple<std::optional<Vertex>, uint64_t, uint64_t, std::vector<std::pair<Vertex, uint64_t> > > calculate_move(const Board & b, const board_t p, const uint64_t think_end_time, const double komi, const std::optional<uint64_t> n_limit, const std::unordered_set<uint64_t> & seen)
 {
 	uct_node *root     = new uct_node(nullptr, b, p, { }, komi, seen);
 
@@ -314,11 +323,13 @@ std::tuple<std::optional<Vertex>, uint64_t, uint64_t> calculate_move(const Board
 
 			assert(root->verify());
 
+			auto children = root->get_children();
+
 			delete root;
 
 			// fprintf(stderr, "# n played/s: %.2f\n", n_played * 1000.0 / think_time);
 
-			return { best_move, n_played, best_count };
+			return { best_move, n_played, best_count, children };
 		}
 	}
 }
