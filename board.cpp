@@ -1055,7 +1055,7 @@ void Board::dumpUndoSet(const bool full)
 	}
 }
 
-std::string Board::dumpFEN(const board_t next_player, const int pass_depth)
+std::string Board::dumpFEN(const board_t next_player, const int pass_depth) const
 {
         std::string out;
 
