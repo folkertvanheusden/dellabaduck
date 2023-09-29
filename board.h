@@ -28,17 +28,16 @@ public:
 	chain() {
 	}
 
+	chain(const std::unordered_set<Vertex, Vertex::HashFunction> & stones, const std::vector<Vertex> & liberties) :
+		stones(stones),
+		liberties(liberties) {
+	}
+
 	virtual ~chain() {
 	}
 
 	chain * duplicate() const {
-		chain *copy = new chain();
-
-		copy->stones = stones;
-
-		copy->liberties = liberties;
-
-		return copy;
+		return new chain(stones, liberties);
 	}
 
 	void dump() {
