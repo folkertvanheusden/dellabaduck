@@ -65,7 +65,7 @@ std::optional<uct_node *> uct_node::add_child(const Vertex & m)
 	Board new_position(position);
 
 	new_position.startMove();
-	new_position.putAt(m, opponentColor(player));
+	new_position.putAt(m, player);
 	new_position.finishMove();
 
 	uint64_t hash = new_position.getHash();
