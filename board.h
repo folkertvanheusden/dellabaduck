@@ -252,6 +252,7 @@ public:
 
 	void undoMoveSet();
 
+	// used by unittest
 	void setAt(const int x, const int y, const board_t bv) { assert(x >= 0 && x < dim && y >= 0 && y < dim); b[y * dim + x] = bv; }
 };
 

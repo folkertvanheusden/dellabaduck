@@ -123,9 +123,6 @@ uct_node *uct_node::pick_unvisited()
 	if (first) {
 		first = false;
 
-		if (!valid)
-			return nullptr;
-
 		unvisited = this->position.findLiberties(player);
 
 		game_over = unvisited.empty();
@@ -203,9 +200,6 @@ uct_node *uct_node::best_child() const
 	assert(is_valid());
 
 	for(auto & u : children) {
-		if (u.second->is_valid() == false)
-			continue;
-
 		uint64_t count = u.second->get_visit_count();
 
 		if (count > best_count) {
@@ -221,12 +215,8 @@ auto uct_node::get_children() const
 {
 	std::vector<std::pair<Vertex, uint64_t> > out;
 
-	for(auto & u: children) {
-		if (u.second->is_valid() == false)
-			continue;
-
+	for(auto & u: children)
 		out.push_back({ u.first, u.second->get_visit_count() });
-	}
 
 	return out;
 }
@@ -250,7 +240,7 @@ void uct_node::backpropagate(uct_node *const leaf, double result)
 	while(node);
 }
 
-const Board uct_node::get_position() const
+const Board & uct_node::get_position() const
 {
 	return position;
 }

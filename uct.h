@@ -48,7 +48,7 @@ public:
 
 	void         monte_carlo_tree_search();
 
-	const Board  get_position() const;
+	const Board &get_position() const;
 
 	uct_node    *best_child() const;
 	auto         get_children() const;
