@@ -15,33 +15,19 @@
 
 thread_local auto rng = std::default_random_engine {};
 
-uct_node::uct_node(uct_node *const parent, const Board & position, const board_t player, const std::optional<Vertex> & causing_move, const double komi, const std::unordered_set<uint64_t> & seen_in) :
+uct_node::uct_node(uct_node *const parent, Board & position, const board_t player, const std::optional<Vertex> & causing_move, const double komi, std::unordered_set<uint64_t> & seen_in) :
 	parent(parent),
-	position(position),
+	position(std::move(position)),
 	player(player),
 	causing_move(causing_move),
 	komi(komi),
-	seen(seen_in)
+	seen(std::move(seen_in))
 {
-	if (causing_move.has_value()) {
-		assert(this->position.getAt(causing_move.value()) == board_t::B_EMPTY);
-
-		this->position.startMove();
-		this->position.putAt(causing_move.value(), opponentColor(player));
-		this->position.finishMove();
-
-		valid = this->seen.insert(this->position.getHash()).second;
-
-		assert(!valid || seen_in.find(this->position.getHash()) == seen_in.end());
-	}
-
 	assert(this->seen.size() - seen_in.size() <= 1);
 }
 
 uct_node::~uct_node()
 {
-	for(auto u : children)
-		delete u.second;
 }
 
 bool uct_node::verify() const
@@ -59,9 +45,9 @@ bool uct_node::verify() const
 	uint64_t children_visit_count = 0;
 
 	for(auto & u : children) {
-		children_visit_count += u.second->get_visit_count();
+		children_visit_count += u.second.get_visit_count();
 
-		if (!u.second->verify())
+		if (!u.second.verify())
 			rc = false;
 	}
 
@@ -76,25 +62,32 @@ bool uct_node::verify() const
 
 std::optional<uct_node *> uct_node::add_child(const Vertex & m)
 {
-	uct_node *new_node = new uct_node(this, position, opponentColor(player), m, komi, seen);
+	Board new_position(position);
 
-	if (new_node->is_valid()) {
-		children.emplace_back(m, new_node);
+	new_position.startMove();
+	new_position.putAt(m, opponentColor(player));
+	new_position.finishMove();
 
-		return new_node;
+	uint64_t hash = new_position.getHash();
+
+	std::unordered_set<uint64_t> new_seen_set(seen);
+	bool valid = new_seen_set.insert(hash).second;
+
+	if (is_valid()) {
+		children.emplace_back(m, uct_node(this, position, opponentColor(player), m, komi, seen));
+
+		return { &children.back().second };
 	}
-
-	delete new_node;
 
 	return { };
 }
 
-uint64_t uct_node::get_visit_count()
+uint64_t uct_node::get_visit_count() const
 {
 	return visited;
 }
 
-double uct_node::get_score_count()
+double uct_node::get_score_count() const
 {
 	return score;
 }
@@ -157,14 +150,14 @@ uct_node *uct_node::best_uct()
 	double    best_score = -DBL_MAX;
 
 	for(auto & u : children) {
-		if (u.second->is_valid() == false)
+		if (u.second.is_valid() == false)
 			continue;
 
-		double current_score = u.second->get_score();
+		double current_score = u.second.get_score();
 
 		if (current_score > best_score) {
 			best_score = current_score;
-			best = u.second;
+			best = &u.second;
 		}
 	}
 
@@ -192,19 +185,19 @@ uct_node *uct_node::traverse()
 	return chosen;
 }
 
-uct_node *uct_node::best_child() const
+const uct_node *uct_node::best_child() const
 {
-	uct_node *best       = nullptr;
-	uint64_t  best_count = 0;
+	const uct_node *best       = nullptr;
+	uint64_t        best_count = 0;
 
 	assert(is_valid());
 
 	for(auto & u : children) {
-		uint64_t count = u.second->get_visit_count();
+		uint64_t count = u.second.get_visit_count();
 
 		if (count > best_count) {
 			best_count = count;
-			best = u.second;
+			best       = &u.second;
 		}
 	}
 
@@ -216,7 +209,7 @@ auto uct_node::get_children() const
 	std::vector<std::pair<Vertex, uint64_t> > out;
 
 	for(auto & u: children)
-		out.push_back({ u.first, u.second->get_visit_count() });
+		out.push_back({ u.first, u.second.get_visit_count() });
 
 	return out;
 }
@@ -286,17 +279,22 @@ const Vertex uct_node::get_causing_move() const
 
 std::tuple<std::optional<Vertex>, uint64_t, uint64_t, std::vector<std::pair<Vertex, uint64_t> > > calculate_move(const Board & b, const board_t p, const uint64_t think_end_time, const double komi, const std::optional<uint64_t> n_limit, const std::unordered_set<uint64_t> & seen)
 {
-	uct_node *root     = new uct_node(nullptr, b, p, { }, komi, seen);
+	Board    b_copy(b);
+
+	std::unordered_set<uint64_t> seen_copy(seen);
+	seen_copy.insert(b_copy.getHash());  // TODO isvalid check?
+
+	uct_node root(nullptr, b_copy, p, { }, komi, seen_copy);
 
 	uint64_t  n_played = 0;
 
 	for(;;) {
-		root->monte_carlo_tree_search();
+		root.monte_carlo_tree_search();
 
 		n_played++;
 
 		if (get_ts_ms() >= think_end_time || (n_limit.has_value() && n_played >= n_limit.value())) {
-			auto best_node      = root->best_child();
+			auto best_node      = root.best_child();
 
 			std::optional<Vertex> best_move;
 			uint64_t best_count = 0;
@@ -311,11 +309,9 @@ std::tuple<std::optional<Vertex>, uint64_t, uint64_t, std::vector<std::pair<Vert
 				assert(best_node->verify());
 			}
 
-			assert(root->verify());
+			assert(root.verify());
 
-			auto children = root->get_children();
-
-			delete root;
+			auto children = root.get_children();
 
 			// fprintf(stderr, "# n played/s: %.2f\n", n_played * 1000.0 / think_time);
 

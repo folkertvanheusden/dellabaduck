@@ -17,7 +17,7 @@ private:
 	std::unordered_set<uint64_t>    seen;
 	bool                            valid { true };
 
-	std::vector<std::pair<Vertex, uct_node *> > children;
+	std::vector<std::pair<Vertex, uct_node> > children;
 	std::vector<Vertex>             unvisited;
 	uint64_t                        visited   { 0 };
 	double                          score     { 0. };
@@ -37,7 +37,7 @@ private:
 	double    playout(const uct_node *const leaf);
 
 public:
-	uct_node(uct_node *const parent, const Board & position, const board_t player, const std::optional<Vertex> & causing_move, const double komi, const std::unordered_set<uint64_t> & seen);
+	uct_node(uct_node *const parent, Board & position, const board_t player, const std::optional<Vertex> & causing_move, const double komi, std::unordered_set<uint64_t> & seen_in);
 	virtual ~uct_node();
 
 	bool         is_valid() const { return valid; }
@@ -50,7 +50,7 @@ public:
 
 	const Board &get_position() const;
 
-	uct_node    *best_child() const;
+	const uct_node *best_child() const;
 	auto         get_children() const;
 
 	bool         verify() const;
@@ -58,8 +58,8 @@ public:
 	const Vertex get_causing_move() const;
 
 	void         update_stats(const uint64_t visited, const double score);
-	uint64_t     get_visit_count();
-	double       get_score_count();
+	uint64_t     get_visit_count() const;
+	double       get_score_count() const;
 };
 
 std::tuple<std::optional<Vertex>, uint64_t, uint64_t, std::vector<std::pair<Vertex, uint64_t> > > calculate_move(const Board & b, const board_t p, const uint64_t think_end_time, const double komi, const std::optional<uint64_t> n_limit, const std::unordered_set<uint64_t> & seen);
