@@ -74,7 +74,7 @@ std::optional<uct_node *> uct_node::add_child(const Vertex & m)
 	bool valid = new_seen_set.insert(hash).second;
 
 	if (is_valid()) {
-		children.emplace_back(m, uct_node(this, position, opponentColor(player), m, komi, seen));
+		children.emplace_back(m, uct_node(this, position, opponentColor(player), m, komi, new_seen_set));
 
 		return { &children.back().second };
 	}
