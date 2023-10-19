@@ -34,6 +34,7 @@ add_executable(
   playout.cpp
   random.cpp
   score.cpp
+  sgf.cpp
   str.cpp
   time.cpp
   uct.cpp

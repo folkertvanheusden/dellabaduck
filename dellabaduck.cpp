@@ -30,6 +30,7 @@
 #include "playout.h"
 #include "random.h"
 #include "score.h"
+#include "sgf.h"
 #include "str.h"
 #include "time.h"
 #include "uct.h"
@@ -283,6 +284,7 @@ int main(int argc, char *argv[])
 			p = opponentColor(p);
 
 			send(true, "# %s", b->dumpFEN(p, pass).c_str());
+			send(true, "# %s", dump_to_sgf(*b, komi, true).c_str());
 		}
 		else if (parts.at(0) == "quit") {
 			send(false, "=%s", id.c_str());
@@ -418,6 +420,7 @@ int main(int argc, char *argv[])
 			p = opponentColor(player);
 
 			send(true, "# %s", b->dumpFEN(p, pass).c_str());
+			send(true, "# %s", dump_to_sgf(*b, komi, true).c_str());
 		}
 		else {
 			send(false, "?");
