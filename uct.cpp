@@ -23,7 +23,6 @@ uct_node::uct_node(uct_node *const parent, Board & position, const board_t playe
 	komi(komi),
 	seen(std::move(seen_in))
 {
-	assert(this->seen.size() - seen_in.size() <= 1);
 }
 
 uct_node::~uct_node()
@@ -73,7 +72,7 @@ std::optional<uct_node *> uct_node::add_child(const Vertex & m)
 	std::unordered_set<uint64_t> new_seen_set(seen);
 	bool valid = new_seen_set.insert(hash).second;
 
-	if (is_valid()) {
+	if (valid) {
 		children.emplace_back(m, uct_node(this, position, opponentColor(player), m, komi, new_seen_set));
 
 		return { &children.back().second };
