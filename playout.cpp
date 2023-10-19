@@ -72,9 +72,9 @@ std::tuple<double, double, int, std::optional<Vertex> > playout(const Board & in
 	bool first_is_pass = false;
 	std::optional<Vertex> first;
 
-	while(++mc < dim * dim * dim) {
-		size_t attempt_n = 0;
+	std::uniform_int_distribution<> rng_binary(0, 1);
 
+	while(++mc < dim * dim * dim) {
 	        std::vector<Vertex> liberties = b.findLiberties(for_whom);
 
 		size_t n_liberties = liberties.size();
@@ -86,10 +86,12 @@ std::tuple<double, double, int, std::optional<Vertex> > playout(const Board & in
 			break;
 		}
 
+		size_t attempt_n = 0;
+
                 std::uniform_int_distribution<> rng(0, n_liberties - 1);
                 int o = rng(gen);
 
-		int d = rng(gen) & 1 ? 1 : -1;
+		int d = rng_binary(gen) ? 1 : -1;
 
 		int x = 0;
 		int y = 0;
