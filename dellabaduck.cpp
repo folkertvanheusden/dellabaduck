@@ -394,15 +394,16 @@ int main(int argc, char *argv[])
 
 			int    n_liberties_opp = b->findLiberties(opponentColor(player)).size();
 
-			auto   s = score(*b, komi);
-			double current_score     = player == board_t::B_BLACK ? s.first - s.second : s.second - s.first;
-			bool   pass_for_win_time = current_score > 0 && time_left <= 0;  // we've won anyway
-
 			// at this stage of the development we should be happy with draw
 			// later change "current_score >= " to "... > "
+
+			auto   s = score(*b, komi);
+			double current_score     = player == board_t::B_BLACK ? s.first - s.second : s.second - s.first;
+			bool   pass_for_win_time = current_score >= 0 && time_left <= 0;  // we've won anyway
+
 			bool   pass_for_win_pass = pass > 0 && current_score >= 0;
 
-			if (n_liberties == 0 || n_liberties_opp == 0 || pass_for_win_time || pass_for_win_pass) {
+			if (n_liberties == 0 || (n_liberties_opp == 0 && current_score >= 0) || pass_for_win_time || pass_for_win_pass) {
 				send(false, "=%s pass", id.c_str());
 
 				sgf += myformat(";%c[pass]", player == board_t::B_BLACK ? 'B' : 'W');
