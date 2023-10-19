@@ -15,11 +15,11 @@ private:
 	const std::optional<Vertex>     causing_move;
 	const double                    komi;
 	std::unordered_set<uint64_t>    seen;
-	bool                            valid { true };
+	bool                            valid     { true };
 
 	std::vector<uct_node>           children;
 	std::vector<Vertex>             unvisited;
-	uint64_t                        visited   { 0 };
+	uint64_t                        visited   { 0  };
 	double                          score     { 0. };
 
 	bool                            game_over { false };
