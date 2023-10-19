@@ -6,3 +6,4 @@
 
 std::pair<double, double> score(const Board & b, const double komi);
 std::string scoreStr(const std::pair<double, double> & scores);
+double score(const Board & b, const double komi, const board_t player);

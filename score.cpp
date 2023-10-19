@@ -80,3 +80,10 @@ std::string scoreStr(const std::pair<double, double> & scores)
 
 	return "0";
 }
+
+double score(const Board & b, const double komi, const board_t player)
+{
+	auto s = score(b, komi);
+
+	return player == board_t::B_BLACK ? s.first - s.second : s.second - s.first;
+}

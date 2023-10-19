@@ -75,6 +75,12 @@ std::tuple<double, double, int, std::optional<Vertex> > playout(const Board & in
 	while(++mc < dim * dim * dim) {
 		size_t attempt_n = 0;
 
+		// did opponent pass?
+		if (pass[for_whom != board_t::B_BLACK]) {  // check if it is safe to stop
+			if (score(b, komi, for_whom) >= 0)  // replace >= if draw is no longer wanted
+				break;
+		}
+
 	        std::vector<Vertex> liberties = b.findLiberties(for_whom);
 
 		size_t n_liberties = liberties.size();
