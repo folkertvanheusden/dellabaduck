@@ -77,8 +77,12 @@ std::tuple<double, double, int, std::optional<Vertex> > playout(const Board & in
 
 		// did opponent pass?
 		if (pass[for_whom != board_t::B_BLACK]) {  // check if it is safe to stop
-			if (score(b, komi, for_whom) >= 0)  // replace >= if draw is no longer wanted
-				break;
+			auto s = score(b, komi);
+
+			double current_score = for_whom == board_t::B_BLACK ? s.first - s.second : s.second - s.first;
+
+			if (current_score >= 0)  // replace >= if draw is no longer wanted
+				return std::tuple<double, double, int, std::optional<Vertex> >(s.first, s.second, mc, first);
 		}
 
 	        std::vector<Vertex> liberties = b.findLiberties(for_whom);
