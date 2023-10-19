@@ -99,29 +99,31 @@ std::tuple<double, double, int, std::optional<Vertex> > playout(const Board & in
 		while(attempt_n < n_liberties) {
 			assert(b.getAt(liberties.at(o)) == board_t::B_EMPTY);
 
-			b.startMove();
-			b.putAt(liberties.at(o), for_whom);
-			b.finishMove();
-
 			x = liberties.at(o).getX();
 			y = liberties.at(o).getY();
 
-			// and see if it did not produce a ko and is not in an eye
-			if (isInEye(b, x, y, for_whom) == false && seen.insert(b.getHash()).second == true) {
-				if (first.has_value() == false && first_is_pass == false) {
-					assert(o < n_liberties);
-					first = liberties.at(o);
+			if (isInEye(b, x, y, for_whom) == false) {
+				b.startMove();
+				b.putAt(liberties.at(o), for_whom);
+				b.finishMove();
 
-					assert(b.getChain(first.value()).first->getLiberties()->size() > 0);
+				// and see if it did not produce a ko
+				if (seen.insert(b.getHash()).second == true) {
+					if (first.has_value() == false && first_is_pass == false) {
+						assert(o < n_liberties);
+						first = liberties.at(o);
 
-					assert(for_whom == p);
+						assert(b.getChain(first.value()).first->getLiberties()->size() > 0);
+
+						assert(for_whom == p);
+					}
+
+					// no ko
+					break;  // Ok!
 				}
 
-				// no ko
-				break;  // Ok!
+				b.undoMoveSet();
 			}
-
-			b.undoMoveSet();
 
 			o += d;
 
