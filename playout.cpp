@@ -54,7 +54,7 @@ std::tuple<double, double, int, std::optional<Vertex> > playout(const Board & in
 
 	const int dim = b.getDim();
 
-	std::unordered_set<uint64_t> seen = seen_in;
+	std::unordered_set<uint64_t> seen(seen_in);
 	seen.insert(b.getHash());
 
 	int  mc      { 0     };
