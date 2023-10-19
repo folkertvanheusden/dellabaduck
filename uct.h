@@ -17,7 +17,7 @@ private:
 	std::unordered_set<uint64_t>    seen;
 	bool                            valid { true };
 
-	std::vector<std::pair<Vertex, uct_node> > children;
+	std::vector<uct_node>           children;
 	std::vector<Vertex>             unvisited;
 	uint64_t                        visited   { 0 };
 	double                          score     { 0. };

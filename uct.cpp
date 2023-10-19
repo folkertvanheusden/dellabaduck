@@ -44,9 +44,9 @@ bool uct_node::verify() const
 	uint64_t children_visit_count = 0;
 
 	for(auto & u : children) {
-		children_visit_count += u.second.get_visit_count();
+		children_visit_count += u.get_visit_count();
 
-		if (!u.second.verify())
+		if (!u.verify())
 			rc = false;
 	}
 
@@ -73,9 +73,9 @@ std::optional<uct_node *> uct_node::add_child(const Vertex & m)
 	bool valid = new_seen_set.insert(hash).second;
 
 	if (valid) {
-		children.emplace_back(m, uct_node(this, new_position, opponentColor(player), m, komi, new_seen_set));
+		children.emplace_back(uct_node(this, new_position, opponentColor(player), m, komi, new_seen_set));
 
-		return { &children.back().second };
+		return { &children.back() };
 	}
 
 	return { };
@@ -149,14 +149,14 @@ uct_node *uct_node::best_uct()
 	double    best_score = -DBL_MAX;
 
 	for(auto & u : children) {
-		if (u.second.is_valid() == false)
+		if (u.is_valid() == false)
 			continue;
 
-		double current_score = u.second.get_score();
+		double current_score = u.get_score();
 
 		if (current_score > best_score) {
 			best_score = current_score;
-			best = &u.second;
+			best = &u;
 		}
 	}
 
@@ -192,11 +192,11 @@ const uct_node *uct_node::best_child() const
 	assert(is_valid());
 
 	for(auto & u : children) {
-		uint64_t count = u.second.get_visit_count();
+		uint64_t count = u.get_visit_count();
 
 		if (count > best_count) {
 			best_count = count;
-			best       = &u.second;
+			best       = &u;
 		}
 	}
 
@@ -208,7 +208,7 @@ auto uct_node::get_children() const
 	std::vector<std::pair<Vertex, uint64_t> > out;
 
 	for(auto & u: children)
-		out.push_back({ u.first, u.second.get_visit_count() });
+		out.push_back({ u.get_causing_move(), u.get_visit_count() });
 
 	return out;
 }
