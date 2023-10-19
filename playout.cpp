@@ -72,9 +72,9 @@ std::tuple<double, double, int, std::optional<Vertex> > playout(const Board & in
 	bool first_is_pass = false;
 	std::optional<Vertex> first;
 
-	while(++mc < dim * dim * dim) {
-		size_t attempt_n = 0;
+	std::uniform_int_distribution<> rng_binary(0, 1);
 
+	while(++mc < dim * dim * dim) {
 		// did opponent pass?
 		if (pass[for_whom != board_t::B_BLACK]) {  // check if it is safe to stop
 			auto s = score(b, komi);
@@ -96,10 +96,12 @@ std::tuple<double, double, int, std::optional<Vertex> > playout(const Board & in
 			break;
 		}
 
+		size_t attempt_n = 0;
+
                 std::uniform_int_distribution<> rng(0, n_liberties - 1);
                 int o = rng(gen);
 
-		int d = rng(gen) & 1 ? 1 : -1;
+		int d = rng_binary(gen) ? 1 : -1;
 
 		int x = 0;
 		int y = 0;
