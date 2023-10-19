@@ -192,10 +192,12 @@ int main(int argc, char *argv[])
 
 	srand(time(nullptr));
 
-	Board   *b    = new Board(&z, dim);
+	Board   *b      = new Board(&z, dim);
 
-	board_t  p    = board_t::B_BLACK;
+	board_t  p      = board_t::B_BLACK;
 	
+	std::string sgf = init_sgf(b->getDim());
+
 	int      pass = 0;
 
 	double   komi = 0.;
@@ -244,6 +246,8 @@ int main(int argc, char *argv[])
 			delete b;
 			b = new Board(&z, atoi(parts.at(1).c_str()));
 
+			sgf = init_sgf(b->getDim());
+
 			send(false, "=%s", id.c_str());
 		}
 		else if (parts.at(0) == "clear_board") {
@@ -251,6 +255,8 @@ int main(int argc, char *argv[])
 
 			delete b;
 			b = new Board(&z, dim);
+
+			sgf = init_sgf(b->getDim());
 
 			seen.clear();
 
@@ -266,8 +272,11 @@ int main(int argc, char *argv[])
 
 			send(false, "=%s", id.c_str());
 
-			if (str_tolower(parts.at(2)) == "pass")
+			if (str_tolower(parts.at(2)) == "pass") {
 				pass++;
+
+				sgf += myformat(";%c[pass]", p == board_t::B_BLACK ? 'B' : 'W');
+			}
 			else {
 				Vertex v = t2v(parts.at(2), b->getDim());
 
@@ -279,12 +288,14 @@ int main(int argc, char *argv[])
 					send(true, "Opponent triggers KO");
 
 				pass = 0;
+
+				sgf += myformat(";%c[%s]", p == board_t::B_BLACK ? 'B' : 'W', v.to_str(true).c_str());
 			}
 
 			p = opponentColor(p);
 
 			send(true, "# %s", b->dumpFEN(p, pass).c_str());
-			send(true, "# %s", dump_to_sgf(*b, komi, true).c_str());
+			send(true, "# %s", (sgf + ")").c_str());
 		}
 		else if (parts.at(0) == "quit") {
 			send(false, "=%s", id.c_str());
@@ -301,6 +312,8 @@ int main(int argc, char *argv[])
 		}
 		else if (parts.at(0) == "komi") {
 			komi = atof(parts.at(1).c_str());
+
+			sgf += "KM[" + parts.at(1) + "]";
 
 			send(false, "=%s", id.c_str());  // TODO
 		}
@@ -390,6 +403,8 @@ int main(int argc, char *argv[])
 			if (n_liberties == 0 || pass_for_win_time || pass_for_win_pass) {
 				send(false, "=%s pass", id.c_str());
 
+				sgf += myformat(";%c[pass]", player == board_t::B_BLACK ? 'B' : 'W');
+
 				pass++;
 			}
 			else {
@@ -408,10 +423,14 @@ int main(int argc, char *argv[])
 				if (v.has_value()) {
 					send(false, "=%s %s", id.c_str(), v2t(v.value()).c_str());
 
+					sgf += myformat(";%c[%s]", p == board_t::B_BLACK ? 'B' : 'W', v.value().to_str(true).c_str());
+
 					pass = 0;
 				}
 				else {
 					send(false, "=%s pass", id.c_str());
+
+					sgf += myformat(";%c[pass]", player == board_t::B_BLACK ? 'B' : 'W');
 
 					pass++;
 				}
@@ -420,7 +439,7 @@ int main(int argc, char *argv[])
 			p = opponentColor(player);
 
 			send(true, "# %s", b->dumpFEN(p, pass).c_str());
-			send(true, "# %s", dump_to_sgf(*b, komi, true).c_str());
+			send(true, "# %s", (sgf + ")").c_str());
 		}
 		else {
 			send(false, "?");

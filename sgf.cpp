@@ -4,10 +4,15 @@
 #include "str.h"
 
 
+std::string init_sgf(const int dim)
+{
+        return "(;AP[DellaBaduck]SZ[" + myformat("%d", dim) + "]";
+}
+
 std::string dump_to_sgf(const Board & b, const double komi, const bool with_end)
 {
         int         dim = b.getDim();
-        std::string sgf = "(;AP[DellaBaduck]SZ[" + myformat("%d", dim) + "]";
+        std::string sgf = init_sgf(dim);
                         
         sgf += myformat(";KM[%f]", komi);
                 
