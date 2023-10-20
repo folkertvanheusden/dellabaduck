@@ -382,67 +382,92 @@ int main(int argc, char *argv[])
 
 			seen.insert(b->getHash());
 		}
-		else if (parts.at(0) == "genmove" || parts.at(0) == "reg_genmove") {
-			uint64_t start_ts = get_ts_ms();
-
+		else if (parts.at(0) == "genmove" || parts.at(0) == "reg_genmove" || parts.at(0) == "autoplay") {
 			board_t player = (parts.at(1) == "b" || parts.at(1) == "black") ? board_t::B_BLACK : board_t::B_WHITE;
 
-			double time_left = player == board_t::B_BLACK ? time_leftB : time_leftW;
+			do {
+				uint64_t start_ts = get_ts_ms();
 
-			auto   liberties   = b->findLiberties(player);
-			int    n_liberties = liberties.size();
+				std::optional<Vertex> selected_move;
 
-			int    n_liberties_opp = b->findLiberties(opponentColor(player)).size();
+				double time_left = player == board_t::B_BLACK ? time_leftB : time_leftW;
 
-			// at this stage of the development we should be happy with draw
-			// later change "current_score >= " to "... > "
+				auto   liberties   = b->findLiberties(player);
+				int    n_liberties = liberties.size();
 
-			auto   s = score(*b, komi);
-			double current_score     = player == board_t::B_BLACK ? s.first - s.second : s.second - s.first;
-			bool   pass_for_win_time = current_score >= 0 && time_left <= 0;  // we've won anyway
+				int    n_liberties_opp = b->findLiberties(opponentColor(player)).size();
 
-			bool   pass_for_win_pass = pass > 0 && current_score >= 0;
+				auto   s = score(*b, komi);
+				double current_score     = player == board_t::B_BLACK ? s.first - s.second : s.second - s.first;
+				bool   pass_for_win_time = current_score > 0 && time_left <= 0;  // we've won anyway
 
-			if (n_liberties == 0 || (n_liberties_opp == 0 && current_score >= 0) || pass_for_win_time || pass_for_win_pass) {
-				send(false, "=%s pass", id.c_str());
+				bool   pass_for_win_pass = pass > 0 && current_score >= 0;
 
-				sgf += myformat(";%c[pass]", player == board_t::B_BLACK ? 'B' : 'W');
-
-				pass++;
-			}
-			else {
-				double time_use = time_left / (std::max(n_liberties, moves_total) - moves_executed);
-
-				if (++moves_executed >= moves_total)
-					moves_total = (moves_total * 4) / 3;
-
-				send(true, "# use_time: %f", time_use);
-
-				uint64_t think_end_ts = start_ts + time_use * 1000;
-				auto     v            = gen_move(moves_executed, b, player, parts.at(0) == "genmove", think_end_ts, time_left, komi, nThreads, &seen);
-
-				time_left = -1.0;
-
-				if (v.has_value()) {
-					send(false, "=%s %s", id.c_str(), v2t(v.value()).c_str());
-
-					sgf += myformat(";%c[%s]", p == board_t::B_BLACK ? 'B' : 'W', v.value().to_str(true).c_str());
-
-					pass = 0;
-				}
-				else {
+				if (n_liberties == 0 || (n_liberties_opp == 0 && current_score >= 0) || pass_for_win_time || pass_for_win_pass) {
 					send(false, "=%s pass", id.c_str());
 
 					sgf += myformat(";%c[pass]", player == board_t::B_BLACK ? 'B' : 'W');
 
 					pass++;
 				}
+				else {
+					double time_use = time_left / (std::max(n_liberties, moves_total) - moves_executed);
+
+					if (++moves_executed >= moves_total)
+						moves_total = (moves_total * 4) / 3;
+
+					send(true, "# use_time: %f", time_use);
+
+					uint64_t think_end_ts = start_ts + time_use * 1000;
+					auto     v            = gen_move(moves_executed, b, player, parts.at(0) == "genmove", think_end_ts, time_left, komi, nThreads, &seen);
+
+					time_left = -1.0;
+
+					if (v.has_value()) {
+						send(false, "=%s %s", id.c_str(), v2t(v.value()).c_str());
+
+						sgf += myformat(";%c[%s]", player == board_t::B_BLACK ? 'B' : 'W', v.value().to_str(true).c_str());
+
+						selected_move = v;
+
+						pass = 0;
+					}
+					else {
+						send(false, "=%s pass", id.c_str());
+
+						sgf += myformat(";%c[pass]", player == board_t::B_BLACK ? 'B' : 'W');
+
+						pass++;
+					}
+				}
+
+				if (parts.at(0) == "autoplay") {
+					uint64_t end_ts = get_ts_ms();
+					int      took   = (end_ts - start_ts + 999) / 1000;
+
+					if (player == board_t::B_BLACK)
+						time_leftB -= took;
+					else
+						time_leftW -= took;
+
+					if (selected_move.has_value()) {
+						b->startMove();
+						b->putAt(selected_move.value(), player);
+						b->finishMove();
+
+						if (seen.insert(b->getHash()).second == false)
+							send(true, "Opponent triggers KO");
+					}
+				}
+
+				player = opponentColor(player);
+
+				send(true, "# %s", b->dumpFEN(player, pass).c_str());
+				send(true, "# %s", (sgf + ")").c_str());
 			}
+			while(parts.at(0) == "autoplay" && pass < 2);
 
-			p = opponentColor(player);
-
-			send(true, "# %s", b->dumpFEN(p, pass).c_str());
-			send(true, "# %s", (sgf + ")").c_str());
+			p = player;
 		}
 		else {
 			send(false, "?");
