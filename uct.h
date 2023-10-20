@@ -62,4 +62,4 @@ public:
 	double       get_score_count() const;
 };
 
-std::tuple<std::optional<Vertex>, uint64_t, uint64_t, std::vector<std::pair<Vertex, uint64_t> > > calculate_move(const Board & b, const board_t p, const uint64_t think_end_time, const double komi, const std::optional<uint64_t> n_limit, const std::unordered_set<uint64_t> & seen);
+std::tuple<std::optional<Vertex>, uint64_t, uint64_t, std::vector<std::tuple<Vertex, uint64_t, double> > > calculate_move(const Board & b, const board_t p, const uint64_t think_end_time, const uint64_t think_end_time_extra, const double komi, const std::optional<uint64_t> n_limit, const std::unordered_set<uint64_t> & seen);

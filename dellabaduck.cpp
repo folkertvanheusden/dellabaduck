@@ -69,7 +69,7 @@ std::tuple<Board *, board_t, int> stringToPosition(const std::string & in)
 	return { b, player, pass };
 }
 
-std::optional<Vertex> gen_move(const int move_nr, Board *const b, const board_t & p, const bool do_play, const uint64_t think_end_ts, const double time_left, const double komi, const int n_threads, std::unordered_set<uint64_t> *const seen)
+std::optional<Vertex> gen_move(const int move_nr, Board *const b, const board_t & p, const bool do_play, const uint64_t think_end_ts, const uint64_t think_end_ts_extra, const double time_left, const double komi, const int n_threads, std::unordered_set<uint64_t> *const seen)
 {
 	const int dim   = b->getDim();
 	const int dimsq = dim * dim;
@@ -86,16 +86,16 @@ std::optional<Vertex> gen_move(const int move_nr, Board *const b, const board_t 
 
 	for(int i=0; i<n_threads; i++) {
 		threads.push_back(new std::thread([&] {
-			auto rc = calculate_move(*b, p, think_end_ts, komi, { }, *seen);
+			auto rc = calculate_move(*b, p, think_end_ts, think_end_ts_extra, komi, { }, *seen);
 
 			auto & children = std::get<3>(rc);
 
 			std::unique_lock<std::mutex> lck(results_lock);
 
 			for(auto & child: children) {
-				results.at(child.first.getV()) += child.second;
+				results.at(std::get<0>(child).getV()) += std::get<1>(child);
 
-				n += child.second;
+				n += std::get<1>(child);
 			}
 		}));
 	}
@@ -411,15 +411,17 @@ int main(int argc, char *argv[])
 					pass++;
 				}
 				else {
-					double time_use = time_left / (std::max(n_liberties, moves_total) - moves_executed);
+					double time_use       = time_left / (std::max(n_liberties, moves_total) - moves_executed);
+					double time_use_extra = std::max(time_use * 1.5, time_left / double(n_liberties));
 
 					if (++moves_executed >= moves_total)
 						moves_total = (moves_total * 4) / 3;
 
 					send(true, "# use_time: %f", time_use);
 
-					uint64_t think_end_ts = start_ts + time_use * 1000;
-					auto     v            = gen_move(moves_executed, b, player, parts.at(0) == "genmove", think_end_ts, time_left, komi, nThreads, &seen);
+					uint64_t think_end_ts       = start_ts + time_use       * 1000;
+					uint64_t think_end_ts_extra = start_ts + time_use_extra * 1000;
+					auto     v            = gen_move(moves_executed, b, player, parts.at(0) == "genmove", think_end_ts, think_end_ts_extra, time_left, komi, nThreads, &seen);
 
 					time_left = -1.0;
 

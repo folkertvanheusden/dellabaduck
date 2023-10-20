@@ -585,7 +585,8 @@ void unit_tests()
 
 		// playout test
 		for(size_t i=0; i<n; i++) {
-			auto rc = calculate_move(a, board_t::B_BLACK, get_ts_ms() + 1000, 7.5, 4, seen);
+			uint64_t end_time = get_ts_ms() + 1000;
+			auto rc = calculate_move(a, board_t::B_BLACK, end_time, end_time + 100, 7.5, 4, seen);
 			assert(a.getHash() == compare_hash);
 			assert(seen.size() == n_seen);
 

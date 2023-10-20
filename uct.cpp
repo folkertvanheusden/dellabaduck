@@ -205,10 +205,10 @@ const uct_node *uct_node::best_child() const
 
 auto uct_node::get_children() const
 {
-	std::vector<std::pair<Vertex, uint64_t> > out;
+	std::vector<std::tuple<Vertex, uint64_t, double> > out;
 
 	for(auto & u: children)
-		out.push_back({ u.get_causing_move(), u.get_visit_count() });
+		out.push_back({ u.get_causing_move(), u.get_visit_count(), u.get_score_count() });
 
 	return out;
 }
@@ -276,7 +276,7 @@ const Vertex uct_node::get_causing_move() const
 	return causing_move.value();
 }
 
-std::tuple<std::optional<Vertex>, uint64_t, uint64_t, std::vector<std::pair<Vertex, uint64_t> > > calculate_move(const Board & b, const board_t p, const uint64_t think_end_time, const double komi, const std::optional<uint64_t> n_limit, const std::unordered_set<uint64_t> & seen)
+std::tuple<std::optional<Vertex>, uint64_t, uint64_t, std::vector<std::tuple<Vertex, uint64_t, double> > > calculate_move(const Board & b, const board_t p, const uint64_t think_end_time, const uint64_t think_end_time_extra, const double komi, const std::optional<uint64_t> n_limit, const std::unordered_set<uint64_t> & seen)
 {
 	Board    b_copy(b);
 
@@ -285,6 +285,9 @@ std::tuple<std::optional<Vertex>, uint64_t, uint64_t, std::vector<std::pair<Vert
 
 	uct_node root(nullptr, b_copy, p, { }, komi, seen_copy);
 
+	uint64_t use_think_end_time = think_end_time;
+	bool     extra_time_check   = false;
+
 	uint64_t  n_played = 0;
 
 	for(;;) {
@@ -292,7 +295,7 @@ std::tuple<std::optional<Vertex>, uint64_t, uint64_t, std::vector<std::pair<Vert
 
 		n_played++;
 
-		if (get_ts_ms() >= think_end_time || (n_limit.has_value() && n_played >= n_limit.value())) {
+		if (get_ts_ms() >= use_think_end_time || (n_limit.has_value() && n_played >= n_limit.value())) {
 			auto best_node      = root.best_child();
 
 			std::optional<Vertex> best_move;
@@ -312,7 +315,39 @@ std::tuple<std::optional<Vertex>, uint64_t, uint64_t, std::vector<std::pair<Vert
 
 			auto children = root.get_children();
 
+			std::string log1 = myformat("GREP1 [%zu/%s] ", size_t(best_count), best_move.has_value() ? best_move.value().to_str().c_str() : "-");
+			int count_best = 0;
+			uint64_t total = 0;
+			bool first = true;
+			for(auto & c: children) {
+				if (first)
+					first = false;
+				else
+					log1 += " ";
+
+				log1 += myformat("%zu", size_t(std::get<1>(c)));
+				total += std::get<1>(c);
+
+				count_best += std::get<1>(c) == best_count;
+			}
+
+			send(true, "# %s", log1.c_str());
+			send(true, "# GREP2 %f", total / double(children.size()));
+			send(true, "# GREP3/%d %d", extra_time_check, count_best);
+
 			// fprintf(stderr, "# n played/s: %.2f\n", n_played * 1000.0 / think_time);
+
+			if (extra_time_check == false) {
+				extra_time_check = true;
+
+				if (count_best > 1) {
+					use_think_end_time = think_end_time_extra;
+
+					send(true, "# using extra time (%zd)", think_end_time_extra - think_end_time);
+
+					continue;
+				}
+			}
 
 			return { best_move, n_played, best_count, children };
 		}
