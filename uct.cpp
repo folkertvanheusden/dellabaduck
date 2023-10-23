@@ -315,30 +315,13 @@ std::tuple<std::optional<Vertex>, uint64_t, uint64_t, std::vector<std::tuple<Ver
 
 			auto children = root.get_children();
 
-			std::string log1 = myformat("GREP1 [%zu/%s] ", size_t(best_count), best_move.has_value() ? best_move.value().to_str().c_str() : "-");
-			int count_best = 0;
-			uint64_t total = 0;
-			bool first = true;
-			for(auto & c: children) {
-				if (first)
-					first = false;
-				else
-					log1 += " ";
-
-				log1 += myformat("%zu", size_t(std::get<1>(c)));
-				total += std::get<1>(c);
-
-				count_best += std::get<1>(c) == best_count;
-			}
-
-			send(true, "# %s", log1.c_str());
-			send(true, "# GREP2 %f", total / double(children.size()));
-			send(true, "# GREP3/%d %d", extra_time_check, count_best);
-
-			// fprintf(stderr, "# n played/s: %.2f\n", n_played * 1000.0 / think_time);
-
 			if (extra_time_check == false) {
 				extra_time_check = true;
+
+				int  count_best = 0;
+
+				for(auto & c: children)
+					count_best += std::get<1>(c) == best_count;
 
 				if (count_best > 1) {
 					use_think_end_time = think_end_time_extra;
