@@ -149,7 +149,7 @@ uct_node *uct_node::best_uct()
 	double    best_score = -DBL_MAX;
 
 	for(auto & u : children) {
-		if (u.is_valid() == false)
+		if (u.is_valid() == false) [[unlikely]]
 			continue;
 
 		double current_score = u.get_score();
