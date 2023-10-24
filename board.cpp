@@ -256,7 +256,7 @@ void Board::updateField(const Vertex & v, const board_t bv)
 	const int y  = v.getY();
 	const int dimm1 = dim - 1;
 
-	if (x > 0) {
+	if (x > 0) [[likely]] {
 		Vertex  vt(place - 1, dim);
 		board_t bv = getAt(vt);
 
@@ -266,7 +266,7 @@ void Board::updateField(const Vertex & v, const board_t bv)
 			adjacentWhite.push_back(vt);
 	}
 
-	if (x < dimm1) {
+	if (x < dimm1) [[likely]] {
 		Vertex  vt(place + 1, dim);
 		board_t bv = getAt(vt);
 
@@ -276,7 +276,7 @@ void Board::updateField(const Vertex & v, const board_t bv)
 			adjacentWhite.push_back(vt);
 	}
 
-	if (y > 0) {
+	if (y > 0) [[likely]] {
 		Vertex  vt(place - dim, dim);
 		board_t bv = getAt(vt);
 
@@ -286,7 +286,7 @@ void Board::updateField(const Vertex & v, const board_t bv)
 			adjacentWhite.push_back(vt);
 	}
 
-	if (y < dimm1) {
+	if (y < dimm1) [[likely]] {
 		Vertex  vt(place + dim, dim);
 		board_t bv = getAt(vt);
 
@@ -342,7 +342,7 @@ void Board::updateField(const Vertex & v, const board_t bv)
 			chain     *old_c  = ch.first;
 			chain_nr_t old_nr = ch.second;  // get chain number of old chain
 
-			if (old_nr == target_nr)
+			if (old_nr == target_nr) [[unlikely]]
 				continue;
 
 			// add stones of the to-connect-chains to the target chain
