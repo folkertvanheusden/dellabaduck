@@ -278,14 +278,45 @@ const Vertex uct_node::get_causing_move() const
 	return causing_move.value();
 }
 
-std::tuple<std::optional<Vertex>, uint64_t, uint64_t, std::vector<std::tuple<Vertex, uint64_t, double> > > calculate_move(const Board & b, const board_t p, const uint64_t think_end_time, const uint64_t think_end_time_extra, const double komi, const std::optional<uint64_t> n_limit, const std::unordered_set<uint64_t> & seen)
+uct_node *uct_node::find_position(const Board & which)
+{
+	for(auto it=children.begin(); it!=children.end();) {
+		if ((*it)->get_position() == which) {
+			uct_node *out = *it;
+
+			out->reset_parent();
+
+			children.erase(it);
+
+			return out;
+		}
+
+		it++;
+	}
+
+	return nullptr;
+}
+
+std::tuple<std::optional<Vertex>, uint64_t, uint64_t, std::vector<std::tuple<Vertex, uint64_t, double> > > calculate_move(const Board & b, const board_t p, const uint64_t think_end_time, const uint64_t think_end_time_extra, const double komi, const std::optional<uint64_t> n_limit, const std::unordered_set<uint64_t> & seen, uct_node **const root)
 {
 	Board    b_copy(b);
 
 	std::unordered_set<uint64_t> seen_copy(seen);
 	seen_copy.insert(b_copy.getHash());  // TODO isvalid check?
 
-	uct_node root(nullptr, b_copy, p, { }, komi, seen_copy);
+	if (*root) {
+		uct_node *new_root = (*root)->find_position(b);
+
+		if (new_root)
+			send(true, "# Tree-hit");
+
+		delete *root;
+
+		*root = new_root;
+	}
+
+	if (*root == nullptr)
+		*root = new uct_node(nullptr, b_copy, p, { }, komi, seen_copy);
 
 	uint64_t use_think_end_time = think_end_time;
 	bool     extra_time_check   = false;
@@ -293,12 +324,12 @@ std::tuple<std::optional<Vertex>, uint64_t, uint64_t, std::vector<std::tuple<Ver
 	uint64_t  n_played = 0;
 
 	for(;;) {
-		root.monte_carlo_tree_search();
+		(*root)->monte_carlo_tree_search();
 
 		n_played++;
 
 		if (get_ts_ms() >= use_think_end_time || (n_limit.has_value() && n_played >= n_limit.value())) {
-			auto best_node      = root.best_child();
+			auto best_node      = (*root)->best_child();
 
 			std::optional<Vertex> best_move;
 			uint64_t best_count = 0;
@@ -313,9 +344,9 @@ std::tuple<std::optional<Vertex>, uint64_t, uint64_t, std::vector<std::tuple<Ver
 				assert(best_node->verify());
 			}
 
-			assert(root.verify());
+			assert((*root)->verify());
 
-			auto children = root.get_children();
+			auto children = (*root)->get_children();
 
 			if (extra_time_check == false) {
 				extra_time_check = true;

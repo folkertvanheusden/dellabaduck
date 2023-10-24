@@ -688,7 +688,7 @@ void Board::assign(const Board & in)
 }
 
 // this ignores undo history!
-bool Board::operator==(const Board & rhs)
+bool Board::operator==(const Board & rhs) const
 {
 	if (getHash() != rhs.getHash())
 		return false;
@@ -702,6 +702,11 @@ bool Board::operator==(const Board & rhs)
 	}
 
 	return true;
+}
+
+bool Board::operator==(const Board & rhs)
+{
+	return *const_cast<const Board *>(this) == rhs;
 }
 
 bool Board::operator!=(const Board & rhs)

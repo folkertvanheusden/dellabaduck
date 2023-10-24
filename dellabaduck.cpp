@@ -58,18 +58,18 @@ void benchmark(const Board & b, const board_t p, const double komi, const int du
 
 std::tuple<Board *, board_t, int> stringToPosition(const std::string & in)
 {
-	auto parts = split(in, " ");
+	auto    parts  = split(in, " ");
 
-	Board   *b      = new Board(&z, parts.at(0));
+	Board  *b      = new Board(&z, parts.at(0));
 
 	board_t player = parts.at(1) == "b" || parts.at(1) == "B" ? board_t::B_BLACK : board_t::B_WHITE;
 
-	int      pass   = atoi(parts.at(2).c_str());
+	int      pass  = atoi(parts.at(2).c_str());
 
 	return { b, player, pass };
 }
 
-std::optional<Vertex> gen_move(const int move_nr, Board *const b, const board_t & p, const bool do_play, const uint64_t think_end_ts, const uint64_t think_end_ts_extra, const double time_left, const double komi, const int n_threads, std::unordered_set<uint64_t> *const seen)
+std::optional<Vertex> gen_move(const int move_nr, Board *const b, const board_t & p, const bool do_play, const uint64_t think_end_ts, const uint64_t think_end_ts_extra, const double time_left, const double komi, const int n_threads, std::unordered_set<uint64_t> *const seen, uct_node **const root_node_in)
 {
 	const int dim   = b->getDim();
 	const int dimsq = dim * dim;
@@ -85,8 +85,15 @@ std::optional<Vertex> gen_move(const int move_nr, Board *const b, const board_t 
 	std::vector<std::thread *> threads;
 
 	for(int i=0; i<n_threads; i++) {
-		threads.push_back(new std::thread([&] {
-			auto rc = calculate_move(*b, p, think_end_ts, think_end_ts_extra, komi, { }, *seen);
+		threads.push_back(new std::thread([i, b, p, think_end_ts, think_end_ts_extra, komi, seen, &root_node_in, &results_lock, &results, &n] {
+			uct_node *root = i == 0 ? *root_node_in : nullptr;
+
+			auto rc = calculate_move(*b, p, think_end_ts, think_end_ts_extra, komi, { }, *seen, &root);
+
+			if (i)
+				delete root;
+			else
+				*root_node_in = root;
 
 			auto & children = std::get<3>(rc);
 
@@ -198,15 +205,17 @@ int main(int argc, char *argv[])
 	
 	std::string sgf = init_sgf(b->getDim());
 
-	int      pass = 0;
+	uct_node *root_node = nullptr;
 
-	double   komi = 0.;
+	int       pass = 0;
 
-	double   time_leftB = -1;
-	double   time_leftW = -1;
+	double    komi = 0.;
 
-	int      moves_executed = 0;
-	int      moves_total    = dim * dim;
+	double    time_leftB = -1;
+	double    time_leftW = -1;
+
+	int       moves_executed = 0;
+	int       moves_total    = dim * dim;
 
 	std::unordered_set<uint64_t> seen;
 
@@ -245,6 +254,10 @@ int main(int argc, char *argv[])
 		else if (parts.at(0) == "boardsize" && parts.size() == 2) {
 			delete b;
 			b = new Board(&z, atoi(parts.at(1).c_str()));
+			// TODO: init all variables (see clear_board)
+
+			delete root_node;
+			root_node = nullptr;
 
 			sgf = init_sgf(b->getDim());
 
@@ -255,6 +268,9 @@ int main(int argc, char *argv[])
 
 			delete b;
 			b = new Board(&z, dim);
+
+			delete root_node;
+			root_node = nullptr;
 
 			sgf = init_sgf(b->getDim());
 
@@ -278,6 +294,13 @@ int main(int argc, char *argv[])
 				sgf += myformat(";%c[pass]", p == board_t::B_BLACK ? 'B' : 'W');
 			}
 			else {
+				uct_node *new_node = root_node->find_position(*b);
+				delete root_node;
+				root_node = new_node;
+
+				if (new_node)
+					send(true, "# Tree hit");
+
 				Vertex v = t2v(parts.at(2), b->getDim());
 
 				b->startMove();
@@ -374,6 +397,7 @@ int main(int argc, char *argv[])
 		}
 		else if (parts.at(0) == "loadstr" && parts.size() == 4) {
 			delete b;
+			// TODO: init all variables (see clear_board)
 
 			auto new_position = stringToPosition(parts.at(1) + " " + parts.at(2) + " " + parts.at(3));
 			b    = std::get<0>(new_position);
@@ -421,7 +445,7 @@ int main(int argc, char *argv[])
 
 					uint64_t think_end_ts       = start_ts + time_use       * 1000;
 					uint64_t think_end_ts_extra = start_ts + time_use_extra * 1000;
-					auto     v            = gen_move(moves_executed, b, player, parts.at(0) == "genmove", think_end_ts, think_end_ts_extra, time_left, komi, nThreads, &seen);
+					auto     v = gen_move(moves_executed, b, player, parts.at(0) == "genmove", think_end_ts, think_end_ts_extra, time_left, komi, nThreads, &seen, &root_node);
 
 					time_left = -1.0;
 
@@ -481,6 +505,8 @@ int main(int argc, char *argv[])
 	}
 
 	delete b;
+
+	delete root_node;
 
 	closeLog();
 

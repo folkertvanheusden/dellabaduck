@@ -9,7 +9,7 @@
 class uct_node
 {
 private:
-	uct_node                 *const parent    { nullptr };
+	uct_node                       *parent    { nullptr };
 	Board                           position;
 	const board_t                   player;
 	const std::optional<Vertex>     causing_move;
@@ -36,6 +36,8 @@ private:
 	double    get_score();
 	double    playout(const uct_node *const leaf);
 
+	void      reset_parent() { parent = nullptr; }
+
 public:
 	uct_node(uct_node *const parent, Board & position, const board_t player, const std::optional<Vertex> & causing_move, const double komi, std::unordered_set<uint64_t> & seen_in);
 	virtual ~uct_node();
@@ -60,6 +62,8 @@ public:
 	void         update_stats(const uint64_t visited, const double score);
 	uint64_t     get_visit_count() const;
 	double       get_score_count() const;
+
+	uct_node    *find_position(const Board & which);
 };
 
-std::tuple<std::optional<Vertex>, uint64_t, uint64_t, std::vector<std::tuple<Vertex, uint64_t, double> > > calculate_move(const Board & b, const board_t p, const uint64_t think_end_time, const uint64_t think_end_time_extra, const double komi, const std::optional<uint64_t> n_limit, const std::unordered_set<uint64_t> & seen);
+std::tuple<std::optional<Vertex>, uint64_t, uint64_t, std::vector<std::tuple<Vertex, uint64_t, double> > > calculate_move(const Board & b, const board_t p, const uint64_t think_end_time, const uint64_t think_end_time_extra, const double komi, const std::optional<uint64_t> n_limit, const std::unordered_set<uint64_t> & seen, uct_node **const root);

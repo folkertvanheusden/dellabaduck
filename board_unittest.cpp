@@ -586,7 +586,8 @@ void unit_tests()
 		// playout test
 		for(size_t i=0; i<n; i++) {
 			uint64_t end_time = get_ts_ms() + 1000;
-			auto rc = calculate_move(a, board_t::B_BLACK, end_time, end_time + 100, 7.5, 4, seen);
+			uct_node *root = nullptr;
+			auto rc = calculate_move(a, board_t::B_BLACK, end_time, end_time + 100, 7.5, 4, seen, &root);
 			assert(a.getHash() == compare_hash);
 			assert(seen.size() == n_seen);
 
@@ -597,6 +598,7 @@ void unit_tests()
 			size_t idx = std::find(liberties.begin(), liberties.end(), move.value()) - liberties.begin();
 			send(true, "found %zu, limit %zu, %s", idx, n_seen, move.value().to_str().c_str());
 			assert(idx >= n_seen);
+			delete root;
 		}
 	}
 
