@@ -301,9 +301,6 @@ std::tuple<std::optional<Vertex>, uint64_t, uint64_t, std::vector<std::tuple<Ver
 {
 	Board    b_copy(b);
 
-	std::unordered_set<uint64_t> seen_copy(seen);
-	seen_copy.insert(b_copy.getHash());  // TODO isvalid check?
-
 	if (*root) {
 		uct_node *new_root = (*root)->find_position(b);
 
@@ -315,8 +312,12 @@ std::tuple<std::optional<Vertex>, uint64_t, uint64_t, std::vector<std::tuple<Ver
 		*root = new_root;
 	}
 
-	if (*root == nullptr)
+	if (*root == nullptr) {
+		std::unordered_set<uint64_t> seen_copy(seen);
+		seen_copy.insert(b_copy.getHash());  // TODO isvalid check?
+
 		*root = new uct_node(nullptr, b_copy, p, { }, komi, seen_copy);
+	}
 
 	uint64_t use_think_end_time = think_end_time;
 	bool     extra_time_check   = false;
