@@ -696,6 +696,7 @@ bool Board::operator==(const Board & rhs) const
 	if (dim != rhs.getDim())
 		return false;
 
+	// TODO replace by memcmp
 	for(int o=0; o<dim * dim; o++) {
 		if (getAt(o) != rhs.getAt(o))
 			return false;
