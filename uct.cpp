@@ -299,8 +299,6 @@ uct_node *uct_node::find_position(const Board & which)
 
 std::tuple<std::optional<Vertex>, uint64_t, uint64_t, std::vector<std::tuple<Vertex, uint64_t, double> > > calculate_move(const Board & b, const board_t p, const uint64_t think_end_time, const uint64_t think_end_time_extra, const double komi, const std::optional<uint64_t> n_limit, const std::unordered_set<uint64_t> & seen, uct_node **const root)
 {
-	Board    b_copy(b);
-
 	if (*root) {
 		uct_node *new_root = (*root)->find_position(b);
 
@@ -313,6 +311,8 @@ std::tuple<std::optional<Vertex>, uint64_t, uint64_t, std::vector<std::tuple<Ver
 	}
 
 	if (*root == nullptr) {
+		Board b_copy(b);
+
 		std::unordered_set<uint64_t> seen_copy(seen);
 		seen_copy.insert(b_copy.getHash());  // TODO isvalid check?
 
