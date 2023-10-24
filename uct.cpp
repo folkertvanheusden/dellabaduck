@@ -125,6 +125,8 @@ uct_node *uct_node::pick_unvisited()
 			std::shuffle(std::begin(unvisited), std::end(unvisited), rng);
 	}
 
+	// TODO: also 'pass'
+
 	if (unvisited.empty())
 		return nullptr;
 
