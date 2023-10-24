@@ -288,19 +288,19 @@ int main(int argc, char *argv[])
 
 			send(false, "=%s", id.c_str());
 
+			uct_node *new_node = root_node ? root_node->find_position(*b) : nullptr;
+			delete root_node;
+			root_node = new_node;
+
+			if (new_node)
+				send(true, "# Tree hit");
+
 			if (str_tolower(parts.at(2)) == "pass") {
 				pass++;
 
 				sgf += myformat(";%c[pass]", p == board_t::B_BLACK ? 'B' : 'W');
 			}
 			else {
-				uct_node *new_node = root_node ? root_node->find_position(*b) : nullptr;
-				delete root_node;
-				root_node = new_node;
-
-				if (new_node)
-					send(true, "# Tree hit");
-
 				Vertex v = t2v(parts.at(2), b->getDim());
 
 				b->startMove();
