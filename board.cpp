@@ -531,28 +531,28 @@ void Board::collectLiberties()
 
 			Vertex vo(o, dim);
 
-			if (x > 0) {
+			if (x > 0) [[likely]] {
 				auto ch = getChain(o - 1);
 
 				if (ch.first)
 					ch.first->addLiberty(vo);
 			}
 
-			if (x < dimm1) {
+			if (x < dimm1) [[likely]] {
 				auto ch = getChain(o + 1);
 
 				if (ch.first)
 					ch.first->addLiberty(vo);
 			}
 
-			if (y > 0) {
+			if (y > 0) [[likely]] {
 				auto ch = getChain(o - dim);
 
 				if (ch.first)
 					ch.first->addLiberty(vo);
 			}
 
-			if (y < dimm1) {
+			if (y < dimm1) [[likely]] {
 				auto ch = getChain(o + dim);
 
 				if (ch.first)
